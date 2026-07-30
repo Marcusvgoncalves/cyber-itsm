@@ -55,7 +55,7 @@ cyber-itsm/
 
 - [x] **FASE 1: Setup e Infraestrutura** — Criação do projeto Next.js, Tailwind v4 e shadcn/ui.
 - [x] **FASE 2: Autenticação e Banco** — Configuração do Supabase (schema SQL de profiles, tickets, comments, audit_logs), RLS baseada em RBAC (admin, analyst, requester), fluxos de Login e MFA (TOTP).
-- [ ] **FASE 3: Core do ITSM (Estilo Jira)** — Dashboard principal, Kanban, formulário de abertura mapeando frameworks e geração de chaves `SEC-XXXX`.
+- `[x]` **FASE 3: Core do ITSM (Estilo Jira)** — Dashboard principal, Kanban, formulário de abertura mapeando frameworks e geração de chaves `SEC-XXXX`.
 - [ ] **FASE 4: Colaboração e Anexos** — Comentários nos chamados, histórico de auditoria visível e uploads no Supabase Storage.
 - [ ] **FASE 5: Base de Conhecimento e APIs** — Base de artigos técnicos (KB) e API routes para integrações externas.
 - [ ] **FASE 6: Revisão de Segurança e Deploy** — npm audit no CI/CD, Headers de segurança e deploy.
@@ -109,7 +109,7 @@ cyber-itsm/
 
 - [x] **PHASE 1: Setup and Infrastructure** — Next.js project bootstrap, Tailwind CSS v4 setup, and shadcn/ui.
 - [x] **PHASE 2: Authentication and Database** — Supabase configuration (SQL schema for profiles, tickets, comments, audit_logs), RBAC and RLS policies (admin, analyst, requester roles), Login and MFA (TOTP) workflows.
-- [ ] **PHASE 3: Core ITSM (Jira-style)** — Main dashboard, Kanban board, framework-integrated ticket creation form, and auto-generated keys (`SEC-XXXX`).
+- `[x]` **PHASE 3: Core ITSM (Jira-style)** — Main dashboard, Kanban board, framework-integrated ticket creation form, and auto-generated keys (`SEC-XXXX`).
 - [ ] **PHASE 4: Collaboration and Attachments** — Comment section, visible audit logs, and uploads into Supabase Storage.
 - [ ] **PHASE 5: Knowledge Base & APIs** — Security articles database (KB) and API routes prepared for webhooks.
 - [ ] **PHASE 6: Security Audit & Deployment** — CI dependency scans, security headers configuration, and final deploy.
