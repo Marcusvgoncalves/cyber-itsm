@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Columns, List, Key, Shield, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Columns, List, Key, Shield, ChevronLeft, ChevronRight, Info, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 
 interface SidebarProps {
-  activeView: 'board' | 'list';
-  onViewChange: (view: 'board' | 'list') => void;
+  activeView: 'board' | 'list' | 'kb';
+  onViewChange: (view: 'board' | 'list' | 'kb') => void;
 }
 
 export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
@@ -65,6 +65,21 @@ export default function Sidebar({ activeView, onViewChange }: SidebarProps) {
           >
             <List className="w-4 h-4 flex-shrink-0" />
             {!collapsed && <span>Lista de Chamados</span>}
+          </button>
+
+          <button
+            onClick={() => onViewChange('kb')}
+            className={`w-full flex items-center ${
+              collapsed ? 'justify-center' : 'space-x-3 px-3'
+            } py-2 text-xs font-semibold rounded-lg transition-all ${
+              activeView === 'kb'
+                ? 'bg-slate-900 text-blue-400'
+                : 'text-slate-400 hover:bg-slate-900/40 hover:text-slate-200'
+            }`}
+            title="Base de Conhecimento"
+          >
+            <BookOpen className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>Base de Conhecimento</span>}
           </button>
 
           <Link
