@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CyberITSM - Desenho de Arquitetura C4 Interativo</title>
+  <title>CyberITSM - Desenho de Arquitetura C4 Enterprise</title>
   <link rel="stylesheet" href="/css/mistica.css">
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -17,6 +17,88 @@
     .back-btn {
       margin-bottom: 24px;
     }
+    .c4-system-boundary {
+      border: 2px dashed var(--color-primary);
+      padding: 20px;
+      border-radius: var(--border-radius-lg);
+      background-color: rgba(102, 0, 153, 0.02);
+      width: 100%;
+      margin: 12px 0;
+    }
+    .c4-boundary-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-primary);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+    .c4-row {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .c4-node {
+      width: 220px;
+      min-height: 110px;
+      padding: 14px;
+      border-radius: var(--border-radius-md);
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-tertiary);
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .c4-node:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 0, 153, 0.2);
+    }
+    .c4-node.primary {
+      background-color: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .c4-node.accent {
+      border-color: var(--color-accent);
+      background-color: rgba(255, 153, 0, 0.05);
+    }
+    .c4-node.external {
+      border-style: dotted;
+      border-color: var(--text-muted);
+      background-color: rgba(255, 255, 255, 0.01);
+    }
+    .c4-node-title {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .c4-node-tech {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+    .c4-node-desc {
+      font-size: 10px;
+      color: var(--text-secondary);
+      line-height: 1.3;
+    }
+    .c4-node.primary .c4-node-tech,
+    .c4-node.primary .c4-node-desc {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .c4-relation {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin: 8px 0;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -26,48 +108,121 @@
   
   <div class="workspace-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 30px;">
     <div class="workspace-title">
-      <h2>Desenho de Arquitetura C4 Interativo - CyberITSM</h2>
-      <p>Visualização em contêineres e componentes do rebuild da aplicação em Ruby Sinatra</p>
+      <h2>Desenho de Arquitetura C4 Enterprise - CyberITSM</h2>
+      <p>Mapeamento detalhado de contêineres, camadas internas (View/Controller/ORM) e microsserviços IAM externos simulados</p>
     </div>
   </div>
 
-  <div class="c4-diagram">
-    <div class="c4-interactive-canvas">
-      <!-- Analyst -->
-      <div class="c4-node primary" onclick="showC4Detail('analyst')">
-        <div class="c4-node-title">Pessoa: Analista / Arquiteto</div>
-        <div class="c4-node-tech">Usuário de Segurança</div>
-        <div class="c4-node-desc">Utiliza o dashboard para cadastrar ameaças e transicionar status.</div>
+  <div class="c4-diagram" style="padding: 30px; min-height: 700px; display: block; overflow-x: auto;">
+    <div class="c4-interactive-canvas" style="display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; min-width: 950px;">
+      
+      <!-- Level 1: User Person -->
+      <div class="c4-node primary" onclick="showC4Detail('analyst')" style="width: 250px; min-height: 80px;">
+        <div class="c4-node-title">Pessoa: Analista / Arquiteto SecOps</div>
+        <div class="c4-node-tech">Operador de Segurança</div>
+        <div class="c4-node-desc">Analisa vulnerabilidades, gerencia status no Kanban e solicita acessos IGA.</div>
       </div>
       
-      <div style="font-size: 20px; color: var(--text-muted);">⬇ Requisições HTTPS</div>
+      <div class="c4-relation">⬇ Abre chamados & gerencia acessos (HTTPS / REST)</div>
       
-      <!-- Boundary -->
-      <div class="c4-system-boundary" style="width: 100%; max-width: 700px;">
-        <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); width: 100%; text-align: left; margin-bottom: 12px;">CyberITSM - Sistema SecOps</div>
+      <!-- System Boundary (CyberITSM Application) -->
+      <div class="c4-system-boundary" style="max-width: 960px;">
+        <div class="c4-boundary-title">CyberITSM - Sistema SecOps (Rebuild em Ruby)</div>
         
-        <div class="c4-row" style="width: 100%;">
-          <div class="c4-node secondary" onclick="showC4Detail('frontend')" style="flex: 1; min-width: 200px;">
-            <div class="c4-node-title">Contêiner: Frontend SPA</div>
-            <div class="c4-node-tech">HTML5, Vanilla JS, Mistica CSS</div>
-            <div class="c4-node-desc">Interface baseada nos padrões Vivo Telefônica. Consome API REST do Sinatra.</div>
+        <!-- Frontend Container Boundary -->
+        <div class="c4-system-boundary" style="border-color: var(--color-accent); background-color: rgba(255, 153, 0, 0.01);">
+          <div class="c4-boundary-title" style="color: var(--color-accent);">Contêiner: Frontend SPA (Browser client)</div>
+          <div class="c4-row">
+            
+            <div class="c4-node accent" onclick="showC4Detail('fe_view')">
+              <div class="c4-node-title">Componente: UI View Layer</div>
+              <div class="c4-node-tech">HTML5, CSS3 (Mistica Brand)</div>
+              <div class="c4-node-desc">Exibe o quadro Kanban e os painéis de controle seguindo o padrão oficial da marca Vivo.</div>
+            </div>
+            
+            <div class="c4-node accent" onclick="showC4Detail('fe_controller')">
+              <div class="c4-node-title">Componente: DOM Controller</div>
+              <div class="c4-node-tech">JavaScript (app.js)</div>
+              <div class="c4-node-desc">Gerencia o estado no browser, drag-and-drop de cartões e atualizações assíncronas (Fetch API).</div>
+            </div>
+            
+          </div>
+        </div>
+
+        <div class="c4-relation">⬇ Comunicação REST API (JSON / HTTP)</div>
+
+        <!-- Backend Container Boundary -->
+        <div class="c4-system-boundary" style="border-color: #9b51e0; background-color: rgba(155, 81, 224, 0.01);">
+          <div class="c4-boundary-title" style="color: #9b51e0;">Contêiner: Backend Microservice (Ruby Sinatra API)</div>
+          
+          <div class="c4-row">
+            
+            <div class="c4-node" onclick="showC4Detail('be_router')" style="border-color: #9b51e0;">
+              <div class="c4-node-title">Componente: REST Router</div>
+              <div class="c4-node-tech">Sinatra Router & Controllers</div>
+              <div class="c4-node-desc">Expõe endpoints JSON (tickets, comments, statuses, iam). Aplica cabeçalhos de segurança OWASP.</div>
+            </div>
+            
+            <div class="c4-node" onclick="showC4Detail('be_orm')" style="border-color: #9b51e0;">
+              <div class="c4-node-title">Componente: ActiveRecord ORM</div>
+              <div class="c4-node-tech">ActiveRecord Model Layer</div>
+              <div class="c4-node-desc">Representa classes do negócio, valida dados e transições válidas de status de forma íntegra.</div>
+            </div>
+
+            <div class="c4-node" onclick="showC4Detail('be_iga')" style="border-color: #9b51e0;">
+              <div class="c4-node-title">Componente: Provisioning IGA</div>
+              <div class="c4-node-tech">Sailpoint Sync Adapters</div>
+              <div class="c4-node-desc">Processa fluxos de aprovação de acessos e provê ações de criação/bloqueio local.</div>
+            </div>
+            
+          </div>
+        </div>
+
+        <div class="c4-relation">⬇ Leitura & Escrita de Tabelas (ActiveRecord SQLite Connection)</div>
+
+        <!-- Database Container -->
+        <div class="c4-node" onclick="showC4Detail('database')" style="margin: 0 auto; width: 260px;">
+          <div class="c4-node-title">Contêiner: Banco de Dados SQLite3</div>
+          <div class="c4-node-tech">SQLite database engine</div>
+          <div class="c4-node-desc">Persiste tabelas de tickets, status, comentários, audit_logs imutáveis, provedores e usuários IAM.</div>
+        </div>
+
+      </div>
+
+      <div class="c4-relation">⬇ Integração de Conectores (HTTPS / REST de Simulação)</div>
+
+      <!-- External Simulated Identity Microservices Boundary -->
+      <div class="c4-system-boundary" style="border-color: var(--text-muted); background: none;">
+        <div class="c4-boundary-title" style="color: var(--text-secondary);">Provedores de Identidade Externos (Microsserviços Simulados)</div>
+        <div class="c4-row">
+          
+          <div class="c4-node external" onclick="showC4Detail('ext_entraid')">
+            <div class="c4-node-title">Microsserviço: Microsoft Entra ID</div>
+            <div class="c4-node-tech">Azure AD Cloud API</div>
+            <div class="c4-node-desc">Provedor corporativo OIDC. Fornece extração de identidades via escopo corporativo.</div>
           </div>
           
-          <div class="c4-node secondary" onclick="showC4Detail('backend')" style="flex: 1; min-width: 200px;">
-            <div class="c4-node-title">Contêiner: Backend API</div>
-            <div class="c4-node-tech">Ruby, Sinatra (Puma Server)</div>
-            <div class="c4-node-desc">Regras de transição de status, geração de logs imutáveis e conformidades de frameworks.</div>
+          <div class="c4-node external" onclick="showC4Detail('ext_keycloak')">
+            <div class="c4-node-title">Microsserviço: Keycloak Broker</div>
+            <div class="c4-node-tech">OAuth2 / OIDC Realm</div>
+            <div class="c4-node-desc">Gerenciador de federação de acesso e mapeamento direto para perfis RBAC.</div>
           </div>
-        </div>
-        
-        <div style="font-size: 18px; color: var(--text-muted); margin: 12px 0;">⬇ ORM (ActiveRecord)</div>
+          
+          <div class="c4-node external" onclick="showC4Detail('ext_oam')">
+            <div class="c4-node-title">Microsserviço: Oracle Access Manager</div>
+            <div class="c4-node-tech">OAM Gateway / WebGate</div>
+            <div class="c4-node-desc">Arquitetura de autenticação via injeção de cabeçalhos de gateway em redes legadas.</div>
+          </div>
 
-        <div class="c4-node secondary" onclick="showC4Detail('database')" style="width: 250px;">
-          <div class="c4-node-title">Contêiner: Banco de Dados</div>
-          <div class="c4-node-tech">SQLite3 Engine</div>
-          <div class="c4-node-desc">Persistência local e íntegra de tickets, status customizáveis e trilhas.</div>
+          <div class="c4-node external" onclick="showC4Detail('ext_sailpoint')">
+            <div class="c4-node-title">Sistema: Sailpoint IdentityNow</div>
+            <div class="c4-node-tech">IGA Governance Platform</div>
+            <div class="c4-node-desc">Orquestrador de governança, aprovações, provisionamento e auditorias de acessos.</div>
+          </div>
+          
         </div>
       </div>
+
     </div>
   </div>
 
@@ -78,11 +233,19 @@
     </div>
     <div class="c4-legend-item">
       <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid var(--color-accent);"></div>
-      <span>Contêiner Tecnológico</span>
+      <span>Contêiner / Componente Frontend</span>
+    </div>
+    <div class="c4-legend-item">
+      <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid #9b51e0;"></div>
+      <span>Componente Backend (Sinatra)</span>
+    </div>
+    <div class="c4-legend-item">
+      <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px dashed var(--text-muted);"></div>
+      <span>Provedores Externos Simulados</span>
     </div>
   </div>
 
-  <div id="c4-detail-panel" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--border-radius-md); font-size: 14px; margin-top: 20px; line-height: 1.6;">
+  <div id="c4-detail-panel" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--border-radius-md); font-size: 14px; margin-top: 20px; line-height: 1.6; max-width: 960px; margin: 20px auto;">
     <strong>Clique em qualquer componente acima</strong> para ver o detalhamento técnico e a atribuição de responsabilidades arquiteturais.
   </div>
 
@@ -93,32 +256,110 @@
       const panel = document.getElementById('c4-detail-panel');
       const details = {
         analyst: `
-          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Pessoa: Analista / Arquiteto de Segurança</h3>
-          <p><strong>Responsabilidade:</strong> Gerenciamento operacional e resposta rápida a incidentes e avaliações de arquitetura.</p>
-          <p style="margin-top: 6px; color: var(--text-secondary);">
-            O analista é o ponto central do ITSM. Ele interage com o quadro Kanban (estilo Jira) para arrastar chamados conforme eles passam pelas etapas de tratamento e resolução, garantindo que o status reflita a realidade regulatória.
-          </p>
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Pessoa: Analista / Arquiteto SecOps</h3>
+          <p><strong>Nível C4:</strong> Pessoa (Person)</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Operação diária do quadro de chamados e transições de status.</li>
+            <li>Cadastro manual de novos analistas de segurança no sistema local.</li>
+            <li>Abertura de solicitações de alteração de perfil RBAC e governança de acessos.</li>
+          </ul>
         `,
-        frontend: `
-          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Frontend SPA</h3>
-          <p><strong>Tecnologia:</strong> HTML5, Vanilla JavaScript, CSS customizado no padrão Mistica (Vivo Telefônica).</p>
-          <p style="margin-top: 6px; color: var(--text-secondary);">
-            A interface do usuário adota o design system oficial da Telefônica para a marca Vivo, utilizando a paleta roxa primary (#660099), laranja de realce e fontes customizadas. O JavaScript gerencia o estado da aplicação de forma dinâmica, permitindo reordenar status do Kanban e obter atualizações assíncronas do backend via requisições REST (Fetch API).
-          </p>
+        fe_view: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Componente: UI View Layer (Frontend)</h3>
+          <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> HTML5, CSS (Vivo Mistica tokens)</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Renderização fiel do Design System Mistica com paleta roxa Vivo (#660099), laranja de realce e fontes customizadas.</li>
+            <li>Exibição do Kanban, configurações do gerenciador de status e formulários de provisionamento IAM.</li>
+            <li>Isolamento de estilos e responsividade em múltiplos dispositivos.</li>
+          </ul>
         `,
-        backend: `
-          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Backend API</h3>
-          <p><strong>Tecnologia:</strong> Ruby, Sinatra Micro-framework, Puma Web Server.</p>
-          <p style="margin-top: 6px; color: var(--text-secondary);">
-            O backend Sinatra expõe rotas HTTP JSON para a manipulação dos chamados e dos status dinâmicos. Ele implementa middleware de segurança para injetar cabeçalhos estritos (OWASP mitigation) e garante que toda alteração em um ticket gere um log de auditoria imutável (Audit Trail).
-          </p>
+        fe_controller: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Componente: DOM Controller (Frontend)</h3>
+          <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> JavaScript (app.js)</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Gerenciamento de estado em tempo de execução no navegador.</li>
+            <li>Interceptação de eventos de drag-and-drop de chamados SecOps e reordenação de colunas.</li>
+            <li>Consumo assíncrono das rotas REST de API no backend (Fetch API) e atualização reativa do DOM.</li>
+          </ul>
+        `,
+        be_router: `
+          <h3 style="color: #9b51e0; margin-bottom: 8px;">Componente: REST Router & Controllers (Backend)</h3>
+          <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> Ruby / Sinatra</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Mapeamento de rotas HTTP JSON para CRUD de chamados, comentários, status e base IAM.</li>
+            <li>Middleware de cabeçalhos de segurança (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff) aprovados em DAST.</li>
+            <li>Intermediação e tratamento de payloads com resposta em formato padronizado JSON.</li>
+          </ul>
+        `,
+        be_orm: `
+          <h3 style="color: #9b51e0; margin-bottom: 8px;">Componente: ActiveRecord ORM Layer (Backend)</h3>
+          <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> Ruby / ActiveRecord Gem</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Mapeamento Objeto-Relacional (ORM) das tabelas relacionais do banco.</li>
+            <li>Definição de regras de validação (ex: limites de categoria de status, obrigatoriedade de campos).</li>
+            <li>Lógica relacional: transição segura em transação de banco de dados para evitar registros órfãos ao deletar status.</li>
+            <li>Hooks automáticos para geração de chaves SEC-XXXX e logs imutáveis de auditoria.</li>
+          </ul>
+        `,
+        be_iga: `
+          <h3 style="color: #9b51e0; margin-bottom: 8px;">Componente: Provisioning IGA (Backend)</h3>
+          <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> Ruby / Custom Sync Adapters</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Adaptadores de sincronização simulados para extrair identidades do provedor ativo.</li>
+            <li>Implementação da lógica de transação IGA do Sailpoint: requisição pendente, aprovação e provisionamento direto.</li>
+            <li>Processamento do provisionamento manual na base local.</li>
+          </ul>
         `,
         database: `
-          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Banco de Dados</h3>
-          <p><strong>Tecnologia:</strong> SQLite3 Engine (ActiveRecord ORM).</p>
-          <p style="margin-top: 6px; color: var(--text-secondary);">
-            O banco de dados SQLite armazena em arquivo todas as entidades. A modelagem através do ActiveRecord garante integridade referencial rígida: se um status contendo chamados for excluído pelo usuário, os chamados correspondentes são atualizados em transação para outro status válido, evitando dados órfãos.
-          </p>
+          <h3 style="color: var(--text-primary); margin-bottom: 8px;">Contêiner: Banco de Dados SQLite3</h3>
+          <p><strong>Nível C4:</strong> Contêiner (Container) | <strong>Tecnologia:</strong> SQLite Engine</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Armazenamento físico em arquivo local estruturado das identidades e chamados.</li>
+            <li>Execução de transações relacionais seguras e garantia de integridade com chaves estrangeiras.</li>
+          </ul>
+        `,
+        ext_entraid: `
+          <h3 style="color: var(--text-secondary); margin-bottom: 8px;">Microsserviço Externo: Microsoft Entra ID</h3>
+          <p><strong>Nível C4:</strong> Sistema Externo (External System) | <strong>Tecnologia:</strong> OIDC / Claims API</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Simulação de autenticação baseada em Claims e grupos organizacionais AD.</li>
+            <li>Oferece as identidades de teste da Ana e Bernardo EntraID para o mecanismo de sincronização.</li>
+          </ul>
+        `,
+        ext_keycloak: `
+          <h3 style="color: var(--text-secondary); margin-bottom: 8px;">Microsserviço Externo: Keycloak Broker</h3>
+          <p><strong>Nível C4:</strong> Sistema Externo (External System) | <strong>Tecnologia:</strong> OAuth2 / OIDC Realms</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Gerenciamento de Realms OIDC e chaves públicas de validação JWT.</li>
+            <li>Fornece usuários Kelly e Kevin Keycloak na simulação SecOps.</li>
+          </ul>
+        `,
+        ext_oam: `
+          <h3 style="color: var(--text-secondary); margin-bottom: 8px;">Microsserviço Externo: Oracle Access Manager (OAM)</h3>
+          <p><strong>Nível C4:</strong> Sistema Externo (External System) | <strong>Tecnologia:</strong> SAML / WebGate Header Auth</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Gateway de segurança corporativo que gerencia o fluxo de injeção de cabeçalhos de identificação de rede.</li>
+            <li>Fornece Oscar e Olivia OAM na simulação SecOps.</li>
+          </ul>
+        `,
+        ext_sailpoint: `
+          <h3 style="color: var(--text-secondary); margin-bottom: 8px;">Sistema Externo: Sailpoint IdentityNow</h3>
+          <p><strong>Nível C4:</strong> Sistema Externo (External System) | <strong>Tecnologia:</strong> IGA SCIM Platform</p>
+          <p><strong>Responsabilidades:</strong></p>
+          <ul style="margin-left: 20px; margin-top: 4px;">
+            <li>Estrutura de regras de governança global para provisionamento corporativo e revisões periódicas de perfil.</li>
+            <li>Fornece Sam e Sarah Sailpoint na simulação SecOps.</li>
+          </ul>
         `
       };
       

@@ -532,31 +532,73 @@ function showC4Detail(componentKey) {
   
   const details = {
     analyst: `
-      <h4>Pessoa: Analista / Arquiteto de Segurança</h4>
+      <h4 style="color: var(--color-accent);">Pessoa: Analista / Arquiteto SecOps</h4>
       <p style="margin-top: 6px; color: var(--text-secondary);">
-        O papel responsável pelo gerenciamento operacional de vulnerabilidades e conformidades de arquitetura. Utiliza o Kanban do CyberITSM para abrir chamados referenciando controles regulatórios (CIS, ISO, NIST, SABSA) e movimentar o fluxo operacional.
+        Usuário principal do sistema. Gerencia vulnerabilidades de segurança, transiciona status operacionais e realiza solicitações e aprovações de governança de acessos via fluxos IGA.
       </p>
     `,
-    frontend: `
-      <h4>Contêiner: Frontend SPA (HTML5/Vanilla JS/CSS)</h4>
+    fe_view: `
+      <h4 style="color: var(--color-accent);">Componente: UI View Layer (Frontend)</h4>
       <p style="margin-top: 6px; color: var(--text-secondary);">
-        Uma aplicação de página única que renderiza um layout responsivo seguindo o design system <strong>Mistica da Vivo Telefônica</strong>. Comunica-se de forma assíncrona com o backend via requisições REST JSON, oferecendo drag-and-drop no quadro Kanban e painéis de configuração interativa de status.
+        Interface SPA responsiva renderizada no browser seguindo o design system <strong>Mistica da Vivo Telefônica</strong> (roxo #660099, fontes Outfit, laranja de realce).
       </p>
     `,
-    backend: `
-      <h4>Contêiner: Backend API (Ruby / Sinatra)</h4>
+    fe_controller: `
+      <h4 style="color: var(--color-accent);">Componente: DOM Controller (Frontend)</h4>
       <p style="margin-top: 6px; color: var(--text-secondary);">
-        Serviço de API REST escrito em Ruby e rodando sobre o Puma Server. Valida o controle de concorrência e transições de status válidas, executa auditoria imutável gravando logs para cada ação e expõe mecanismos para testes automatizados. Mitiga riscos OWASP com cabeçalhos de segurança HTTP.
+        Controlador JavaScript executado no cliente (app.js). Gerencia o estado da aplicação local, drag-and-drop de chamados, e orquestra requisições Fetch API assíncronas para o backend.
+      </p>
+    `,
+    be_router: `
+      <h4 style="color: #9b51e0;">Componente: REST Router & Controllers (Backend)</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Serviço escrito em Ruby Sinatra que expõe endpoints REST JSON para chamados, status e IAM. Valida autenticidade e adiciona cabeçalhos rígidos contra OWASP Top 10 (CSP, X-Frame-Options, XSS Protection).
+      </p>
+    `,
+    be_orm: `
+      <h4 style="color: #9b51e0;">Componente: ActiveRecord ORM (Backend)</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Camada ActiveRecord conectada ao banco local SQLite3. Define validações e gatilhos de integridade referencial nas tabelas e chaves estrangeiras rígidas.
+      </p>
+    `,
+    be_iga: `
+      <h4 style="color: #9b51e0;">Componente: Provisioning IGA (Backend)</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Motor de simulação de adaptadores de governança e provisionamento integrado ao Sailpoint. Suporta fluxos de aprovação de perfil RBAC e provisionamento manual direto de usuários.
       </p>
     `,
     database: `
-      <h4>Contêiner: Banco de Dados (SQLite Engine)</h4>
+      <h4 style="color: var(--text-primary);">Contêiner: Banco de Dados SQLite3</h4>
       <p style="margin-top: 6px; color: var(--text-secondary);">
-        Banco de dados SQL em arquivo que armazena os esquemas relacionais das tabelas. Utiliza chaves estrangeiras rígidas para integridade referencial dos chamados e dos status customizáveis definidos pelo administrador.
+        Banco de dados local em arquivo que persiste os chamados SecOps, trilhas imutáveis de logs de auditoria, provedores IAM e base de identidades locais.
+      </p>
+    `,
+    ext_entraid: `
+      <h4 style="color: var(--text-secondary);">Microsserviço Externo: Microsoft Entra ID</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Provedor OIDC corporativo em nuvem. Fornece claims e escopos de segurança para o conector sincronizar e importar as identidades dos analistas corporativos.
+      </p>
+    `,
+    ext_keycloak: `
+      <h4 style="color: var(--text-secondary);">Microsserviço Externo: Keycloak Broker</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Broker OIDC/OAuth2 gerenciador de federações. Mapeia realms de autenticação e permite sincronizar perfis e credenciais de cliente configuradas.
+      </p>
+    `,
+    ext_oam: `
+      <h4 style="color: var(--text-secondary);">Microsserviço Externo: Oracle Access Manager</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Solução de Single Sign-On (SSO) legada baseada em cabeçalhos de identificação de rede de gateways (WebGate Remote User).
+      </p>
+    `,
+    ext_sailpoint: `
+      <h4 style="color: var(--text-secondary);">Sistema Externo: Sailpoint IdentityNow</h4>
+      <p style="margin-top: 6px; color: var(--text-secondary);">
+        Plataforma IGA que orquestra trilhas de auditoria, fluxos formais de aprovação de perfil RBAC e geração de ordens de provisionamento para conectores integrados.
       </p>
     `
   };
-
+  
   if (details[componentKey]) {
     detailPanel.innerHTML = details[componentKey];
   }
