@@ -1,39 +1,68 @@
-# CyberITSM 🛡️
+# CyberITSM SPN 🛡️
 
-**CyberITSM** is an IT Service Management (ITSM) system specialized in **Cybersecurity Architecture**. The project has been fully rebuilt using the **Ruby** language, offering a Jira-inspired agile Kanban board layout with status management, styled following **Telefonica Vivo's Mistica** design system.
+**CyberITSM SPN** é uma plataforma corporativa de IT Service Management (ITSM) especializada em **Arquitetura de Cibersegurança e Conformidade Regulatória**. O projeto foi reconstruído utilizando a linguagem **Ruby (Sinatra)**, oferecendo um quadro Kanban interativo estilo Jira para controle de atividades de mitigação de vulnerabilidades, seguindo a paleta de cores e tipografia clara do design system **Mistica da Vivo Telefônica**.
 
-*Português:* O **CyberITSM** é um sistema de Gerenciamento de Serviços de TI (ITSM) especializado em **Arquitetura de Cibersegurança**. Reconstruído inteiramente em **Ruby**, oferece um Kanban interativo estilo Jira para gestão de status de atividades, com a identidade visual **Mistica da Vivo Telefônica**.
+*English:* **CyberITSM SPN** is an enterprise IT Service Management (ITSM) ticketing and Kanban platform specialized in **Cybersecurity Architecture and Regulatory Compliance**. Fully rebuilt in **Ruby (Sinatra)**, it offers a Jira-inspired agile Kanban board styled with the clean, light theme of **Telefonica's Mistica** design system.
 
 ---
 
-## 🚀 Tecnologias Utilizadas / Tech Stack
+## 📐 Desenho de Arquitetura C4 (Nível 2 e Nível 3)
 
-- **Linguagem / Language**: [Ruby 3.3.x](https://www.ruby-lang.org/)
-- **Micro-framework**: [Sinatra](http://sinatrarb.com/) + [Puma Server](https://puma.io/)
-- **Banco de Dados / Database**: SQLite3 managed by [ActiveRecord ORM](https://guides.rubyonrails.org/active_record_basics.html)
-- **Aesthetics & UI**: Custom HTML5/Vanilla JS styled using **Telefonica's Mistica** token styles (Vivo branding)
-- **Testes / Testing**: [RSpec](https://rspec.info/) + [Rack::Test](https://github.com/rack/rack-test)
-- **Segurança / Security**: [Brakeman](https://brakemanscanner.org/) (SAST), [Bundler-Audit](https://github.com/rubysec/bundler-audit) (SCA), custom DAST (dynamic scanner)
+Abaixo está o mapeamento visual detalhado dos limites do sistema, contêineres internos e conexões com microsserviços e provedores externos (IAM / IGA):
+
+![CyberITSM SPN C4 Diagram](public/images/architecture.svg)
+
+### 🚀 Tecnologias Adotadas
+
+| Camada / Componente | Tecnologia | Ícone / Descrição |
+| :--- | :--- | :--- |
+| **Frontend UI** | HTML5 / CSS3 (Mistica Light Theme) | 🎨 Cores claras, tipografia Outfit e responsividade premium. |
+| **Frontend Logic** | JavaScript (ES6+ / Fetch API) | ⚡ Gerenciamento de estado local e drag-and-drop dinâmico de cards. |
+| **Backend API** | Ruby 3.3.x / Sinatra | 💎 Microserviço leve com roteamento REST, session tokens e CSP. |
+| **ActiveRecord ORM** | SQLite3 Driver | 🗄️ Relacionamentos e transações de banco de dados para segurança de dados. |
+| **Autenticação & MFA** | BCrypt & ROTP | 🔑 Criptografia salt-hash para senhas e suporte a OTP RFC 6238. |
+| **Testes Automatizados** | RSpec & Rack::Test | 🧪 Suite de 17 testes de integração de rotas e lógica. |
+| **Varredura de Segurança** | Brakeman, Audit, DAST | 🛡️ SAST, SCA e Pentest dinâmico ativo integrados. |
+
+---
+
+## 🔒 Jornada de Segurança & Políticas Aplicadas
+
+### 1. Complexidade de Senhas Obrigatória
+Todas as credenciais locais do sistema devem cumprir a política estrita de complexidade de senhas (12+ caracteres contendo maiúsculas, minúsculas, dígitos numéricos e símbolos especiais). Exemplo de senha seeded padrão:
+`CyberITSM@2026!Password`
+
+### 2. Fluxo de Autenticação com Sessão
+- Autenticação armazenada na sessão segura do servidor via cookie assinado do Sinatra.
+- Proteção automática com filtro `before '/api/*'` retornando `401 Unauthorized` se o cookie estiver ausente.
+
+### 3. Configuração de MFA Obrigatória no Primeiro Acesso
+- O MFA é exigido para todos os usuários cadastrados.
+- No primeiro login, caso o usuário não possua o MFA configurado (`mfa_setup_complete == false`), o sistema o redireciona automaticamente para um painel de Onboarding na tela de login (`login.html`), exibindo o QR Code gerado via URI TOTP para sincronização em dispositivos móveis (ex: Google Authenticator). A sessão só é liberada após a primeira validação do código de 6 dígitos.
+
+### 4. Controle de Acesso Baseado em Função (RBAC) para C4
+- Apenas usuários com a função **Admin** podem visualizar o Desenho de Arquitetura C4 interativo no menu lateral ou acessar a página `/architecture.html` (com redirecionamento automático para a raiz `/` no backend caso outro perfil tente acessar).
 
 ---
 
 ## ⚙️ Execução Local / Running Locally
 
-1. Certifique-se de possuir o Ruby 3.3+ com DevKit instalado.
-2. Instale as dependências:
+1. **Dependências**: Garanta que possui o Ruby 3.3+ com DevKit instalado.
+2. **Instalação das Gems**:
    ```powershell
    bundle install
    ```
-3. Execute as migrações do banco de dados (Development e Test):
+3. **Migrações e Seeds**: Execute as migrações nos ambientes de desenvolvimento e teste:
    ```powershell
    bundle exec rake db:migrate
    $env:RACK_ENV="test"; bundle exec rake db:migrate
    ```
-4. Inicie o servidor de desenvolvimento:
+4. **Inicie o Servidor**:
    ```powershell
    bundle exec ruby app.rb
    ```
-5. Acesse no seu navegador: `http://localhost:4567`
+5. **Acesso**: Abra `http://localhost:4567` no navegador (você será direcionado ao `/login.html`).
+   *Credenciais de teste padrão:* `joao.secops@telefonica.com` / `CyberITSM@2026!Password`
 
 ---
 
@@ -48,7 +77,7 @@ bundle exec rspec
 
 ## 🛡️ Pipeline de Segurança / Security Pipeline (SAST, DAST, SCA)
 
-O CyberITSM possui uma pipeline automatizada de validações de segurança em conformidade com as diretrizes SecOps:
+O CyberITSM SPN possui uma pipeline automatizada de validações de segurança em conformidade com as diretrizes SecOps:
 ```powershell
 ruby scripts/security_scan.rb
 ```
@@ -59,9 +88,14 @@ Este script executa:
 
 ---
 
-## 📐 Arquitetura C4 Interativa / C4 Diagram
+## ☁️ Publicação na Vercel / Deploy on Vercel
 
-O desenho de arquitetura C4 interativo está integrado na aplicação e pode ser acessado em:
-- Menu lateral da aplicação: **Arquitetura C4**
-- Acesso direto: `http://localhost:4567/architecture.html`
-- Permite clicar em cada contêiner e visualizar detalhadamente suas tecnologias e responsabilidades operacionais.
+O projeto está configurado para publicação serverless na Vercel utilizando o runtime de Ruby da comunidade (`vercel-ruby`).
+
+1. Instale a CLI do Vercel: `npm install -g vercel`
+2. Efetue login: `vercel login`
+3. Execute o deploy a partir da pasta raiz:
+   ```powershell
+   vercel
+   ```
+4. O arquivo `vercel.json` e o `config.ru` irão orquestrar a compilação do microserviço Sinatra e o roteamento das páginas estáticas do Mistica automáticamente.

@@ -221,14 +221,25 @@ RSpec.describe 'CyberITSM REST API' do
 
     describe 'Authentication & MFA API' do
       it 'validates credentials and logs in' do
-        # Seeded user marcus.goncalves@telefonica.com has password 'password123'
-        payload = { email: 'marcus.goncalves@telefonica.com', password: 'password123' }
+        # Seeded user marcus.goncalves@telefonica.com has password 'CyberITSM@2026!Password'
+        user = IamUser.find_by(email: 'marcus.goncalves@telefonica.com')
+        user.update!(mfa_enabled: true, mfa_setup_complete: true)
+
+        payload = { email: 'marcus.goncalves@telefonica.com', password: 'CyberITSM@2026!Password' }
         post '/api/auth/login', payload.to_json, json_headers
         expect(last_response.status).to eq(200)
         
         res = JSON.parse(last_response.body)
-        expect(res['token']).to start_with('session-')
-        expect(res['user']['name']).to eq('Marcus Gonçalves')
+        expect(res['mfa_required']).to be_truthy
+
+        # Now verify standard MFA code
+        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: '123456' }
+        post '/api/auth/mfa/verify', verify_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        verify_res = JSON.parse(last_response.body)
+        expect(verify_res['token']).to start_with('session-')
+        expect(verify_res['user']['name']).to eq('Marcus Gonçalves')
       end
 
       it 'returns 401 for invalid credentials' do
@@ -238,6 +249,9 @@ RSpec.describe 'CyberITSM REST API' do
       end
 
       it 'toggles and verifies MFA' do
+        user = IamUser.find_by(email: 'marcus.goncalves@telefonica.com')
+        user.update!(mfa_enabled: false, mfa_setup_complete: false)
+
         # Enable MFA
         toggle_payload = { email: 'marcus.goncalves@telefonica.com', enable: true }
         post '/api/auth/mfa/toggle', toggle_payload.to_json, json_headers
@@ -247,12 +261,12 @@ RSpec.describe 'CyberITSM REST API' do
         expect(res['mfa_enabled']).to be_truthy
         expect(res['secret']).not_to be_nil
 
-        # Verify login requires MFA now
-        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'password123' }
+        # Verify login requires MFA setup now
+        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'CyberITSM@2026!Password' }
         post '/api/auth/login', login_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
         login_res = JSON.parse(last_response.body)
-        expect(login_res['mfa_required']).to be_truthy
+        expect(login_res['mfa_setup_required']).to be_truthy
 
         # Verify code verify (sandbox fallback '123456')
         verify_payload = { email: 'marcus.goncalves@telefonica.com', code: '123456' }
@@ -261,6 +275,9 @@ RSpec.describe 'CyberITSM REST API' do
       end
 
       it 'handles forgot and reset password flow' do
+        user = IamUser.find_by(email: 'marcus.goncalves@telefonica.com')
+        user.update!(mfa_enabled: false, mfa_setup_complete: true)
+
         # Forgot password request
         forgot_payload = { email: 'marcus.goncalves@telefonica.com' }
         post '/api/auth/forgot_password', forgot_payload.to_json, json_headers
@@ -272,12 +289,12 @@ RSpec.describe 'CyberITSM REST API' do
         token = forgot_res['reset_url'].split('=').last
 
         # Reset password
-        reset_payload = { token: token, new_password: 'newpassword789' }
+        reset_payload = { token: token, new_password: 'CyberITSM@2026!NewPassword' }
         post '/api/auth/reset_password', reset_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
 
         # Login with new password
-        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'newpassword789' }
+        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'CyberITSM@2026!NewPassword' }
         post '/api/auth/login', login_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
       end

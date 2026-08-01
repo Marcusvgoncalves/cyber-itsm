@@ -72,6 +72,20 @@ class IamUser < ActiveRecord::Base
 
   validates :name, :email, :provider_type, presence: true
   validates :role, inclusion: { in: %w[Admin Analyst Requester Auditor] }
+  validate :password_complexity
+
+  private
+
+  def password_complexity
+    return if password.blank?
+    unless password.length >= 12 &&
+           password.match?(/[A-Z]/) &&
+           password.match?(/[a-z]/) &&
+           password.match?(/[0-9]/) &&
+           password.match?(/[^A-Za-z0-9]/)
+      errors.add :password, 'deve ter pelo menos 12 caracteres e conter letras maiúsculas, minúsculas, números e caracteres especiais'
+    end
+  end
 end
 
 class IdentityRequest < ActiveRecord::Base
@@ -94,6 +108,84 @@ def seed_default_statuses
     Status.create!(name: 'Em Revisão', position: 4, category: 'in_progress')
     Status.create!(name: 'Concluído', position: 5, category: 'done')
   end
+end
+
+# Seed default tickets if empty
+def seed_default_tickets
+  return unless Ticket.count.zero?
+  
+  backlog = Status.find_by(name: 'Backlog')
+  todo = Status.find_by(name: 'A Fazer')
+  in_progress = Status.find_by(name: 'Em Progresso')
+  review = Status.find_by(name: 'Em Revisão')
+  done = Status.find_by(name: 'Concluído')
+  
+  return unless backlog && todo && in_progress && review && done
+  
+  Ticket.create!(
+    title: 'Revisar Política de Senhas Locais (ISO 27001 A.8.20)',
+    description: 'Implementar a validação de complexidade com mínimo de 12 caracteres contendo letras maiúsculas, minúsculas, números e símbolos especiais.',
+    status_id: done.id,
+    priority: 'high',
+    framework_nist: 'Protect',
+    framework_cis: 'CIS Control 6',
+    framework_iso: 'A.5.15',
+    framework_sabsa: 'Component',
+    assignee_name: 'Marcus Gonçalves',
+    assignee_email: 'marcus.goncalves@telefonica.com'
+  )
+  
+  Ticket.create!(
+    title: 'Habilitar MFA TOTP para todos os Colaboradores (NIST PR.AA)',
+    description: 'Forçar o cadastro de MFA TOTP utilizando Google/Microsoft Authenticator e validar código na tela de login.',
+    status_id: in_progress.id,
+    priority: 'high',
+    framework_nist: 'Protect',
+    framework_cis: 'CIS Control 6',
+    framework_iso: 'A.5.15',
+    framework_sabsa: 'Logical',
+    assignee_name: 'João SecOps',
+    assignee_email: 'joao.secops@telefonica.com'
+  )
+
+  Ticket.create!(
+    title: 'Filtro de Prompt Injection no Pipeline de LLM (OWASP LLM01)',
+    description: 'Implementar análise semântica e limitação de caracteres no agente cognitivo para mitigar injeção indireta de instruções.',
+    status_id: todo.id,
+    priority: 'medium',
+    framework_nist: 'Detect',
+    framework_cis: 'CIS Control 13',
+    framework_iso: 'A.8.20',
+    framework_sabsa: 'Application',
+    assignee_name: 'Carlos Dev',
+    assignee_email: 'carlos.dev@telefonica.com'
+  )
+
+  Ticket.create!(
+    title: 'Sanitizar Parâmetros contra SQL Injection (OWASP TOP10 A03)',
+    description: 'Revisar consultas SQL brutas para garantir que todas as queries usem o ActiveRecord ORM parametrizado.',
+    status_id: done.id,
+    priority: 'high',
+    framework_nist: 'Protect',
+    framework_cis: 'CIS Control 3',
+    framework_iso: 'A.12.4',
+    framework_sabsa: 'Physical',
+    assignee_name: 'Beatriz Auditora',
+    assignee_email: 'beatriz.auditora@telefonica.com'
+  )
+
+  Ticket.create!(
+    title: 'Configurar HTTPS e CSP rígido na Vercel (ISO A.8.20)',
+    description: 'Definir cabeçalhos Content-Security-Policy e X-Frame-Options para impedir ataques de sequestro de clique.',
+    status_id: backlog.id,
+    priority: 'low',
+    framework_nist: 'Protect',
+    framework_cis: 'CIS Control 4',
+    framework_iso: 'A.12.6',
+    framework_sabsa: 'Conceptual',
+    assignee_name: 'Marcus Gonçalves',
+    assignee_email: 'marcus.goncalves@telefonica.com'
+  )
 end
 
 # Seed default IAM providers and users if empty
@@ -134,13 +226,13 @@ def seed_default_iam
   end
 
   if IamUser.count.zero?
-    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'keycloak', status: 'Ativo', password: 'password123')
-    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'entraid', status: 'Ativo', password: 'password123')
-    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'sailpoint', status: 'Ativo', password: 'password123')
-    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'oam', status: 'Ativo', password: 'password123')
+    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
+    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
+    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
+    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
   else
     IamUser.where(password_digest: nil).find_each do |user|
-      user.update!(password: 'password123')
+      user.update!(password: 'CyberITSM@2026!Password')
     end
   end
 end
@@ -149,6 +241,9 @@ end
 begin
   if ActiveRecord::Base.connection.table_exists?('statuses')
     seed_default_statuses
+  end
+  if ActiveRecord::Base.connection.table_exists?('tickets')
+    seed_default_tickets
   end
   if ActiveRecord::Base.connection.table_exists?('iam_providers')
     seed_default_iam
@@ -161,9 +256,18 @@ end
 
 before do
   # Redirect root or pages to login if not authenticated
-  if ['/', '/index.html', '/architecture.html'].include?(request.path_info)
+  if ['/', '/index.html'].include?(request.path_info)
     unless session[:user_id]
       redirect '/login.html'
+    end
+  elsif request.path_info == '/architecture.html'
+    unless session[:user_id]
+      redirect '/login.html'
+      return
+    end
+    user = IamUser.find_by(id: session[:user_id])
+    if !user || user.role != 'Admin'
+      redirect '/'
     end
   end
 end
@@ -489,7 +593,7 @@ post '/api/iam/users' do
     role: data['role'] || 'Requester',
     provider_type: 'local',
     status: 'Ativo',
-    password: data['password'].present? ? data['password'] : 'password123'
+    password: data['password'].present? ? data['password'] : 'CyberITSM@2026!Password'
   )
 
   if user.save
@@ -572,7 +676,7 @@ post '/api/iam/sync' do
     user.role = u[:role]
     user.provider_type = active_provider.provider_type
     user.status = 'Ativo'
-    user.password = 'password123' if user.new_record? || user.password_digest.blank?
+    user.password = 'CyberITSM@2026!Password' if user.new_record? || user.password_digest.blank?
     user.save!
     imported << user
   end
@@ -626,7 +730,7 @@ put '/api/iam/requests/:id/approve' do
     user.role = req.requested_role
     user.provider_type = 'sailpoint' # Governed by Sailpoint
     user.status = 'Ativo'
-    user.password = 'password123' if user.new_record? || user.password_digest.blank?
+    user.password = 'CyberITSM@2026!Password' if user.new_record? || user.password_digest.blank?
     user.save!
   end
 
@@ -635,7 +739,6 @@ end
 
 # --- Authentication and MFA API ---
 
-# User login (validates email & password, checks MFA)
 post '/api/auth/login' do
   data = JSON.parse(request.body.read) rescue {}
   email = data['email']
@@ -647,14 +750,32 @@ post '/api/auth/login' do
       return json_response({ error: 'Este usuário está bloqueado' }, 403)
     end
 
-    if user.mfa_enabled
-      json_response({ mfa_required: true, email: user.email })
-    else
-      session[:user_id] = user.id
-      json_response({ 
-        token: "session-#{SecureRandom.hex(16)}", 
-        user: { name: user.name, email: user.email, role: user.role } 
+    # MFA is mandatory for everyone. If not enabled, force enable it.
+    unless user.mfa_enabled
+      user.mfa_enabled = true
+      user.mfa_secret = ROTP::Base32.random
+      user.mfa_setup_complete = false
+      user.save!
+    end
+
+    if !user.mfa_setup_complete
+      # Force MFA configuration/onboarding on login
+      user.mfa_secret ||= ROTP::Base32.random
+      user.save!
+
+      totp = ROTP::TOTP.new(user.mfa_secret, issuer: "CyberITSM SPN")
+      provisioning_uri = totp.provisioning_uri(user.email)
+
+      json_response({
+        mfa_setup_required: true,
+        email: user.email,
+        secret: user.mfa_secret,
+        provisioning_uri: provisioning_uri,
+        qr_code_mock: "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=#{CGI.escape(provisioning_uri)}"
       })
+    else
+      # Standard MFA challenge
+      json_response({ mfa_required: true, email: user.email })
     end
   else
     json_response({ error: 'E-mail ou senha incorretos' }, 401)
@@ -672,6 +793,8 @@ post '/api/auth/mfa/verify' do
 
   totp = ROTP::TOTP.new(user.mfa_secret || "fallback-secret-key-itsm-spn")
   if code == '123456' || totp.verify(code, drift_behind: 30)
+    user.mfa_setup_complete = true
+    user.save!
     session[:user_id] = user.id
     json_response({ 
       token: "session-#{SecureRandom.hex(16)}", 
@@ -704,7 +827,7 @@ post '/api/auth/forgot_password' do
   data = JSON.parse(request.body.read) rescue {}
   email = data['email']
 
-  user = IamUser.find_by(email: email)
+  user = IamUser.find_by(email: email, provider_type: 'local')
   if user
     token = SecureRandom.hex(20)
     user.reset_token = token

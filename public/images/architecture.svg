@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="100%" height="100%" style="background-color: #FAF9FC; font-family: 'Outfit', sans-serif;">
+  <!-- Definitions for arrows -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#660099" />
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8E8EA8" />
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.1" />
+    </filter>
+  </defs>
+
+  <!-- Title Section -->
+  <text x="50" y="50" font-size="24" font-weight="800" fill="#660099">CyberITSM SPN - Desenho de Arquitetura C4</text>
+  <text x="50" y="75" font-size="12" fill="#6B6B84">Mapeamento detalhado de limites de sistema, conexões e fluxos de dados de segurança</text>
+
+  <!-- USER PERSONA -->
+  <g transform="translate(425, 40)" filter="url(#shadow)">
+    <rect width="150" height="90" rx="10" fill="#660099" />
+    <text x="75" y="30" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">Pessoa: Analista SPN</text>
+    <text x="75" y="50" font-size="9" fill="#F3E6FB" text-anchor="middle">[Operador de Segurança]</text>
+    <text x="75" y="70" font-size="9" fill="#FFFFFF" text-anchor="middle">Acessa painel &amp; opera Kanban</text>
+  </g>
+
+  <!-- Connection: User to Frontend -->
+  <path d="M 500 130 L 500 170" fill="none" stroke="#660099" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="510" y="150" font-size="10" fill="#6B6B84">HTTPS / Browser</text>
+
+  <!-- CYBERITSM SYSTEM BOUNDARY -->
+  <rect x="50" y="180" width="900" height="380" rx="16" fill="none" stroke="#660099" stroke-width="2" stroke-dasharray="6,6" />
+  <text x="70" y="210" font-size="14" font-weight="800" fill="#660099">CyberITSM SPN (Limite do Sistema)</text>
+
+  <!-- CONTAINER 1: FRONTEND SPA -->
+  <g transform="translate(100, 240)" filter="url(#shadow)">
+    <rect width="320" height="150" rx="12" fill="#FFFFFF" stroke="#E3E3EC" stroke-width="2" />
+    <text x="20" y="30" font-size="12" font-weight="700" fill="#222235">Contêiner: Frontend SPA</text>
+    <text x="20" y="50" font-size="10" fill="#9EA0B5">Tecnologias: HTML5, CSS (Mistica Light Theme), JS</text>
+    
+    <!-- Child Components inside Frontend -->
+    <rect x="15" y="70" width="135" height="60" rx="6" fill="#FAF9FC" stroke="#E3E3EC" />
+    <text x="82" y="90" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">UI View Layer</text>
+    <text x="82" y="110" font-size="8" fill="#6B6B84" text-anchor="middle">CSS Mistica Light Tokens</text>
+
+    <rect x="170" y="70" width="135" height="60" rx="6" fill="#FAF9FC" stroke="#E3E3EC" />
+    <text x="237" y="90" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">DOM Controller</text>
+    <text x="237" y="110" font-size="8" fill="#6B6B84" text-anchor="middle">app.js / Fetch API state</text>
+  </g>
+
+  <!-- CONTAINER 2: BACKEND API (Sinatra) -->
+  <g transform="translate(580, 240)" filter="url(#shadow)">
+    <rect width="320" height="150" rx="12" fill="#FFFFFF" stroke="#E3E3EC" stroke-width="2" />
+    <text x="20" y="30" font-size="12" font-weight="700" fill="#222235">Contêiner: Backend API</text>
+    <text x="20" y="50" font-size="10" fill="#9EA0B5">Tecnologias: Ruby, Sinatra microservice</text>
+    
+    <!-- Child Components inside Backend -->
+    <rect x="15" y="70" width="135" height="60" rx="6" fill="#FAF9FC" stroke="#E3E3EC" />
+    <text x="82" y="90" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">REST Router / Auth</text>
+    <text x="82" y="110" font-size="8" fill="#6B6B84" text-anchor="middle">Sinatra Sessions &amp; Filters</text>
+
+    <rect x="170" y="70" width="135" height="60" rx="6" fill="#FAF9FC" stroke="#E3E3EC" />
+    <text x="237" y="90" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">ActiveRecord ORM</text>
+    <text x="237" y="110" font-size="8" fill="#6B6B84" text-anchor="middle">Models &amp; Complexity rules</text>
+  </g>
+
+  <!-- Connection: Frontend to Backend API -->
+  <path d="M 420 315 L 570 315" fill="none" stroke="#660099" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow)" />
+  <text x="495" y="305" font-size="9" fill="#6B6B84" text-anchor="middle">REST / JSON (HTTPS)</text>
+
+  <!-- DATABASE -->
+  <g transform="translate(665, 450)" filter="url(#shadow)">
+    <rect width="150" height="80" rx="8" fill="#FFFFFF" stroke="#E3E3EC" stroke-width="2" />
+    <!-- Cylinder details -->
+    <path d="M 0 10 A 75 10 0 0 0 150 10 M 0 10 L 0 70 A 75 10 0 0 0 150 70 L 150 10" fill="none" stroke="#E3E3EC" stroke-width="2" />
+    <text x="75" y="35" font-size="12" font-weight="700" fill="#222235" text-anchor="middle">Base de Dados</text>
+    <text x="75" y="55" font-size="10" fill="#9EA0B5" text-anchor="middle">SQLite3 (Local)</text>
+  </g>
+
+  <!-- Connection: Backend to Database -->
+  <path d="M 740 390 L 740 440" fill="none" stroke="#660099" stroke-width="2" marker-end="url(#arrow)" />
+  <text x="750" y="420" font-size="9" fill="#6B6B84">ActiveRecord SQL</text>
+
+  <!-- EXTERNAL IDENTITY SYSTEMS -->
+  <rect x="50" y="600" width="900" height="130" rx="16" fill="none" stroke="#8E8EA8" stroke-width="1.5" stroke-dasharray="4,4" />
+  <text x="70" y="625" font-size="11" font-weight="700" fill="#8E8EA8">Sistemas de Identidades Externos (Simulados)</text>
+
+  <!-- Provider 1: EntraID -->
+  <g transform="translate(100, 645)" filter="url(#shadow)">
+    <rect width="180" height="60" rx="8" fill="#FFFFFF" stroke="#E3E3EC" />
+    <text x="90" y="25" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">Microsoft Entra ID</text>
+    <text x="90" y="45" font-size="8" fill="#6B6B84" text-anchor="middle">OIDC Claims API</text>
+  </g>
+
+  <!-- Provider 2: Keycloak -->
+  <g transform="translate(310, 645)" filter="url(#shadow)">
+    <rect width="180" height="60" rx="8" fill="#FFFFFF" stroke="#E3E3EC" />
+    <text x="90" y="25" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">Keycloak Broker</text>
+    <text x="90" y="45" font-size="8" fill="#6B6B84" text-anchor="middle">OAuth2 Authorization</text>
+  </g>
+
+  <!-- Provider 3: OAM -->
+  <g transform="translate(520, 645)" filter="url(#shadow)">
+    <rect width="180" height="60" rx="8" fill="#FFFFFF" stroke="#E3E3EC" />
+    <text x="90" y="25" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">Oracle Access Manager</text>
+    <text x="90" y="45" font-size="8" fill="#6B6B84" text-anchor="middle">Header Injection</text>
+  </g>
+
+  <!-- Provider 4: Sailpoint -->
+  <g transform="translate(730, 645)" filter="url(#shadow)">
+    <rect width="180" height="60" rx="8" fill="#FFFFFF" stroke="#E3E3EC" />
+    <text x="90" y="25" font-size="10" font-weight="700" fill="#222235" text-anchor="middle">Sailpoint IdentityNow</text>
+    <text x="90" y="45" font-size="8" fill="#6B6B84" text-anchor="middle">IGA SCIM Platform</text>
+  </g>
+
+  <!-- Connections: Backend API to External Systems -->
+  <path d="M 620 390 L 620 570 L 200 570 L 200 635" fill="none" stroke="#8E8EA8" stroke-width="1.5" marker-end="url(#arrow-gray)" />
+  <path d="M 400 570 L 400 635" fill="none" stroke="#8E8EA8" stroke-width="1.5" marker-end="url(#arrow-gray)" />
+  <path d="M 600 570 L 600 635" fill="none" stroke="#8E8EA8" stroke-width="1.5" marker-end="url(#arrow-gray)" />
+  <path d="M 800 570 L 800 635" fill="none" stroke="#8E8EA8" stroke-width="1.5" marker-end="url(#arrow-gray)" />
+  <text x="210" y="585" font-size="8" fill="#6B6B84">Identity Sync / Governance Engine</text>
+
+  <!-- LEGEND -->
+  <g transform="translate(50, 450)" font-size="9">
+    <rect width="260" height="80" rx="6" fill="#FAF9FC" stroke="#E3E3EC" />
+    <text x="15" y="20" font-weight="700" fill="#222235">Legenda / Convenções C4</text>
+    <rect x="15" y="32" width="12" height="12" fill="#660099" rx="2" />
+    <text x="35" y="42" fill="#6B6B84">Fronteira interna do sistema SPN</text>
+    <rect x="15" y="52" width="12" height="12" fill="#FFFFFF" stroke="#E3E3EC" stroke-width="1.5" rx="2" />
+    <text x="35" y="62" fill="#6B6B84">Componentes / Contêineres de dados</text>
+  </g>
+</svg>

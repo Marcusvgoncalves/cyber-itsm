@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_000003) do
   create_table "audit_logs", force: :cascade do |t|
     t.string "action", null: false
     t.string "author"
@@ -46,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_000002) do
     t.string "email", null: false
     t.boolean "mfa_enabled", default: false
     t.string "mfa_secret"
+    t.boolean "mfa_setup_complete", default: false
     t.string "name", null: false
     t.string "password_digest"
     t.string "provider_type", null: false

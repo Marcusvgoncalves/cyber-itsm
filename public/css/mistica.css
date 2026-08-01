@@ -7,14 +7,14 @@
   --color-primary-light: #F3E6FB;
   --color-accent: #FF9900;           /* Vivo Orange */
   
-  /* Dark Mode Palette (Mistica Navy Dark) */
-  --bg-primary: #0F0F1A;
-  --bg-secondary: #161625;
-  --bg-tertiary: #1E1E2F;
-  --border-color: #2D2D44;
-  --text-primary: #FFFFFF;
-  --text-secondary: #8E8EA8;
-  --text-muted: #64647D;
+  /* Light Mode Palette (Mistica Light Vivo Style) */
+  --bg-primary: #F4F4F6;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #FAF9FC;
+  --border-color: #E3E3EC;
+  --text-primary: #222235;
+  --text-secondary: #6B6B84;
+  --text-muted: #9EA0B5;
   
   /* Status Colors */
   --color-todo: #00A3C4;

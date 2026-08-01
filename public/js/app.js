@@ -16,6 +16,12 @@ function switchView(viewName) {
   // Deactivate all sidebar items
   document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
   
+  // Role-based view guards
+  if (viewName === 'c4' && (!currentUser || currentUser.role !== 'Admin')) {
+    switchView('board');
+    return;
+  }
+
   // Show selected view
   if (viewName === 'board') {
     document.getElementById('view-board').style.display = 'flex';
@@ -1114,6 +1120,13 @@ async function checkSession() {
       document.getElementById('btn-security-settings').style.display = 'inline-flex';
       document.getElementById('btn-logout').style.display = 'inline-flex';
       
+      // Control C4 architecture access on sidebar
+      if (currentUser.role === 'Admin') {
+        document.getElementById('menu-c4').style.display = 'inline-flex';
+      } else {
+        document.getElementById('menu-c4').style.display = 'none';
+      }
+
       fetchBoardData();
     } else {
       window.location.href = '/login.html';
