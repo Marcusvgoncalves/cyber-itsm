@@ -266,7 +266,7 @@ RSpec.describe 'CyberITSM REST API' do
         post '/api/auth/forgot_password', forgot_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
         forgot_res = JSON.parse(last_response.body)
-        expect(forgot_res['reset_url']).to include('/reset_password?token=')
+        expect(forgot_res['reset_url']).to include('/login.html?token=')
 
         # Extract token
         token = forgot_res['reset_url'].split('=').last

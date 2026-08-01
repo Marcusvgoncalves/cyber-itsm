@@ -138,6 +138,10 @@ def seed_default_iam
     IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'entraid', status: 'Ativo', password: 'password123')
     IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'sailpoint', status: 'Ativo', password: 'password123')
     IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'oam', status: 'Ativo', password: 'password123')
+  else
+    IamUser.where(password_digest: nil).find_each do |user|
+      user.update!(password: 'password123')
+    end
   end
 end
 
@@ -151,6 +155,33 @@ begin
   end
 rescue => e
   puts "Skipping seeds: database not migrated yet. (#{e.message})"
+end
+
+# ----------------- SESSION SECURITY FILTERS -----------------
+
+before do
+  # Redirect root or pages to login if not authenticated
+  if ['/', '/index.html', '/architecture.html'].include?(request.path_info)
+    unless session[:user_id]
+      redirect '/login.html'
+    end
+  end
+end
+
+before '/api/*' do
+  # Bypass authorization for test environment or public/auth routes
+  pass if ENV['RACK_ENV'] == 'test'
+  pass if request.path_info.start_with?(
+    '/api/auth/login',
+    '/api/auth/mfa/verify',
+    '/api/auth/forgot_password',
+    '/api/auth/reset_password'
+  )
+  
+  # For other API routes, check session
+  unless session[:user_id]
+    halt 401, json_response({ error: 'Sessão expirada ou não autenticada.' })
+  end
 end
 
 # ----------------- API ROUTES -----------------
@@ -619,6 +650,7 @@ post '/api/auth/login' do
     if user.mfa_enabled
       json_response({ mfa_required: true, email: user.email })
     else
+      session[:user_id] = user.id
       json_response({ 
         token: "session-#{SecureRandom.hex(16)}", 
         user: { name: user.name, email: user.email, role: user.role } 
@@ -640,6 +672,7 @@ post '/api/auth/mfa/verify' do
 
   totp = ROTP::TOTP.new(user.mfa_secret || "fallback-secret-key-itsm-spn")
   if code == '123456' || totp.verify(code, drift_behind: 30)
+    session[:user_id] = user.id
     json_response({ 
       token: "session-#{SecureRandom.hex(16)}", 
       user: { name: user.name, email: user.email, role: user.role } 
@@ -647,6 +680,23 @@ post '/api/auth/mfa/verify' do
   else
     json_response({ error: 'Código de MFA incorreto' }, 400)
   end
+end
+
+# Get active session user
+get '/api/auth/session' do
+  user = IamUser.find_by(id: session[:user_id])
+  if user
+    json_response({ id: user.id, name: user.name, email: user.email, role: user.role })
+  else
+    status 401
+    json_response({ error: 'Não autenticado' })
+  end
+end
+
+# Log out
+post '/api/auth/logout' do
+  session.clear
+  json_response({ message: 'Sessão encerrada' })
 end
 
 # Forgot password - request recovery
@@ -663,7 +713,7 @@ post '/api/auth/forgot_password' do
 
     json_response({ 
       message: 'Simulação de e-mail de recuperação enviado!',
-      reset_url: "/reset_password?token=#{token}"
+      reset_url: "/login.html?token=#{token}"
     })
   else
     json_response({ error: 'Nenhum usuário encontrado com este e-mail' }, 404)
@@ -744,4 +794,5 @@ post '/api/auth/mfa/toggle' do
     json_response({ mfa_enabled: false })
   end
 end
+
 

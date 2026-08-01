@@ -1101,228 +1101,37 @@ function showToast(message, type = 'success') {
 
 let currentUser = null;
 
-function checkSession() {
-  const token = localStorage.getItem('cyber_session_token');
-  const userStr = localStorage.getItem('cyber_session_user');
-  
-  if (token && userStr) {
-    try {
-      currentUser = JSON.parse(userStr);
-      if (!currentUser || !currentUser.email) {
-        throw new Error('Invalid user object');
-      }
-    } catch (e) {
-      localStorage.removeItem('cyber_session_token');
-      localStorage.removeItem('cyber_session_user');
-      checkSession();
-      return;
-    }
-    
-    // Hide auth screen
-    document.getElementById('auth-container').style.display = 'none';
-    
-    // Show topbar details
-    document.getElementById('logged-user-info').style.display = 'flex';
-    document.getElementById('logged-user-name').textContent = currentUser.name;
-    document.getElementById('logged-user-role').textContent = currentUser.role;
-    document.getElementById('btn-security-settings').style.display = 'inline-flex';
-    document.getElementById('btn-logout').style.display = 'inline-flex';
-    
-    // Check url for simulated password reset parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get('token');
-    if (resetToken) {
-      window.history.replaceState({}, document.title, "/");
-      document.getElementById('auth-container').style.display = 'flex';
-      showAuthPanel('reset');
-      document.getElementById('reset-token').value = resetToken;
-      return;
-    }
-    
-    fetchBoardData();
-  } else {
-    document.getElementById('auth-container').style.display = 'flex';
-    showAuthPanel('login');
-    
-    document.getElementById('logged-user-info').style.display = 'none';
-    document.getElementById('btn-security-settings').style.display = 'none';
-    document.getElementById('btn-logout').style.display = 'none';
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const resetToken = urlParams.get('token');
-    if (resetToken) {
-      window.history.replaceState({}, document.title, "/");
-      showAuthPanel('reset');
-      document.getElementById('reset-token').value = resetToken;
-    }
-  }
-}
-
-function showAuthPanel(panelName) {
-  document.getElementById('auth-panel-login').style.display = 'none';
-  document.getElementById('auth-panel-mfa').style.display = 'none';
-  document.getElementById('auth-panel-forgot').style.display = 'none';
-  document.getElementById('auth-panel-reset').style.display = 'none';
-  
-  if (panelName === 'login') {
-    document.getElementById('auth-panel-login').style.display = 'flex';
-  } else if (panelName === 'mfa') {
-    document.getElementById('auth-panel-mfa').style.display = 'flex';
-    document.getElementById('mfa-code').value = '';
-    document.getElementById('mfa-code').focus();
-  } else if (panelName === 'forgot') {
-    document.getElementById('auth-panel-forgot').style.display = 'flex';
-    document.getElementById('forgot-email').value = '';
-  } else if (panelName === 'reset') {
-    document.getElementById('auth-panel-reset').style.display = 'flex';
-    document.getElementById('reset-new-password').value = '';
-  }
-}
-
-let mfaPendingEmail = null;
-
-async function submitLogin() {
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
-
-  if (!email || !password) {
-    showToast('Preencha seu e-mail e sua senha.', 'error');
-    return;
-  }
-
+async function checkSession() {
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await res.json();
-
+    const res = await fetch('/api/auth/session');
     if (res.ok) {
-      if (data.mfa_required) {
-        mfaPendingEmail = data.email;
-        showAuthPanel('mfa');
-        showToast('MFA Requerido! Digite o código de autenticação.', 'error');
-      } else {
-        storeSession(data.token, data.user);
-        showToast(`Bem-vindo, ${data.user.name}!`, 'success');
-      }
+      currentUser = await res.json();
+      
+      // Show topbar details
+      document.getElementById('logged-user-info').style.display = 'flex';
+      document.getElementById('logged-user-name').textContent = currentUser.name;
+      document.getElementById('logged-user-role').textContent = currentUser.role;
+      document.getElementById('btn-security-settings').style.display = 'inline-flex';
+      document.getElementById('btn-logout').style.display = 'inline-flex';
+      
+      fetchBoardData();
     } else {
-      showToast(data.error || 'Credenciais inválidas', 'error');
+      window.location.href = '/login.html';
     }
   } catch (err) {
-    console.error(err);
-    showToast('Falha na conexão com o servidor.', 'error');
+    console.error('Erro na validação de sessão:', err);
+    window.location.href = '/login.html';
   }
 }
 
-async function submitMfaVerify() {
-  const code = document.getElementById('mfa-code').value;
-
-  if (!code || code.length !== 6) {
-    showToast('Código de MFA deve ter 6 dígitos.', 'error');
-    return;
-  }
-
+async function performLogout() {
   try {
-    const res = await fetch('/api/auth/mfa/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: mfaPendingEmail, code })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      storeSession(data.token, data.user);
-      showToast(`MFA verificado! Bem-vindo, ${data.user.name}!`, 'success');
-    } else {
-      showToast(data.error || 'Código incorreto', 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('Erro ao validar MFA.', 'error');
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) {
+    console.error(e);
   }
-}
-
-async function submitForgotPassword() {
-  const email = document.getElementById('forgot-email').value;
-
-  if (!email) {
-    showToast('Digite seu e-mail.', 'error');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/auth/forgot_password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      showToast('E-mail de recuperação enviado (Simulado)!', 'success');
-      const banner = document.getElementById('sandbox-notification');
-      banner.style.display = 'block';
-      banner.innerHTML = `
-        <strong>Simulação Sandbox de E-mail de Recuperação:</strong><br>
-        Link enviado. <a href="${data.reset_url}" style="color: var(--color-accent); font-weight: 700; text-decoration: underline;">Clique aqui para Redefinir a Senha</a>
-      `;
-    } else {
-      showToast(data.error || 'Erro na solicitação', 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('Erro ao solicitar redefinição.', 'error');
-  }
-}
-
-async function submitResetPassword() {
-  const token = document.getElementById('reset-token').value;
-  const newPassword = document.getElementById('reset-new-password').value;
-
-  if (!newPassword || newPassword.length < 6) {
-    showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/auth/reset_password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, new_password: newPassword })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      showToast('Senha redefinida com sucesso!', 'success');
-      document.getElementById('sandbox-notification').style.display = 'none';
-      showAuthPanel('login');
-    } else {
-      showToast(data.error || 'Erro ao redefinir', 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showToast('Erro ao redefinir a senha.', 'error');
-  }
-}
-
-function storeSession(token, user) {
-  localStorage.setItem('cyber_session_token', token);
-  localStorage.setItem('cyber_session_user', JSON.stringify(user));
-  checkSession();
-}
-
-function performLogout() {
-  localStorage.removeItem('cyber_session_token');
-  localStorage.removeItem('cyber_session_user');
   currentUser = null;
-  checkSession();
-  showToast('Você saiu do sistema.', 'info');
+  window.location.href = '/login.html';
 }
 
 // --- Security settings modal management ---
@@ -1426,6 +1235,3 @@ function copyMfaSecret() {
   document.execCommand('copy');
   showToast('Chave secreta copiada!', 'info');
 }
-
-
-
