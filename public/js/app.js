@@ -1106,7 +1106,17 @@ function checkSession() {
   const userStr = localStorage.getItem('cyber_session_user');
   
   if (token && userStr) {
-    currentUser = JSON.parse(userStr);
+    try {
+      currentUser = JSON.parse(userStr);
+      if (!currentUser || !currentUser.email) {
+        throw new Error('Invalid user object');
+      }
+    } catch (e) {
+      localStorage.removeItem('cyber_session_token');
+      localStorage.removeItem('cyber_session_user');
+      checkSession();
+      return;
+    }
     
     // Hide auth screen
     document.getElementById('auth-container').style.display = 'none';
