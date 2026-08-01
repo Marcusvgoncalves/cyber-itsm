@@ -5,7 +5,7 @@ let selectedTicketId = null;
 
 // On load
 document.addEventListener('DOMContentLoaded', () => {
-  fetchBoardData();
+  checkSession();
   lucide.createIcons();
 });
 
@@ -1010,9 +1010,10 @@ async function submitCreateUserManual() {
   const name = document.getElementById('manual-user-name').value;
   const email = document.getElementById('manual-user-email').value;
   const role = document.getElementById('manual-user-role').value;
+  const password = document.getElementById('manual-user-password').value;
 
   if (!name || !email) {
-    alert('Preencha o Nome e o E-mail.');
+    showToast('Preencha o Nome e o E-mail.', 'error');
     return;
   }
 
@@ -1020,20 +1021,401 @@ async function submitCreateUserManual() {
     const res = await fetch('/api/iam/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, role })
+      body: JSON.stringify({ name, email, role, password })
     });
 
     if (res.ok) {
       closeCreateUserModal();
-      alert('Usuário criado manualmente com sucesso na base de dados local!');
+      showToast('Usuário criado manualmente com sucesso!', 'success');
       fetchIamData();
     } else {
       const data = await res.json();
-      alert('Erro: ' + (data.errors ? data.errors.join(', ') : 'Falha ao criar usuário'));
+      showToast('Erro: ' + (data.errors ? data.errors.join(', ') : 'Falha ao criar usuário'), 'error');
     }
   } catch (err) {
     console.error('Erro ao criar usuário manualmente:', err);
+    showToast('Erro ao processar criação de usuário.', 'error');
   }
 }
+
+// --- Custom Premium Toast System ---
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  
+  // Style toast dynamically matching Vivo Mistica
+  toast.style.background = type === 'success' ? 'var(--color-done)' : 
+                         type === 'error' ? 'var(--color-critical)' : 'var(--color-accent)';
+  toast.style.color = '#FFFFFF';
+  toast.style.padding = '12px 20px';
+  toast.style.borderRadius = 'var(--border-radius-sm)';
+  toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+  toast.style.fontSize = '13px';
+  toast.style.fontWeight = '600';
+  toast.style.display = 'flex';
+  toast.style.alignItems = 'center';
+  toast.style.gap = '10px';
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateY(10px)';
+  toast.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+  toast.style.pointerEvents = 'auto';
+  toast.style.cursor = 'pointer';
+
+  let icon = 'info';
+  if (type === 'success') icon = 'check-circle';
+  if (type === 'error') icon = 'alert-triangle';
+
+  toast.innerHTML = `<i data-lucide="${icon}" style="width: 16px; height: 16px;"></i> <span>${escapeHTML(message)}</span>`;
+  container.appendChild(toast);
+  lucide.createIcons();
+
+  // Trigger entry animation
+  setTimeout(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  }, 10);
+
+  // Self-destruct
+  const timer = setTimeout(() => {
+    dismiss();
+  }, 4000);
+
+  function dismiss() {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }
+
+  toast.onclick = () => {
+    clearTimeout(timer);
+    dismiss();
+  };
+}
+
+// --- Auth Flow Client Side ---
+
+let currentUser = null;
+
+function checkSession() {
+  const token = localStorage.getItem('cyber_session_token');
+  const userStr = localStorage.getItem('cyber_session_user');
+  
+  if (token && userStr) {
+    currentUser = JSON.parse(userStr);
+    
+    // Hide auth screen
+    document.getElementById('auth-container').style.display = 'none';
+    
+    // Show topbar details
+    document.getElementById('logged-user-info').style.display = 'flex';
+    document.getElementById('logged-user-name').textContent = currentUser.name;
+    document.getElementById('logged-user-role').textContent = currentUser.role;
+    document.getElementById('btn-security-settings').style.display = 'inline-flex';
+    document.getElementById('btn-logout').style.display = 'inline-flex';
+    
+    // Check url for simulated password reset parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('token');
+    if (resetToken) {
+      window.history.replaceState({}, document.title, "/");
+      document.getElementById('auth-container').style.display = 'flex';
+      showAuthPanel('reset');
+      document.getElementById('reset-token').value = resetToken;
+      return;
+    }
+    
+    fetchBoardData();
+  } else {
+    document.getElementById('auth-container').style.display = 'flex';
+    showAuthPanel('login');
+    
+    document.getElementById('logged-user-info').style.display = 'none';
+    document.getElementById('btn-security-settings').style.display = 'none';
+    document.getElementById('btn-logout').style.display = 'none';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const resetToken = urlParams.get('token');
+    if (resetToken) {
+      window.history.replaceState({}, document.title, "/");
+      showAuthPanel('reset');
+      document.getElementById('reset-token').value = resetToken;
+    }
+  }
+}
+
+function showAuthPanel(panelName) {
+  document.getElementById('auth-panel-login').style.display = 'none';
+  document.getElementById('auth-panel-mfa').style.display = 'none';
+  document.getElementById('auth-panel-forgot').style.display = 'none';
+  document.getElementById('auth-panel-reset').style.display = 'none';
+  
+  if (panelName === 'login') {
+    document.getElementById('auth-panel-login').style.display = 'flex';
+  } else if (panelName === 'mfa') {
+    document.getElementById('auth-panel-mfa').style.display = 'flex';
+    document.getElementById('mfa-code').value = '';
+    document.getElementById('mfa-code').focus();
+  } else if (panelName === 'forgot') {
+    document.getElementById('auth-panel-forgot').style.display = 'flex';
+    document.getElementById('forgot-email').value = '';
+  } else if (panelName === 'reset') {
+    document.getElementById('auth-panel-reset').style.display = 'flex';
+    document.getElementById('reset-new-password').value = '';
+  }
+}
+
+let mfaPendingEmail = null;
+
+async function submitLogin() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showToast('Preencha seu e-mail e sua senha.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      if (data.mfa_required) {
+        mfaPendingEmail = data.email;
+        showAuthPanel('mfa');
+        showToast('MFA Requerido! Digite o código de autenticação.', 'error');
+      } else {
+        storeSession(data.token, data.user);
+        showToast(`Bem-vindo, ${data.user.name}!`, 'success');
+      }
+    } else {
+      showToast(data.error || 'Credenciais inválidas', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Falha na conexão com o servidor.', 'error');
+  }
+}
+
+async function submitMfaVerify() {
+  const code = document.getElementById('mfa-code').value;
+
+  if (!code || code.length !== 6) {
+    showToast('Código de MFA deve ter 6 dígitos.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: mfaPendingEmail, code })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      storeSession(data.token, data.user);
+      showToast(`MFA verificado! Bem-vindo, ${data.user.name}!`, 'success');
+    } else {
+      showToast(data.error || 'Código incorreto', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao validar MFA.', 'error');
+  }
+}
+
+async function submitForgotPassword() {
+  const email = document.getElementById('forgot-email').value;
+
+  if (!email) {
+    showToast('Digite seu e-mail.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/forgot_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast('E-mail de recuperação enviado (Simulado)!', 'success');
+      const banner = document.getElementById('sandbox-notification');
+      banner.style.display = 'block';
+      banner.innerHTML = `
+        <strong>Simulação Sandbox de E-mail de Recuperação:</strong><br>
+        Link enviado. <a href="${data.reset_url}" style="color: var(--color-accent); font-weight: 700; text-decoration: underline;">Clique aqui para Redefinir a Senha</a>
+      `;
+    } else {
+      showToast(data.error || 'Erro na solicitação', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao solicitar redefinição.', 'error');
+  }
+}
+
+async function submitResetPassword() {
+  const token = document.getElementById('reset-token').value;
+  const newPassword = document.getElementById('reset-new-password').value;
+
+  if (!newPassword || newPassword.length < 6) {
+    showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/reset_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast('Senha redefinida com sucesso!', 'success');
+      document.getElementById('sandbox-notification').style.display = 'none';
+      showAuthPanel('login');
+    } else {
+      showToast(data.error || 'Erro ao redefinir', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao redefinir a senha.', 'error');
+  }
+}
+
+function storeSession(token, user) {
+  localStorage.setItem('cyber_session_token', token);
+  localStorage.setItem('cyber_session_user', JSON.stringify(user));
+  checkSession();
+}
+
+function performLogout() {
+  localStorage.removeItem('cyber_session_token');
+  localStorage.removeItem('cyber_session_user');
+  currentUser = null;
+  checkSession();
+  showToast('Você saiu do sistema.', 'info');
+}
+
+// --- Security settings modal management ---
+
+function openSecuritySettingsModal() {
+  document.getElementById('security-settings-modal').classList.add('open');
+  loadMfaSettings();
+}
+
+function closeSecuritySettingsModal() {
+  document.getElementById('security-settings-modal').classList.remove('open');
+  document.getElementById('change-pw-current').value = '';
+  document.getElementById('change-pw-new').value = '';
+}
+
+async function submitChangePassword() {
+  const current_password = document.getElementById('change-pw-current').value;
+  const new_password = document.getElementById('change-pw-new').value;
+
+  if (!current_password || !new_password) {
+    showToast('Preencha todas as senhas.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/change_password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, current_password, new_password })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      closeSecuritySettingsModal();
+      showToast('Senha atualizada com sucesso!', 'success');
+    } else {
+      showToast(data.error || 'Erro ao alterar senha', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Erro ao processar troca de senha.', 'error');
+  }
+}
+
+async function loadMfaSettings() {
+  try {
+    const res = await fetch('/api/iam/users');
+    const users = await res.json();
+    const self = users.find(u => u.email === currentUser.email);
+    
+    if (self) {
+      const checkbox = document.getElementById('mfa-toggle-checkbox');
+      const badge = document.getElementById('mfa-status-badge');
+      const block = document.getElementById('mfa-setup-block');
+      
+      checkbox.checked = self.mfa_enabled;
+      
+      if (self.mfa_enabled) {
+        badge.textContent = 'Ativado';
+        badge.className = 'badge badge-priority-done';
+        badge.style.backgroundColor = 'var(--color-done)';
+        badge.style.color = '#FFFFFF';
+        
+        block.style.display = 'flex';
+        document.getElementById('mfa-secret-text').value = self.mfa_secret || 'TOTP-SECRET-SPN';
+        document.getElementById('mfa-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent("otpauth://totp/CyberITSM%20SPN:" + self.email + "?secret=" + (self.mfa_secret || "SECRET") + "&issuer=CyberITSM%20SPN")}`;
+      } else {
+        badge.textContent = 'Desativado';
+        badge.className = 'badge badge-priority-low';
+        badge.style.backgroundColor = 'rgba(0,0,0,0.2)';
+        badge.style.color = 'var(--text-muted)';
+        block.style.display = 'none';
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function toggleMfaState(enabled) {
+  try {
+    const res = await fetch('/api/auth/mfa/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, enable: enabled })
+    });
+
+    if (res.ok) {
+      showToast(enabled ? 'MFA Habilitado! Configure o app.' : 'MFA Desabilitado com sucesso.', 'success');
+      loadMfaSettings();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function copyMfaSecret() {
+  const text = document.getElementById('mfa-secret-text');
+  text.select();
+  document.execCommand('copy');
+  showToast('Chave secreta copiada!', 'info');
+}
+
 
 

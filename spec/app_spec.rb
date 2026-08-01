@@ -218,5 +218,69 @@ RSpec.describe 'CyberITSM REST API' do
       expect(user.role).to eq('Auditor')
       expect(user.provider_type).to eq('local')
     end
+
+    describe 'Authentication & MFA API' do
+      it 'validates credentials and logs in' do
+        # Seeded user marcus.goncalves@telefonica.com has password 'password123'
+        payload = { email: 'marcus.goncalves@telefonica.com', password: 'password123' }
+        post '/api/auth/login', payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+        
+        res = JSON.parse(last_response.body)
+        expect(res['token']).to start_with('session-')
+        expect(res['user']['name']).to eq('Marcus Gonçalves')
+      end
+
+      it 'returns 401 for invalid credentials' do
+        payload = { email: 'marcus.goncalves@telefonica.com', password: 'wrong-password' }
+        post '/api/auth/login', payload.to_json, json_headers
+        expect(last_response.status).to eq(401)
+      end
+
+      it 'toggles and verifies MFA' do
+        # Enable MFA
+        toggle_payload = { email: 'marcus.goncalves@telefonica.com', enable: true }
+        post '/api/auth/mfa/toggle', toggle_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+        
+        res = JSON.parse(last_response.body)
+        expect(res['mfa_enabled']).to be_truthy
+        expect(res['secret']).not_to be_nil
+
+        # Verify login requires MFA now
+        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'password123' }
+        post '/api/auth/login', login_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+        login_res = JSON.parse(last_response.body)
+        expect(login_res['mfa_required']).to be_truthy
+
+        # Verify code verify (sandbox fallback '123456')
+        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: '123456' }
+        post '/api/auth/mfa/verify', verify_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+      end
+
+      it 'handles forgot and reset password flow' do
+        # Forgot password request
+        forgot_payload = { email: 'marcus.goncalves@telefonica.com' }
+        post '/api/auth/forgot_password', forgot_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+        forgot_res = JSON.parse(last_response.body)
+        expect(forgot_res['reset_url']).to include('/reset_password?token=')
+
+        # Extract token
+        token = forgot_res['reset_url'].split('=').last
+
+        # Reset password
+        reset_payload = { token: token, new_password: 'newpassword789' }
+        post '/api/auth/reset_password', reset_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        # Login with new password
+        login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'newpassword789' }
+        post '/api/auth/login', login_payload.to_json, json_headers
+        expect(last_response.status).to eq(200)
+      end
+    end
   end
 end

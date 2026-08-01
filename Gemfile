@@ -7,6 +7,8 @@ gem 'puma'
 gem 'json'
 gem 'rake'
 gem 'rackup'
+gem 'bcrypt'
+gem 'rotp'
 
 
 

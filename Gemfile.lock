@@ -22,6 +22,7 @@ GEM
       uri (>= 0.13.1)
     ast (2.4.3)
     base64 (0.3.0)
+    bcrypt (3.1.22)
     bigdecimal (4.1.2)
     brakeman (8.0.5)
       racc
@@ -66,6 +67,7 @@ GEM
     rainbow (3.1.1)
     rake (13.4.2)
     regexp_parser (2.12.0)
+    rotp (6.3.0)
     rspec (3.13.2)
       rspec-core (~> 3.13.0)
       rspec-expectations (~> 3.13.0)
@@ -125,6 +127,7 @@ PLATFORMS
   x64-mingw-ucrt
 
 DEPENDENCIES
+  bcrypt
   brakeman
   bundler-audit
   json
@@ -132,6 +135,7 @@ DEPENDENCIES
   rack-test
   rackup
   rake
+  rotp
   rspec
   rubocop
   rubocop-performance

@@ -118,7 +118,7 @@
       
       <!-- Level 1: User Person -->
       <div class="c4-node primary" onclick="showC4Detail('analyst')" style="width: 250px; min-height: 80px;">
-        <div class="c4-node-title">Pessoa: Analista / Arquiteto SecOps</div>
+        <div class="c4-node-title">Pessoa: Analista / Arquiteto SPN</div>
         <div class="c4-node-tech">Operador de Segurança</div>
         <div class="c4-node-desc">Analisa vulnerabilidades, gerencia status no Kanban e solicita acessos IGA.</div>
       </div>
@@ -127,7 +127,7 @@
       
       <!-- System Boundary (CyberITSM Application) -->
       <div class="c4-system-boundary" style="max-width: 960px;">
-        <div class="c4-boundary-title">CyberITSM - Sistema SecOps (Rebuild em Ruby)</div>
+        <div class="c4-boundary-title">CyberITSM - Sistema SPN (Rebuild em Ruby)</div>
         
         <!-- Frontend Container Boundary -->
         <div class="c4-system-boundary" style="border-color: var(--color-accent); background-color: rgba(255, 153, 0, 0.01);">
@@ -256,7 +256,7 @@
       const panel = document.getElementById('c4-detail-panel');
       const details = {
         analyst: `
-          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Pessoa: Analista / Arquiteto SecOps</h3>
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Pessoa: Analista / Arquiteto SPN</h3>
           <p><strong>Nível C4:</strong> Pessoa (Person)</p>
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
@@ -281,7 +281,7 @@
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
             <li>Gerenciamento de estado em tempo de execução no navegador.</li>
-            <li>Interceptação de eventos de drag-and-drop de chamados SecOps e reordenação de colunas.</li>
+            <li>Interceptação de eventos de drag-and-drop de chamados SPN e reordenação de colunas.</li>
             <li>Consumo assíncrono das rotas REST de API no backend (Fetch API) e atualização reativa do DOM.</li>
           </ul>
         `,
@@ -340,7 +340,7 @@
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
             <li>Gerenciamento de Realms OIDC e chaves públicas de validação JWT.</li>
-            <li>Fornece usuários Kelly e Kevin Keycloak na simulação SecOps.</li>
+            <li>Fornece usuários Kelly e Kevin Keycloak na simulação SPN.</li>
           </ul>
         `,
         ext_oam: `
@@ -349,7 +349,7 @@
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
             <li>Gateway de segurança corporativo que gerencia o fluxo de injeção de cabeçalhos de identificação de rede.</li>
-            <li>Fornece Oscar e Olivia OAM na simulação SecOps.</li>
+            <li>Fornece Oscar e Olivia OAM na simulação SPN.</li>
           </ul>
         `,
         ext_sailpoint: `
@@ -358,7 +358,7 @@
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
             <li>Estrutura de regras de governança global para provisionamento corporativo e revisões periódicas de perfil.</li>
-            <li>Fornece Sam e Sarah Sailpoint na simulação SecOps.</li>
+            <li>Fornece Sam e Sarah Sailpoint na simulação SPN.</li>
           </ul>
         `
       };

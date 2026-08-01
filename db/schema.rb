@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_000002) do
   create_table "audit_logs", force: :cascade do |t|
     t.string "action", null: false
     t.string "author"
@@ -44,8 +44,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_000001) do
   create_table "iam_users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
+    t.boolean "mfa_enabled", default: false
+    t.string "mfa_secret"
     t.string "name", null: false
+    t.string "password_digest"
     t.string "provider_type", null: false
+    t.string "reset_token"
+    t.datetime "reset_token_expires_at"
     t.string "role", default: "Requester"
     t.string "status", default: "Ativo"
     t.datetime "updated_at", null: false

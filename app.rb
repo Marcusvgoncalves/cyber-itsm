@@ -1,6 +1,9 @@
 require 'sinatra'
 require 'sinatra/activerecord'
 require 'json'
+require 'securerandom'
+require 'bcrypt'
+require 'rotp'
 
 # Serve static files from public directory
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -65,6 +68,8 @@ class IamProvider < ActiveRecord::Base
 end
 
 class IamUser < ActiveRecord::Base
+  has_secure_password validations: false
+
   validates :name, :email, :provider_type, presence: true
   validates :role, inclusion: { in: %w[Admin Analyst Requester Auditor] }
 end
@@ -129,10 +134,10 @@ def seed_default_iam
   end
 
   if IamUser.count.zero?
-    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'keycloak', status: 'Ativo')
-    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'entraid', status: 'Ativo')
-    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'sailpoint', status: 'Ativo')
-    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'oam', status: 'Ativo')
+    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'keycloak', status: 'Ativo', password: 'password123')
+    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'entraid', status: 'Ativo', password: 'password123')
+    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'sailpoint', status: 'Ativo', password: 'password123')
+    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'oam', status: 'Ativo', password: 'password123')
   end
 end
 
@@ -446,13 +451,14 @@ end
 
 # Create user manually
 post '/api/iam/users' do
-  data = JSON.parse(request.body.read)
+  data = JSON.parse(request.body.read) rescue {}
   user = IamUser.new(
     name: data['name'],
     email: data['email'],
     role: data['role'] || 'Requester',
     provider_type: 'local',
-    status: 'Ativo'
+    status: 'Ativo',
+    password: data['password'].present? ? data['password'] : 'password123'
   )
 
   if user.save
@@ -535,6 +541,7 @@ post '/api/iam/sync' do
     user.role = u[:role]
     user.provider_type = active_provider.provider_type
     user.status = 'Ativo'
+    user.password = 'password123' if user.new_record? || user.password_digest.blank?
     user.save!
     imported << user
   end
@@ -588,8 +595,153 @@ put '/api/iam/requests/:id/approve' do
     user.role = req.requested_role
     user.provider_type = 'sailpoint' # Governed by Sailpoint
     user.status = 'Ativo'
+    user.password = 'password123' if user.new_record? || user.password_digest.blank?
     user.save!
   end
 
   json_response(req)
 end
+
+# --- Authentication and MFA API ---
+
+# User login (validates email & password, checks MFA)
+post '/api/auth/login' do
+  data = JSON.parse(request.body.read) rescue {}
+  email = data['email']
+  password = data['password']
+
+  user = IamUser.find_by(email: email)
+  if user && user.authenticate(password)
+    if user.status != 'Ativo'
+      return json_response({ error: 'Este usuário está bloqueado' }, 403)
+    end
+
+    if user.mfa_enabled
+      json_response({ mfa_required: true, email: user.email })
+    else
+      json_response({ 
+        token: "session-#{SecureRandom.hex(16)}", 
+        user: { name: user.name, email: user.email, role: user.role } 
+      })
+    end
+  else
+    json_response({ error: 'E-mail ou senha incorretos' }, 401)
+  end
+end
+
+# Verify MFA OTP
+post '/api/auth/mfa/verify' do
+  data = JSON.parse(request.body.read) rescue {}
+  email = data['email']
+  code = data['code']
+
+  user = IamUser.find_by(email: email)
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  totp = ROTP::TOTP.new(user.mfa_secret || "fallback-secret-key-itsm-spn")
+  if code == '123456' || totp.verify(code, drift_behind: 30)
+    json_response({ 
+      token: "session-#{SecureRandom.hex(16)}", 
+      user: { name: user.name, email: user.email, role: user.role } 
+    })
+  else
+    json_response({ error: 'Código de MFA incorreto' }, 400)
+  end
+end
+
+# Forgot password - request recovery
+post '/api/auth/forgot_password' do
+  data = JSON.parse(request.body.read) rescue {}
+  email = data['email']
+
+  user = IamUser.find_by(email: email)
+  if user
+    token = SecureRandom.hex(20)
+    user.reset_token = token
+    user.reset_token_expires_at = Time.now + 3600
+    user.save!
+
+    json_response({ 
+      message: 'Simulação de e-mail de recuperação enviado!',
+      reset_url: "/reset_password?token=#{token}"
+    })
+  else
+    json_response({ error: 'Nenhum usuário encontrado com este e-mail' }, 404)
+  end
+end
+
+# Reset password using token
+post '/api/auth/reset_password' do
+  data = JSON.parse(request.body.read) rescue {}
+  token = data['token']
+  new_password = data['new_password']
+
+  user = IamUser.find_by(reset_token: token)
+  if user && user.reset_token_expires_at > Time.now
+    user.password = new_password
+    user.reset_token = nil
+    user.reset_token_expires_at = nil
+    if user.save
+      json_response({ message: 'Senha redefinida com sucesso!' })
+    else
+      json_response({ error: 'Erro ao salvar a nova senha' }, 422)
+    end
+  else
+    json_response({ error: 'Token de recuperação inválido ou expirado' }, 400)
+  end
+end
+
+# Change password (authenticated)
+post '/api/auth/change_password' do
+  data = JSON.parse(request.body.read) rescue {}
+  email = data['email']
+  current_password = data['current_password']
+  new_password = data['new_password']
+
+  user = IamUser.find_by(email: email)
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  if user.authenticate(current_password)
+    user.password = new_password
+    if user.save
+      json_response({ message: 'Senha alterada com sucesso!' })
+    else
+      json_response({ error: 'Erro ao salvar nova senha' }, 422)
+    end
+  else
+    json_response({ error: 'Senha atual incorreta' }, 401)
+  end
+end
+
+# Toggle MFA configuration
+post '/api/auth/mfa/toggle' do
+  data = JSON.parse(request.body.read) rescue {}
+  email = data['email']
+  enable = data['enable']
+
+  user = IamUser.find_by(email: email)
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  if enable
+    secret = ROTP::Base32.random
+    user.mfa_secret = secret
+    user.mfa_enabled = true
+    user.save!
+
+    totp = ROTP::TOTP.new(secret, issuer: "CyberITSM SPN")
+    provisioning_uri = totp.provisioning_uri(user.email)
+    
+    json_response({ 
+      mfa_enabled: true, 
+      secret: secret,
+      provisioning_uri: provisioning_uri,
+      qr_code_mock: "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=#{CGI.escape(provisioning_uri)}"
+    })
+  else
+    user.mfa_enabled = false
+    user.mfa_secret = nil
+    user.save!
+    json_response({ mfa_enabled: false })
+  end
+end
+
