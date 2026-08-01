@@ -134,4 +134,73 @@ RSpec.describe 'CyberITSM REST API' do
       expect(audit.author).to eq('Seguranca Info')
     end
   end
+
+  describe 'IAM API' do
+    before(:each) do
+      # Make sure seeds run for each IAM test
+      seed_default_iam
+    end
+
+    it 'lists seeded IAM providers' do
+      get '/api/iam/providers'
+      expect(last_response.status).to eq(200)
+      res = JSON.parse(last_response.body)
+      expect(res.size).to eq(4)
+      expect(res.map { |p| p['provider_type'] }).to include('entraid', 'keycloak', 'oam', 'sailpoint')
+    end
+
+    it 'updates provider configuration and handles active toggle' do
+      provider = IamProvider.find_by(provider_type: 'keycloak')
+      payload = { client_id: 'new-keycloak-id', active: true }
+      put "/api/iam/providers/#{provider.id}", payload.to_json, json_headers
+      expect(last_response.status).to eq(200)
+      
+      expect(provider.reload.client_id).to eq('new-keycloak-id')
+      expect(provider.active).to be_truthy
+
+      # Other providers should be deactivated
+      other = IamProvider.find_by(provider_type: 'entraid')
+      expect(other.active).to be_falsy
+    end
+
+    it 'synchronizes identities from active provider' do
+      # EntraID is active by default
+      post '/api/iam/sync'
+      expect(last_response.status).to eq(200)
+      res = JSON.parse(last_response.body)
+      expect(res['users'].size).to eq(2)
+      
+      user_emails = IamUser.all.map(&:email)
+      expect(user_emails).to include('ana.entraid@telefonica.com', 'bernardo.entraid@telefonica.com')
+    end
+
+    it 'submits and approves governance request (Sailpoint simulation)' do
+      # Submit request
+      payload = {
+        user_name: 'Julia DevOps',
+        user_email: 'julia.devops@telefonica.com',
+        requested_role: 'Admin'
+      }
+      post '/api/iam/requests', payload.to_json, json_headers
+      expect(last_response.status).to eq(201)
+      
+      req = IdentityRequest.last
+      expect(req.user_name).to eq('Julia DevOps')
+      expect(req.status).to eq('Pendente')
+
+      # Approve request
+      approve_payload = { approver: 'Chief SecOps Officer' }
+      put "/api/iam/requests/#{req.id}/approve", approve_payload.to_json, json_headers
+      expect(last_response.status).to eq(200)
+      
+      expect(req.reload.status).to eq('Provisionado')
+      expect(req.approver).to eq('Chief SecOps Officer')
+
+      # Verification of local provisioning (Sailpoint action target)
+      user = IamUser.find_by(email: 'julia.devops@telefonica.com')
+      expect(user).not_to be_nil
+      expect(user.role).to eq('Admin')
+      expect(user.status).to eq('Ativo')
+    end
+  end
 end

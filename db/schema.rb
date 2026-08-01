@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_000001) do
   create_table "audit_logs", force: :cascade do |t|
     t.string "action", null: false
     t.string "author"
@@ -28,6 +28,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_000000) do
     t.integer "ticket_id", null: false
     t.datetime "updated_at", null: false
     t.index ["ticket_id"], name: "index_comments_on_ticket_id"
+  end
+
+  create_table "iam_providers", force: :cascade do |t|
+    t.boolean "active", default: false
+    t.string "client_id"
+    t.string "client_secret"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.string "provider_type", null: false
+    t.text "settings"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "iam_users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "name", null: false
+    t.string "provider_type", null: false
+    t.string "role", default: "Requester"
+    t.string "status", default: "Ativo"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "identity_requests", force: :cascade do |t|
+    t.string "action_type", default: "RoleChange"
+    t.string "approver"
+    t.datetime "created_at", null: false
+    t.text "log"
+    t.string "requested_role", null: false
+    t.string "status", default: "Pendente"
+    t.datetime "updated_at", null: false
+    t.string "user_email", null: false
+    t.string "user_name", null: false
   end
 
   create_table "statuses", force: :cascade do |t|

@@ -713,3 +713,11 @@ body.dark-mode .sidebar-item.active {
   height: 14px;
   border-radius: 3px;
 }
+
+/* Active IAM Tab style */
+.btn-active-tab {
+  background-color: var(--color-primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--color-primary) !important;
+}
+

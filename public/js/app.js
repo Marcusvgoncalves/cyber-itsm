@@ -31,6 +31,10 @@ function switchView(viewName) {
   } else if (viewName === 'kb') {
     document.getElementById('view-kb').style.display = 'block';
     document.getElementById('menu-kb').classList.add('active');
+  } else if (viewName === 'iam') {
+    document.getElementById('view-iam').style.display = 'flex';
+    document.getElementById('menu-iam').classList.add('active');
+    fetchIamData();
   }
 }
 
@@ -571,3 +575,379 @@ function escapeHTML(str) {
     }[tag] || tag)
   );
 }
+
+// --- IAM (Access & Profiles Management) ---
+
+let activeIamTab = 'providers';
+let iamProviders = [];
+let iamUsers = [];
+let iamRequests = [];
+
+function switchIamTab(tabName) {
+  activeIamTab = tabName;
+  
+  // Hide all sub-tab contents
+  document.querySelectorAll('.iam-tab-content').forEach(el => el.style.display = 'none');
+  
+  // Deactivate all tab buttons
+  document.getElementById('tab-iam-providers').classList.remove('btn-active-tab');
+  document.getElementById('tab-iam-users').classList.remove('btn-active-tab');
+  document.getElementById('tab-iam-governance').classList.remove('btn-active-tab');
+  
+  // Show target tab content
+  if (tabName === 'providers') {
+    document.getElementById('iam-content-providers').style.display = 'block';
+    document.getElementById('tab-iam-providers').classList.add('btn-active-tab');
+    renderIamProviders();
+  } else if (tabName === 'users') {
+    document.getElementById('iam-content-users').style.display = 'block';
+    document.getElementById('tab-iam-users').classList.add('btn-active-tab');
+    renderIamUsers();
+  } else if (tabName === 'governance') {
+    document.getElementById('iam-content-governance').style.display = 'block';
+    document.getElementById('tab-iam-governance').classList.add('btn-active-tab');
+    renderIamGovernance();
+  }
+}
+
+async function fetchIamData() {
+  try {
+    const [providersRes, usersRes, requestsRes] = await Promise.all([
+      fetch('/api/iam/providers'),
+      fetch('/api/iam/users'),
+      fetch('/api/iam/requests')
+    ]);
+    
+    iamProviders = await providersRes.json();
+    iamUsers = await usersRes.json();
+    iamRequests = await requestsRes.json();
+    
+    switchIamTab(activeIamTab);
+  } catch (err) {
+    console.error('Erro ao buscar dados IAM:', err);
+  }
+}
+
+function renderIamProviders() {
+  const container = document.getElementById('iam-providers-list');
+  container.innerHTML = '';
+  
+  iamProviders.forEach(provider => {
+    const card = document.createElement('div');
+    card.style.background = 'var(--bg-secondary)';
+    card.style.border = '1px solid var(--border-color)';
+    card.style.borderRadius = 'var(--border-radius-md)';
+    card.style.padding = '16px';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.gap = '12px';
+    
+    const settingsObj = JSON.parse(provider.settings || '{}');
+    let settingsHTML = '';
+    
+    for (const [k, v] of Object.entries(settingsObj)) {
+      settingsHTML += `
+        <div style="font-size: 11px; display: flex; justify-content: space-between;">
+          <span style="color: var(--text-secondary); text-transform: uppercase;">${k.replace('_', ' ')}:</span>
+          <span style="font-weight: 500;">${escapeHTML(v)}</span>
+        </div>
+      `;
+    }
+    
+    const activeText = provider.active ? 'Ativo (Conectado)' : 'Inativo';
+    const activeBadgeColor = provider.active ? 'var(--color-done)' : 'var(--text-muted)';
+    
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h4 style="font-size: 14px; font-weight: 600;">${escapeHTML(provider.name)}</h4>
+          <span style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Tipo ID: ${provider.provider_type}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="badge" style="background: rgba(0,0,0,0.2); color: ${activeBadgeColor}; border: 1px solid ${activeBadgeColor}; font-size: 9px; padding: 1px 6px;">${activeText}</span>
+          <input type="checkbox" ${provider.active ? 'checked' : ''} onchange="toggleProviderActive(${provider.id}, this.checked)" style="cursor: pointer;">
+        </div>
+      </div>
+      
+      <div style="background: var(--bg-tertiary); padding: 8px 12px; border-radius: var(--border-radius-sm); display: flex; flex-direction: column; gap: 4px;">
+        <div style="font-size: 11px; display: flex; justify-content: space-between;">
+          <span style="color: var(--text-secondary);">CLIENT ID:</span>
+          <span>${escapeHTML(provider.client_id || 'Não configurado')}</span>
+        </div>
+        ${settingsHTML}
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 8px;">
+        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openConfigProviderModal(${provider.id})">Configurar</button>
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
+
+function renderIamUsers() {
+  const tbody = document.getElementById('iam-users-table-body');
+  tbody.innerHTML = '';
+  
+  if (iamUsers.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">Nenhum usuário sincronizado. Ative um provedor e clique em Sincronizar Identidades.</td>
+      </tr>
+    `;
+    return;
+  }
+  
+  iamUsers.forEach(user => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border-color)';
+    tr.style.transition = 'var(--transition-smooth)';
+    
+    const statusText = user.status || 'Ativo';
+    const statusBadgeClass = statusText === 'Ativo' ? 'badge-priority-low' : 'badge-priority-critical';
+    
+    tr.innerHTML = `
+      <td style="padding: 10px 8px; font-weight: 500;">${escapeHTML(user.name)}</td>
+      <td style="padding: 10px 8px; color: var(--text-secondary);">${escapeHTML(user.email)}</td>
+      <td style="padding: 10px 8px; text-transform: uppercase; font-size: 11px; font-weight: 600; color: var(--color-accent);">${escapeHTML(user.provider_type)}</td>
+      <td style="padding: 10px 8px;">
+        <select class="form-control" onchange="changeUserRole(${user.id}, this.value)" style="padding: 4px 8px; font-size: 12px; width: fit-content; background: var(--bg-tertiary);">
+          <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
+          <option value="Analyst" ${user.role === 'Analyst' ? 'selected' : ''}>Analyst</option>
+          <option value="Requester" ${user.role === 'Requester' ? 'selected' : ''}>Requester</option>
+          <option value="Auditor" ${user.role === 'Auditor' ? 'selected' : ''}>Auditor</option>
+        </select>
+      </td>
+      <td style="padding: 10px 8px;">
+        <span class="badge ${statusBadgeClass}">${statusText}</span>
+      </td>
+      <td style="padding: 10px 8px; text-align: right;">
+        <div style="display: inline-flex; gap: 8px;">
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleUserStatus(${user.id})">
+            ${statusText === 'Ativo' ? 'Bloquear' : 'Desbloquear'}
+          </button>
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--color-critical);" onclick="deleteUser(${user.id})">
+            Desprovisionar
+          </button>
+        </div>
+      </td>
+    `;
+    
+    tbody.appendChild(tr);
+  });
+}
+
+function renderIamGovernance() {
+  const container = document.getElementById('iga-requests-list');
+  container.innerHTML = '';
+  
+  if (iamRequests.length === 0) {
+    container.innerHTML = '<p style="font-size: 12px; color: var(--text-muted); text-align: center; padding: 24px;">Nenhuma solicitação no log de governança.</p>';
+    return;
+  }
+  
+  iamRequests.forEach(req => {
+    const card = document.createElement('div');
+    card.style.background = 'var(--bg-tertiary)';
+    card.style.border = '1px solid var(--border-color)';
+    card.style.borderRadius = 'var(--border-radius-sm)';
+    card.style.padding = '12px';
+    card.style.display = 'flex';
+    card.style.flexDirection = 'column';
+    card.style.gap = '8px';
+    
+    const dateStr = new Date(req.created_at).toLocaleString('pt-BR');
+    const isPending = req.status === 'Pendente';
+    const statusColor = req.status === 'Provisionado' ? 'var(--color-done)' : 'var(--color-accent)';
+    
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong style="font-size: 13px;">${escapeHTML(req.user_name)}</strong>
+          <span style="font-size: 11px; color: var(--text-secondary);"> (${escapeHTML(req.user_email)})</span>
+        </div>
+        <span class="badge" style="background: rgba(0,0,0,0.3); border: 1px solid ${statusColor}; color: ${statusColor}; font-size: 10px;">
+          ${req.status}
+        </span>
+      </div>
+      
+      <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+        Solicitado perfil <span style="color: var(--text-primary); font-weight: 600;">${req.requested_role}</span> via governança.
+        <div style="font-size: 11px; font-style: italic; color: var(--text-muted); margin-top: 4px;">Log: ${escapeHTML(req.log)}</div>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color);">
+        <span style="font-size: 10px; color: var(--text-muted);">${dateStr}</span>
+        ${isPending ? `
+          <button class="btn btn-primary" style="padding: 2px 10px; font-size: 11px;" onclick="approveGovernanceRequest(${req.id})">
+            Aprovar e Provisionar
+          </button>
+        ` : `
+          <span style="font-size: 10px; color: var(--text-muted);">Aprovado por: ${escapeHTML(req.approver)}</span>
+        `}
+      </div>
+    `;
+    
+    container.appendChild(card);
+  });
+}
+
+// Toggle Provider Active Status
+async function toggleProviderActive(providerId, active) {
+  try {
+    const res = await fetch(`/api/iam/providers/${providerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active })
+    });
+    
+    if (res.ok) {
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao alternar provedor:', err);
+  }
+}
+
+// Config Provider
+async function openConfigProviderModal(providerId) {
+  const provider = iamProviders.find(p => p.id === providerId);
+  if (!provider) return;
+  
+  const client_id = prompt('Configurar CLIENT ID:', provider.client_id || '');
+  if (client_id === null) return;
+  
+  const client_secret = prompt('Configurar CLIENT SECRET:', provider.client_secret || '');
+  if (client_secret === null) return;
+
+  try {
+    const res = await fetch(`/api/iam/providers/${providerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id, client_secret })
+    });
+    
+    if (res.ok) {
+      alert('Configuração salva com sucesso!');
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao configurar provedor:', err);
+  }
+}
+
+// Run sync
+async function runSimulationSync() {
+  const active = iamProviders.find(p => p.active);
+  if (!active) {
+    alert('Ative um Provedor IAM antes de executar a sincronização.');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/iam/sync', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      alert(data.message);
+      fetchIamData();
+    } else {
+      const data = await res.json();
+      alert('Erro: ' + data.error);
+    }
+  } catch (err) {
+    console.error('Erro na sincronização:', err);
+  }
+}
+
+// Toggle status
+async function toggleUserStatus(userId) {
+  try {
+    const res = await fetch(`/api/iam/users/${userId}/toggle_status`, { method: 'POST' });
+    if (res.ok) {
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao alternar status do usuário:', err);
+  }
+}
+
+// Change role
+async function changeUserRole(userId, role) {
+  try {
+    const res = await fetch(`/api/iam/users/${userId}/change_role`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    if (res.ok) {
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao alterar perfil do usuário:', err);
+  }
+}
+
+// Delete user
+async function deleteUser(userId) {
+  if (!confirm('Tem certeza de que deseja desprovisionar este usuário da base corporativa?')) return;
+  try {
+    const res = await fetch(`/api/iam/users/${userId}`, { method: 'DELETE' });
+    if (res.ok) {
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao desprovisionar usuário:', err);
+  }
+}
+
+// Submit Governance request
+async function submitGovernanceRequest() {
+  const name = document.getElementById('iga-req-name').value;
+  const email = document.getElementById('iga-req-email').value;
+  const requested_role = document.getElementById('iga-req-role').value;
+  
+  if (!name || !email) {
+    alert('Preencha o Nome e o E-mail do colaborador.');
+    return;
+  }
+  
+  try {
+    const res = await fetch('/api/iam/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_name: name, user_email: email, requested_role })
+    });
+    
+    if (res.ok) {
+      document.getElementById('iga-req-name').value = '';
+      document.getElementById('iga-req-email').value = '';
+      alert('Solicitação de acesso enviada para aprovação do gestor de SecOps (simulado Sailpoint).');
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao enviar solicitação:', err);
+  }
+}
+
+// Approve Governance Request
+async function approveGovernanceRequest(requestId) {
+  const approver = prompt('Nome do Aprovador (ex: Gestor de Segurança):', 'Aprovador SecOps');
+  if (!approver) return;
+  
+  try {
+    const res = await fetch(`/api/iam/requests/${requestId}/approve`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approver })
+    });
+    
+    if (res.ok) {
+      alert('Aprovado! Provisionamento efetuado com sucesso.');
+      fetchIamData();
+    }
+  } catch (err) {
+    console.error('Erro ao aprovar solicitação:', err);
+  }
+}
+

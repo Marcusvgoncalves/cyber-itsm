@@ -60,6 +60,20 @@ class AuditLog < ActiveRecord::Base
   validates :action, presence: true
 end
 
+class IamProvider < ActiveRecord::Base
+  validates :name, :provider_type, presence: true
+end
+
+class IamUser < ActiveRecord::Base
+  validates :name, :email, :provider_type, presence: true
+  validates :role, inclusion: { in: %w[Admin Analyst Requester Auditor] }
+end
+
+class IdentityRequest < ActiveRecord::Base
+  validates :user_name, :user_email, :requested_role, presence: true
+  validates :status, inclusion: { in: %w[Pendente Aprovado Provisionado] }
+end
+
 # Helper for JSON responses
 def json_response(data, status_code = 200)
   status status_code
@@ -77,10 +91,58 @@ def seed_default_statuses
   end
 end
 
+# Seed default IAM providers and users if empty
+def seed_default_iam
+  if IamProvider.count.zero?
+    IamProvider.create!(
+      name: 'Microsoft Entra ID (Azure AD)',
+      provider_type: 'entraid',
+      client_id: 'entra-client-9988',
+      client_secret: 'sec-entra-3321',
+      settings: { tenant_id: 'common-vivo-tenant', scopes: 'openid profile email' }.to_json,
+      active: true
+    )
+    IamProvider.create!(
+      name: 'Keycloak OIDC Broker',
+      provider_type: 'keycloak',
+      client_id: 'cyber-itsm-app',
+      client_secret: 'keycloak-client-secret-123',
+      settings: { auth_server_url: 'https://keycloak.telefonica.com/auth', realm: 'VivoRealm' }.to_json,
+      active: false
+    )
+    IamProvider.create!(
+      name: 'Oracle Access Manager (OAM)',
+      provider_type: 'oam',
+      client_id: 'oam-webgate-itsm',
+      client_secret: 'oam-pass-gate-889',
+      settings: { webgate_id: 'WG_CYBER_ITSM', header_username: 'OAM_REMOTE_USER' }.to_json,
+      active: false
+    )
+    IamProvider.create!(
+      name: 'Sailpoint IdentityNow (IGA)',
+      provider_type: 'sailpoint',
+      client_id: 'sailpoint-governance-itsm',
+      client_secret: 'sp-secret-442299',
+      settings: { api_endpoint: 'https://sailpoint.vivo.com/identitynow/api', sync_cron: '0 0 * * *' }.to_json,
+      active: false
+    )
+  end
+
+  if IamUser.count.zero?
+    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'keycloak', status: 'Ativo')
+    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'entraid', status: 'Ativo')
+    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'sailpoint', status: 'Ativo')
+    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'oam', status: 'Ativo')
+  end
+end
+
 # ----------------- SEED EXECUTION -----------------
 begin
   if ActiveRecord::Base.connection.table_exists?('statuses')
     seed_default_statuses
+  end
+  if ActiveRecord::Base.connection.table_exists?('iam_providers')
+    seed_default_iam
   end
 rescue => e
   puts "Skipping seeds: database not migrated yet. (#{e.message})"
@@ -340,4 +402,175 @@ post '/api/tickets/:ticket_id/comments' do
   else
     json_response({ errors: comment.errors.full_messages }, 422)
   end
+end
+
+
+# --- IAM API ---
+
+# Get all IAM providers
+get '/api/iam/providers' do
+  providers = IamProvider.all
+  json_response(providers)
+end
+
+# Update IAM provider configurations
+put '/api/iam/providers/:id' do
+  provider = IamProvider.find_by(id: params[:id])
+  return json_response({ error: 'Provedor não encontrado' }, 404) unless provider
+
+  data = JSON.parse(request.body.read)
+  provider.client_id = data['client_id'] if data.key?('client_id')
+  provider.client_secret = data['client_secret'] if data.key?('client_secret')
+  provider.active = data['active'] if data.key?('active')
+  if data.key?('settings')
+    provider.settings = data['settings'].is_a?(String) ? data['settings'] : data['settings'].to_json
+  end
+
+  # Deactivate other providers if this one is activated
+  if provider.active
+    IamProvider.where.not(id: provider.id).update_all(active: false)
+  end
+
+  if provider.save
+    json_response(provider)
+  else
+    json_response({ errors: provider.errors.full_messages }, 422)
+  end
+end
+
+# Get all IAM synchronized users
+get '/api/iam/users' do
+  users = IamUser.all
+  json_response(users)
+end
+
+# Toggle user status (Ativo / Bloqueado)
+post '/api/iam/users/:id/toggle_status' do
+  user = IamUser.find_by(id: params[:id])
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  user.status = (user.status == 'Ativo' ? 'Bloqueado' : 'Ativo')
+  if user.save
+    json_response(user)
+  else
+    json_response({ errors: user.errors.full_messages }, 422)
+  end
+end
+
+# Edit user profile/role
+post '/api/iam/users/:id/change_role' do
+  user = IamUser.find_by(id: params[:id])
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  data = JSON.parse(request.body.read)
+  user.role = data['role']
+  
+  if user.save
+    json_response(user)
+  else
+    json_response({ errors: user.errors.full_messages }, 422)
+  end
+end
+
+# Delete/Deprovision user
+delete '/api/iam/users/:id' do
+  user = IamUser.find_by(id: params[:id])
+  return json_response({ error: 'Usuário não encontrado' }, 404) unless user
+
+  user.destroy
+  json_response({ message: 'Usuário desprovisionado com sucesso' })
+end
+
+# Simulate Identity Synchronization from active provider
+post '/api/iam/sync' do
+  active_provider = IamProvider.find_by(active: true)
+  unless active_provider
+    return json_response({ error: 'Nenhum provedor ativo para sincronização' }, 400)
+  end
+
+  mock_users_by_provider = {
+    'entraid' => [
+      { name: 'Ana EntraID', email: 'ana.entraid@telefonica.com', role: 'Analyst' },
+      { name: 'Bernardo EntraID', email: 'bernardo.entraid@telefonica.com', role: 'Requester' }
+    ],
+    'keycloak' => [
+      { name: 'Kelly Keycloak', email: 'kelly.keycloak@telefonica.com', role: 'Admin' },
+      { name: 'Kevin Keycloak', email: 'kevin.keycloak@telefonica.com', role: 'Analyst' }
+    ],
+    'oam' => [
+      { name: 'Oscar Oam', email: 'oscar.oam@telefonica.com', role: 'Requester' },
+      { name: 'Olivia Oam', email: 'olivia.oam@telefonica.com', role: 'Auditor' }
+    ],
+    'sailpoint' => [
+      { name: 'Sam Sailpoint', email: 'sam.sailpoint@telefonica.com', role: 'Auditor' },
+      { name: 'Sarah Sailpoint', email: 'sarah.sailpoint@telefonica.com', role: 'Analyst' }
+    ]
+  }
+
+  imported = []
+  users_data = mock_users_by_provider[active_provider.provider_type] || []
+
+  users_data.each do |u|
+    user = IamUser.find_or_initialize_by(email: u[:email])
+    user.name = u[:name]
+    user.role = u[:role]
+    user.provider_type = active_provider.provider_type
+    user.status = 'Ativo'
+    user.save!
+    imported << user
+  end
+
+  json_response({ message: "Sincronização concluída para o provedor #{active_provider.name}!", users: imported })
+end
+
+# Get all governance/provisioning requests (Sailpoint model)
+get '/api/iam/requests' do
+  requests = IdentityRequest.all.order(created_at: :desc)
+  json_response(requests)
+end
+
+# Submit a governance access request
+post '/api/iam/requests' do
+  data = JSON.parse(request.body.read)
+  
+  req = IdentityRequest.new(
+    user_name: data['user_name'],
+    user_email: data['user_email'],
+    requested_role: data['requested_role'],
+    action_type: data['action_type'] || 'RoleChange',
+    status: 'Pendente',
+    log: "Requisição de governança aberta para alterar perfil para #{data['requested_role']}"
+  )
+
+  if req.save
+    json_response(req, 201)
+  else
+    json_response({ errors: req.errors.full_messages }, 422)
+  end
+end
+
+# Approve and provision a governance request
+put '/api/iam/requests/:id/approve' do
+  req = IdentityRequest.find_by(id: params[:id])
+  return json_response({ error: 'Requisição não encontrada' }, 404) unless req
+
+  data = JSON.parse(request.body.read)
+  approver = data['approver'] || 'Gestor SecOps'
+
+  ActiveRecord::Base.transaction do
+    req.status = 'Provisionado'
+    req.approver = approver
+    req.log = "Aprovado por #{approver}. Provisionamento executado com sucesso no conector de destino."
+    req.save!
+
+    # Update or create the actual user role in local database (Sailpoint provisioning action)
+    user = IamUser.find_or_initialize_by(email: req.user_email)
+    user.name = req.user_name
+    user.role = req.requested_role
+    user.provider_type = 'sailpoint' # Governed by Sailpoint
+    user.status = 'Ativo'
+    user.save!
+  end
+
+  json_response(req)
 end

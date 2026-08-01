@@ -42,6 +42,9 @@
         <a class="sidebar-item" id="menu-kb" onclick="switchView('kb')">
           <i data-lucide="book-open"></i> Base de Conhecimento
         </a>
+        <a class="sidebar-item" id="menu-iam" onclick="switchView('iam')">
+          <i data-lucide="shield-check"></i> Gestão de Acessos
+        </a>
       </aside>
 
       <!-- WORKSPACE -->
@@ -176,6 +179,99 @@
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
                 Frameworks relacionados: NIST Respond (RS.MI) | CIS Control 4 | ISO 27001 A.12.6
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- IAM ACCESS MANAGEMENT VIEW -->
+        <div id="view-iam" class="view-content settings-panel" style="display: none; height: 100%; flex-direction: column;">
+          <div class="workspace-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 16px;">
+            <div class="workspace-title">
+              <h2>Gestão de Acessos & Perfis (IAM)</h2>
+              <p>Mapeamento de grupos de provedores (EntraID, Keycloak, OAM) e governança Sailpoint</p>
+            </div>
+            <div class="topbar-actions">
+              <button class="btn btn-secondary" onclick="runSimulationSync()">
+                <i data-lucide="refresh-cw"></i> Sincronizar Identidades
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs header -->
+          <div style="display: flex; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+            <button class="btn btn-secondary btn-active-tab" id="tab-iam-providers" onclick="switchIamTab('providers')" style="padding: 6px 12px; font-size: 13px;">Provedores IAM</button>
+            <button class="btn btn-secondary" id="tab-iam-users" onclick="switchIamTab('users')" style="padding: 6px 12px; font-size: 13px;">Usuários & Perfis (RBAC)</button>
+            <button class="btn btn-secondary" id="tab-iam-governance" onclick="switchIamTab('governance')" style="padding: 6px 12px; font-size: 13px;">Governança (Sailpoint)</button>
+          </div>
+
+          <!-- Content Tab 1: Providers -->
+          <div id="iam-content-providers" class="iam-tab-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;" id="iam-providers-list">
+              <!-- Providers rendered here -->
+            </div>
+          </div>
+
+          <!-- Content Tab 2: Users & Profiles -->
+          <div id="iam-content-users" class="iam-tab-content" style="display: none; overflow-y: auto; flex: 1;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-secondary);">
+                  <th style="padding: 10px 8px;">Nome</th>
+                  <th style="padding: 10px 8px;">E-mail</th>
+                  <th style="padding: 10px 8px;">Provedor Origem</th>
+                  <th style="padding: 10px 8px;">Perfil Local (RBAC)</th>
+                  <th style="padding: 10px 8px;">Status</th>
+                  <th style="padding: 10px 8px; text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="iam-users-table-body">
+                <!-- Sync users here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Content Tab 3: Governance (Sailpoint) -->
+          <div id="iam-content-governance" class="iam-tab-content" style="display: none; overflow-y: auto; flex: 1;">
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px;">
+              
+              <!-- Access Request Form -->
+              <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 16px; height: fit-content;">
+                <h3 style="font-size: 14px; font-weight: 700; color: var(--color-accent); margin-bottom: 12px;">Nova Solicitação de Acesso IGA</h3>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label>Nome do Colaborador *</label>
+                  <input type="text" class="form-control" id="iga-req-name" placeholder="Ex: Júlia DevOps" style="font-size: 13px;">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label>E-mail *</label>
+                  <input type="email" class="form-control" id="iga-req-email" placeholder="julia.devops@telefonica.com" style="font-size: 13px;">
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label>Perfil Solicitado (RBAC)</label>
+                  <select class="form-control" id="iga-req-role" style="font-size: 13px;">
+                    <option value="Admin">Admin</option>
+                    <option value="Analyst" selected>Analyst</option>
+                    <option value="Requester">Requester</option>
+                    <option value="Auditor">Auditor</option>
+                  </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="submitGovernanceRequest()" style="width: 100%; justify-content: center; font-size: 13px;">
+                  Solicitar Acesso (Sailpoint)
+                </button>
+              </div>
+
+              <!-- Access Request List -->
+              <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 16px;">
+                <h3 style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px;">Trilha de Solicitações e Ciclo de Provisionamento</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 12px;" id="iga-requests-list">
+                  <!-- Governance requests list -->
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

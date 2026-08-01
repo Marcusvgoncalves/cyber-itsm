@@ -63,3 +63,22 @@ Frontend visual assets obey the official **Vivo Telefonica** design standards:
 - **SCA (Software Composition Analysis)**: Powered by `bundler-audit` to detect CVEs inside the Gemfile dependencies.
 - **SAST (Static Application Security Testing)**: Verified with `brakeman` and `rubocop` to identify vulnerabilities and code quality issues.
 - **DAST (Dynamic Application Security Testing)**: Automated in `scripts/security_scan.rb`, which boots the web server, probes active endpoints for security headers (CSP, X-Frame-Options, etc.), and tests input validation against SQL Injections.
+
+---
+
+### 6. Gestão de Acessos & Perfis (IAM / IGA) - Português
+A área de acessos integra simuladores de provedores líderes de mercado:
+- **Microsoft Entra ID**: Conector OpenID Connect (OIDC) que simula o fluxo de importação e sincronização de usuários SecOps baseados em escopos corporativos.
+- **Keycloak**: Gerencia Realms e credenciais de cliente OIDC para controle fino e RBAC local.
+- **Oracle Access Manager (OAM)**: Integração com cabeçalhos de identificação WebGate e identificadores únicos.
+- **Sailpoint IdentityNow (IGA)**: Implementa a trilha de governança. O provisionamento de usuários segue um ciclo de vida estrito: solicitação de acesso, aprovação pelo gestor de SecOps e provisionamento ativo (gravação do perfil local e atualização dos conectores).
+
+---
+
+### 6. Identity & Access Governance (IAM / IGA) - English
+The access panel simulates state-of-the-art Identity and Access Management connectors:
+- **Microsoft Entra ID**: OIDC client connector simulating synchronization and extraction of enterprise SecOps identity logs.
+- **Keycloak**: Real-time management of realm mappings and OIDC client profiles matching local RBAC.
+- **Oracle Access Manager (OAM)**: Emulates gateway header attributes (WebGate Remote User) to dynamically parse user IDs.
+- **Sailpoint IdentityNow (IGA)**: Implements identity governance request audits. User provisioning follows a formal transaction log: request creation, SecOps manager authorization, and final target connector provisioning (active user generation and role persistence).
+

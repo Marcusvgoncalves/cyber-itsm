@@ -25,6 +25,9 @@ RSpec.configure do |config|
     AuditLog.destroy_all
     Ticket.destroy_all
     Status.destroy_all
+    IamProvider.destroy_all
+    IamUser.destroy_all
+    IdentityRequest.destroy_all
     
     # Reseed statuses
     seed_default_statuses
