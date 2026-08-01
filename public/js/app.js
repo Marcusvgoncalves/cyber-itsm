@@ -951,3 +951,47 @@ async function approveGovernanceRequest(requestId) {
   }
 }
 
+// Open manual user creation modal
+function openCreateUserModal() {
+  document.getElementById('create-user-modal').classList.add('open');
+}
+
+// Close manual user creation modal
+function closeCreateUserModal() {
+  document.getElementById('create-user-modal').classList.remove('open');
+  document.getElementById('manual-user-name').value = '';
+  document.getElementById('manual-user-email').value = '';
+}
+
+// Submit manual user creation
+async function submitCreateUserManual() {
+  const name = document.getElementById('manual-user-name').value;
+  const email = document.getElementById('manual-user-email').value;
+  const role = document.getElementById('manual-user-role').value;
+
+  if (!name || !email) {
+    alert('Preencha o Nome e o E-mail.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/iam/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, role })
+    });
+
+    if (res.ok) {
+      closeCreateUserModal();
+      alert('Usuário criado manualmente com sucesso na base de dados local!');
+      fetchIamData();
+    } else {
+      const data = await res.json();
+      alert('Erro: ' + (data.errors ? data.errors.join(', ') : 'Falha ao criar usuário'));
+    }
+  } catch (err) {
+    console.error('Erro ao criar usuário manualmente:', err);
+  }
+}
+
+

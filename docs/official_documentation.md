@@ -72,6 +72,7 @@ A área de acessos integra simuladores de provedores líderes de mercado:
 - **Keycloak**: Gerencia Realms e credenciais de cliente OIDC para controle fino e RBAC local.
 - **Oracle Access Manager (OAM)**: Integração com cabeçalhos de identificação WebGate e identificadores únicos.
 - **Sailpoint IdentityNow (IGA)**: Implementa a trilha de governança. O provisionamento de usuários segue um ciclo de vida estrito: solicitação de acesso, aprovação pelo gestor de SecOps e provisionamento ativo (gravação do perfil local e atualização dos conectores).
+- **Criação Manual (Local)**: Permite o provisionamento manual e direto de novos colaboradores SecOps diretamente na base de dados, associando o perfil RBAC correspondente sem depender de conectores externos.
 
 ---
 
@@ -81,4 +82,6 @@ The access panel simulates state-of-the-art Identity and Access Management conne
 - **Keycloak**: Real-time management of realm mappings and OIDC client profiles matching local RBAC.
 - **Oracle Access Manager (OAM)**: Emulates gateway header attributes (WebGate Remote User) to dynamically parse user IDs.
 - **Sailpoint IdentityNow (IGA)**: Implements identity governance request audits. User provisioning follows a formal transaction log: request creation, SecOps manager authorization, and final target connector provisioning (active user generation and role persistence).
+- **Manual Provisioning (Local)**: Enables administrators to manually register and assign RBAC roles to new SecOps collaborators directly within the local database without relying on external sync events.
+
 

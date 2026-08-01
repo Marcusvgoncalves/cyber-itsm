@@ -202,5 +202,21 @@ RSpec.describe 'CyberITSM REST API' do
       expect(user.role).to eq('Admin')
       expect(user.status).to eq('Ativo')
     end
+
+    it 'creates a user manually' do
+      payload = {
+        name: 'Roberto Local',
+        email: 'roberto.local@telefonica.com',
+        role: 'Auditor'
+      }
+      post '/api/iam/users', payload.to_json, json_headers
+      expect(last_response.status).to eq(201)
+      
+      user = IamUser.find_by(email: 'roberto.local@telefonica.com')
+      expect(user).not_to be_nil
+      expect(user.name).to eq('Roberto Local')
+      expect(user.role).to eq('Auditor')
+      expect(user.provider_type).to eq('local')
+    end
   end
 end

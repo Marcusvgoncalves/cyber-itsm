@@ -444,6 +444,25 @@ get '/api/iam/users' do
   json_response(users)
 end
 
+# Create user manually
+post '/api/iam/users' do
+  data = JSON.parse(request.body.read)
+  user = IamUser.new(
+    name: data['name'],
+    email: data['email'],
+    role: data['role'] || 'Requester',
+    provider_type: 'local',
+    status: 'Ativo'
+  )
+
+  if user.save
+    json_response(user, 201)
+  else
+    json_response({ errors: user.errors.full_messages }, 422)
+  end
+end
+
+
 # Toggle user status (Ativo / Bloqueado)
 post '/api/iam/users/:id/toggle_status' do
   user = IamUser.find_by(id: params[:id])

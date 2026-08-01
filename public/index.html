@@ -213,6 +213,11 @@
 
           <!-- Content Tab 2: Users & Profiles -->
           <div id="iam-content-users" class="iam-tab-content" style="display: none; overflow-y: auto; flex: 1;">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+              <button class="btn btn-primary" onclick="openCreateUserModal()" style="font-size: 11px; padding: 6px 12px;">
+                <i data-lucide="user-plus"></i> Criar Usuário Manual
+              </button>
+            </div>
             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
               <thead>
                 <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-secondary);">
@@ -490,6 +495,39 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="closeNewStatusModal()">Cancelar</button>
           <button class="btn btn-primary" onclick="submitCreateStatus()">Salvar</button>
+        </div>
+      </div>
+    <!-- MANUAL USER CREATION MODAL -->
+    <div class="modal-overlay" id="create-user-modal">
+      <div class="modal-content" style="width: 400px;">
+        <div class="modal-header">
+          <h3>Criar Usuário Manualmente</h3>
+          <button class="btn btn-secondary" onclick="closeCreateUserModal()" style="padding: 4px 8px;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nome Completo *</label>
+            <input type="text" class="form-control" id="manual-user-name" placeholder="Ex: Lucas Souza" style="font-size: 13px;">
+          </div>
+          <div class="form-group">
+            <label>E-mail *</label>
+            <input type="email" class="form-control" id="manual-user-email" placeholder="lucas.souza@telefonica.com" style="font-size: 13px;">
+          </div>
+          <div class="form-group">
+            <label>Perfil Local (RBAC)</label>
+            <select class="form-control" id="manual-user-role" style="font-size: 13px;">
+              <option value="Admin">Admin</option>
+              <option value="Analyst" selected>Analyst</option>
+              <option value="Requester">Requester</option>
+              <option value="Auditor">Auditor</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeCreateUserModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="submitCreateUserManual()">Salvar</button>
         </div>
       </div>
     </div>
