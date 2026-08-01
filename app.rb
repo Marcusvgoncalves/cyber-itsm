@@ -225,15 +225,23 @@ def seed_default_iam
     )
   end
 
-  if IamUser.count.zero?
-    IamUser.create!(name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
-    IamUser.create!(name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
-    IamUser.create!(name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
-    IamUser.create!(name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester', provider_type: 'local', status: 'Ativo', password: 'CyberITSM@2026!Password')
-  else
-    IamUser.where(password_digest: nil).find_each do |user|
-      user.update!(password: 'CyberITSM@2026!Password')
-    end
+  local_users_to_seed = [
+    { name: 'Marcus Gonçalves', email: 'marcus.goncalves@telefonica.com', role: 'Admin' },
+    { name: 'João SecOps', email: 'joao.secops@telefonica.com', role: 'Analyst' },
+    { name: 'Beatriz Auditora', email: 'beatriz.auditora@telefonica.com', role: 'Auditor' },
+    { name: 'Carlos Dev', email: 'carlos.dev@telefonica.com', role: 'Requester' }
+  ]
+
+  local_users_to_seed.each do |u_data|
+    user = IamUser.find_or_initialize_by(email: u_data[:email])
+    user.name = u_data[:name]
+    user.role = u_data[:role]
+    user.provider_type = 'local'
+    user.status = 'Ativo'
+    user.password = 'CyberITSM@2026!Password'
+    user.mfa_enabled = true
+    user.mfa_setup_complete = false if user.new_record? || user.mfa_setup_complete.nil?
+    user.save!
   end
 end
 
