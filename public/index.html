@@ -46,6 +46,9 @@
       
       <!-- SIDEBAR -->
       <aside class="sidebar">
+        <a class="sidebar-item" id="menu-dashboard" onclick="switchView('dashboard')">
+          <i data-lucide="bar-chart-2"></i> Dashboard SecOps
+        </a>
         <a class="sidebar-item active" id="menu-board" onclick="switchView('board')">
           <i data-lucide="kanban-square"></i> Kanban Board
         </a>
@@ -65,7 +68,82 @@
 
       <!-- WORKSPACE -->
       <main class="workspace">
-        
+
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="view-content" style="display: none; flex-direction: column; height: 100%; overflow-y: auto; padding: 20px; gap: 24px;">
+          <div class="workspace-header" style="padding: 0 0 10px 0; border-bottom: none; margin-bottom: 0;">
+            <div class="workspace-title">
+              <h2>Dashboard de Métricas SecOps</h2>
+              <p>Volumetria de riscos, estimativas matemáticas de mitigação e ações de arquitetura sugeridas</p>
+            </div>
+            <button class="btn btn-secondary" onclick="fetchDashboardData()" title="Recarregar Métricas">
+              <i data-lucide="refresh-cw" id="db-refresh-icon"></i>
+            </button>
+          </div>
+
+          <!-- Cards Grid: Totals -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 20px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total de Chamados</span>
+              <span id="stat-total-tickets" style="font-size: 32px; font-weight: 800; color: var(--color-primary);">0</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Itens sob governança ativa</span>
+            </div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 20px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Riscos Críticos/Altos</span>
+              <span id="stat-critical-tickets" style="font-size: 32px; font-weight: 800; color: var(--color-critical);">0</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Exposição de alto impacto</span>
+            </div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 20px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ações Resolvidas</span>
+              <span id="stat-done-tickets" style="font-size: 32px; font-weight: 800; color: var(--color-done);">0</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Controles validados e concluídos</span>
+            </div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 20px; display: flex; flex-direction: column; gap: 8px;">
+              <span style="font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Taxa de Mitigação</span>
+              <span id="stat-mitigation-rate" style="font-size: 32px; font-weight: 800; color: var(--color-accent);">0%</span>
+              <span style="font-size: 11px; color: var(--text-muted);">Conclusão geral do backlog</span>
+            </div>
+          </div>
+
+          <!-- Mid Section: Volumetrics and Projections -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+            
+            <!-- Framework Volumetrics -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+              <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin: 0; color: var(--text-primary);">Volumetria por Framework de Segurança</h3>
+              <div id="framework-bars-container" style="display: flex; flex-direction: column; gap: 12px; justify-content: center; height: 100%;">
+                <!-- Dynamic progress bars -->
+              </div>
+            </div>
+
+            <!-- Math Projections -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+              <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin: 0; color: var(--text-primary);">Projeções SecOps & Estimativa Matemática</h3>
+              <div style="display: flex; flex-direction: column; gap: 14px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                <div style="background: var(--bg-tertiary); padding: 12px; border-radius: var(--border-radius-sm); border-left: 3px solid var(--color-accent);">
+                  <strong style="color: var(--color-accent); display: block; margin-bottom: 4px;">Prazo de Resolução Estimado (MTTR)</strong>
+                  <span>Com base no ritmo de triagem e execução, estima-se um tempo médio de **<span id="proj-mttr-days">0</span> dias** para solucionar cada controle de segurança pendente.</span>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: 12px; border-radius: var(--border-radius-sm); border-left: 3px solid var(--color-done);">
+                  <strong style="color: var(--color-done); display: block; margin-bottom: 4px;">Mitigação de Exposição Crítica</strong>
+                  <span>Se a taxa de correção de **<span id="proj-rate">0%</span>** for mantida, a projeção matemática indica a resolução de toda a fila de incidentes prioritários em **<span id="proj-days-to-zero">0</span> dias**.</span>
+                </div>
+                <p style="font-size: 11px; color: var(--text-muted); margin: 0;">Nota: As estimativas matemáticas utilizam taxas lineares baseadas na proporção de chamados ativos vs. concluídos.</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Section: Actions list -->
+          <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+            <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin: 0; color: var(--text-primary);">Ações de Hardening e Arquitetura Sugeridas</h3>
+            <div id="dashboard-suggested-actions" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Dynamic actions lists -->
+            </div>
+          </div>
+
+        </div>
+
         <!-- BOARD VIEW -->
         <div id="view-board" class="view-content" style="display: flex; flex-direction: column; height: 100%;">
           <div class="workspace-header">
@@ -251,68 +329,79 @@
             
             <!-- NIST CSF -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-NIST] NIST CSF v2.0 - PR.AA (Authentication and Authorization)</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                As credenciais de acesso físico e digital devem ser autorizadas e gerenciadas de acordo com as necessidades do negócio. No CyberITSM SPN, isso é mitigado pela imposição de verificação obrigatória de segundo fator (MFA) e complexidade de senhas em todas as contas locais.
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Métricas associadas: NIST PR.AA-1 | NIST PR.AA-2
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-NIST] NIST CSF v2.0 - Controle de Acesso e Governança</h3>
+                <a href="/kb/nist-csf.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Mapeamento das 6 funções essenciais do NIST (Governar, Identificar, Proteger, Detectar, Responder e Recuperar) com checklists detalhados em português do nível Júnior ao Especialista.
+              </p>
             </div>
 
             <!-- CIS CONTROLS -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-CIS] CIS Control 6 - Access Control Management</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                Estabeleça e gerencie privilégios com base no Princípio do Menor Privilégio (PoLP). Perfis locais (RBAC) Admin, Analyst, Auditor e Requester devem ser revisados continuamente via conectores Sailpoint para evitar acúmulo de acessos (Privilege Creep).
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Salvaguardas: CIS 6.1 (Definir perfis) | CIS 6.2 (Revogar privilégios não utilizados)
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-CIS] CIS Control 5 e 6 - Gestão de Contas e Acessos</h3>
+                <a href="/kb/cis-controls.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Estabeleça e gerencie privilégios com base no Princípio de Menor Privilégio (PoLP). Rotinas passo a passo para inventários de ativos e revogação de acessos.
+              </p>
             </div>
 
-            <!-- OWASP TOP 10 -->
+            <!-- OWASP TOP 10 OVERVIEW -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-OWASP] OWASP Top 10 - A03: Injection &amp; SQLi</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                Dados inseridos pelo usuário devem ser sanitizados antes de serem avaliados pelo interpretador. O ORM ActiveRecord protege nativamente contra injeções SQL parametrizando de forma automática todas as queries geradas no banco de dados SQLite.
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Recomendações: OWASP ASVS v4.0.3 | Tratamento de Entradas Dinâmicas
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-OWASP] OWASP Top 10 - Conceitos e Mitigações</h3>
+                <a href="/kb/owasp-top10.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Visão geral das 10 principais vulnerabilidades críticas em aplicações web, incluindo estratégias de defesa estruturadas para desenvolvedores e arquitetos.
+              </p>
+            </div>
+
+            <!-- OWASP TOP 10 VULNERABILITIES PRACTICAL -->
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-VULN] OWASP Top 10 Vulnerabilidades - Correção de Código (SQLi, IDOR)</h3>
+                <a href="/kb/owasp-top10-vulnerabilities.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
+              </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Detalhamento prático de SQL Injection e Controle de Acesso Quebrado com correções em código e procedimentos estruturados de triagem do nível Júnior ao Especialista.
+              </p>
             </div>
 
             <!-- OWASP TOP 10 LLM -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-LLM] OWASP Top 10 LLM - LLM01: Prompt Injection</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                Entradas de terceiros não confiáveis podem manipular o comportamento de modelos de linguagem de inteligência artificial generativa. Recomenda-se implementar filtros heurísticos de moderação e sanitização de payloads dinâmicos antes de serem repassados aos embeddings das APIs de LLM.
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Mecanismos de Defesa: Validação Estruturada | Isolamento de Contexto do Sistema
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-LLM] OWASP Top 10 LLM - LLM01: Prompt Injection e Proteção de IA</h3>
+                <a href="/kb/owasp-top10-llm.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Estratégias de defesa de Prompt Injection (injeções indiretas) e vazamento de informações confidenciais em barramentos de integração com IA Generativa.
+              </p>
             </div>
 
             <!-- ISO 27001 -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-ISO] ISO/IEC 27001:2022 Annex A.8.20 - Network Security</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                As redes e os serviços de rede devem ser protegidos e controlados de forma a evitar vazamentos ou acessos ilegítimos. Cabeçalhos HTTP obrigatórios (CSP, HSTS) evitam ataques do lado do cliente (client-side redirections) e escutas ativas.
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Alinhamento de Controles: ISO A.8.12 (Data Leakage Prevention) | ISO A.5.15
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-ISO] ISO/IEC 27001:2022 - Controles do Anexo A (A.5, A.8)</h3>
+                <a href="/kb/iso27001.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Implementação prática de controles tecnológicos de criptografia e proteção de redes (A.8.20) e controles organizacionais do Sistema de Gestão de Segurança (SGSI).
+              </p>
             </div>
 
             <!-- CRISC -->
             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
-              <h3 style="color: var(--color-primary); font-size: 15px; margin-bottom: 8px;">[KB-CRISC] ISACA CRISC - IT Risk Assessment &amp; Control Design</h3>
-              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-                O design de controles deve equilibrar o impacto do risco residual em relação ao custo de implementação do controle mitigador. No quadro Kanban do CyberITSM SPN, analistas podem atribuir níveis de criticidade e rastrear o andamento de vulnerabilidades associadas a cada sistema legado.
-              </p>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
-                Domínios CRISC: Identificação de Riscos de TI | Resposta a Riscos de TI
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="color: var(--color-primary); font-size: 15px; margin: 0;">[KB-CRISC] ISACA CRISC - Identificação e Resposta a Riscos de TI</h3>
+                <a href="/kb/crisc.html" target="_blank" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Ler Guia Passo a Passo</a>
               </div>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Procedimentos de avaliação de riscos qualitativos/quantitativos, cálculo de risco residual aceitável e mapeamento das diretrizes da certificação CRISC.
+              </p>
             </div>
 
           </div>
@@ -737,6 +826,42 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- COGNITIVE AI CHATBOT WIDGET -->
+  <button id="chatbot-trigger" onclick="toggleChatbot()" style="position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); border: none; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); outline: none;">
+    <i data-lucide="message-square" style="width: 24px; height: 24px; color: #ffffff;" id="chatbot-icon-msg"></i>
+    <i data-lucide="x" style="width: 24px; height: 24px; color: #ffffff; display: none;" id="chatbot-icon-close"></i>
+  </button>
+
+  <div id="chatbot-panel" style="position: fixed; bottom: 96px; right: 24px; width: 380px; height: 500px; max-height: calc(100vh - 120px); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000; display: none; flex-direction: column; overflow: hidden; transition: all 0.3s ease-in-out;">
+    <div style="background: linear-gradient(135deg, var(--color-primary), #4b0082); padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color);">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-primary); display: flex; align-items: center; justify-content: center;">
+          <i data-lucide="bot" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+        </div>
+        <div>
+          <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #ffffff;">Agente SecOps Cognitivo</h4>
+          <span style="font-size: 10px; color: rgba(255,255,255,0.7); display: block; margin-top: 1px;">Apoio à Autorização & Risco</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary" onclick="toggleChatbot()" style="padding: 4px 8px; font-size: 10px; background: rgba(255,255,255,0.1); border: none; color: #ffffff; cursor: pointer;">
+        <i data-lucide="minus"></i>
+      </button>
+    </div>
+
+    <div id="chatbot-messages" style="flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; font-size: 12px; scrollbar-width: thin; background: var(--bg-primary);">
+      <div style="align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md); max-width: 85%; line-height: 1.5; color: var(--text-primary);">
+        Olá! Sou o **Agente SecOps Cognitivo**. Como posso te ajudar com os frameworks de segurança (NIST, ISO, CIS, OWASP, CRISC) hoje?
+      </div>
+    </div>
+
+    <form id="chatbot-form" onsubmit="submitChatbot(event)" style="padding: 12px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); display: flex; gap: 8px; align-items: center;">
+      <input type="text" id="chatbot-input" placeholder="Pergunte sobre controles, riscos ou mitigação..." style="flex: 1; padding: 8px 12px; font-size: 12px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--border-radius-sm); outline: none;" required autocomplete="off">
+      <button type="submit" class="btn btn-primary" style="padding: 8px 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+        <i data-lucide="send" style="width: 14px; height: 14px;"></i>
+      </button>
+    </form>
   </div>
 
   <script src="/js/app.js"></script>

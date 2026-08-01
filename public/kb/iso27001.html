@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberITSM SPN - ISO/IEC 27001:2022</title>
+  <link rel="stylesheet" href="/css/mistica.css">
+  <style>
+    body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-family); padding: 40px; overflow-y: auto; }
+    .kb-container { max-width: 900px; margin: 0 auto; }
+    .kb-header { margin-bottom: 30px; }
+    .kb-header h1 { color: var(--color-primary); font-size: 28px; font-weight: 800; }
+    .kb-header p { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+    .kb-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 24px; margin-bottom: 20px; }
+    .kb-section h2 { color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+    .kb-section h3 { color: var(--color-accent); font-size: 14px; font-weight: 600; margin: 16px 0 8px 0; }
+    .kb-section p, .kb-section li { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+    .kb-section ul, .kb-section ol { padding-left: 20px; }
+    .kb-tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--color-primary); color: #fff; font-weight: 600; margin-right: 6px; }
+    .kb-back { display: inline-block; margin-bottom: 20px; color: var(--color-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+    .kb-back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="kb-container">
+    <a href="/" class="kb-back">← Voltar ao CyberITSM SPN</a>
+    <div class="kb-header">
+      <h1>Norma ABNT NBR ISO/IEC 27001:2022</h1>
+      <p>Procedimentos de conformidade para implantação do Sistema de Gestão de Segurança da Informação (SGSI). Um guia prático estruturado do nível Júnior ao Especialista para remediação ativa.</p>
+    </div>
+
+    <!-- CONTROLES ORGANIZACIONAIS -->
+    <div class="kb-section">
+      <h2>A.5 — Controles Organizacionais (Ex: Controle de Acesso e Gestão de Incidentes)</h2>
+      <p>Garante que a organização possua uma estrutura formal e políticas de segurança bem delineadas.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Registre novos incidentes no sistema SecOps, garanta a atribuição correta aos analistas e auxilie no preenchimento de termos de responsabilidade de ativos de informação por novos colaboradores.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Realize revisões periódicas de privilégios de acesso locais (RBAC) e valide se as contas ativas condizem com o status dos colaboradores no banco de dados corporativo, reportando privilégios excessivos (Privilege Creep).</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Desenhe o plano diretor de Gestão de Incidentes corporativo, estruture as políticas de classificação de dados executivas e estabeleça acordos de confidencialidade (NDAs) com fornecedores estratégicos.</li>
+      </ul>
+    </div>
+
+    <!-- CONTROLES TECNOLOGICOS -->
+    <div class="kb-section">
+      <h2>A.8 — Controles Tecnológicos (Ex: Segurança de Redes e Criptografia)</h2>
+      <p>Garante que os ativos de rede, banco de dados e sistemas utilizem criptografia e defesas tecnológicas atualizadas.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Verifique se as dependências do projeto contêm vulnerabilidades e monitore certificados SSL/TLS próximos do vencimento.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Configure cabeçalhos de segurança obrigatórios HTTP (CSP rígido, HSTS, X-Frame-Options) no arquivo de rotas ou no servidor proxy e implemente criptografia simétrica com hash forte para senhas (BCrypt).</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Projete a infraestrutura de chaves criptográficas (KMS), defina políticas de segurança de rede Zero-Trust (microssegmentação de VPCs) e implemente firewalls locais e na nuvem com bloqueio de tráfego anômalo baseado em inteligência preditiva.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

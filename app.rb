@@ -4,6 +4,11 @@ require 'json'
 require 'securerandom'
 require 'bcrypt'
 require 'rotp'
+require 'cgi'
+
+# Server Configuration
+set :port, ENV['PORT'] || 4567
+set :bind, '0.0.0.0'
 
 # Serve static files from public directory
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -15,16 +20,94 @@ ActiveRecord::Base.establish_connection(db_config[ENV['RACK_ENV'] || 'developmen
 # Enable sessions for basic state if needed
 enable :sessions
 
-# Security Headers (OWASP Mitigation)
+# CORS and Preflight Handling for Cross-Domain Vercel/Render deploys
+options '*' do
+  request_origin = request.env['HTTP_ORIGIN'] || '*'
+  allowed_origin = if request_origin.match?(/localhost|127\.0\.0\.1|vercel\.app/)
+                     request_origin
+                   else
+                     'https://cyber-itsm-spn.vercel.app'
+                   end
+
+  response.headers['Access-Control-Allow-Origin'] = allowed_origin
+  response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+  response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+  response.headers['Access-Control-Allow-Credentials'] = 'true'
+  halt 200
+end
+
+# Security Headers (OWASP Mitigation) & CORS Injections
 after do
   content_type :json unless request.path_info.start_with?('/css/', '/js/', '/images/', '/architecture') || request.path_info == '/' || request.path_info == '/index.html'
+
+  request_origin = request.env['HTTP_ORIGIN'] || '*'
+  allowed_origin = if request_origin.match?(/localhost|127\.0\.0\.1|vercel\.app/)
+                     request_origin
+                   else
+                     'https://cyber-itsm-spn.vercel.app'
+                   end
 
   headers(
     'X-Frame-Options' => 'DENY',
     'X-Content-Type-Options' => 'nosniff',
     'X-XSS-Protection' => '1; mode=block',
-    'Content-Security-Policy' => "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://api.qrserver.com;"
+    'Content-Security-Policy' => "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://api.qrserver.com;",
+    'Access-Control-Allow-Origin' => allowed_origin,
+    'Access-Control-Allow-Methods' => 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Credentials' => 'true'
   )
+end
+
+# Helper to generate AI chatbot replies on cybersecurity frameworks (Jr to Specialist)
+def generate_secops_reply(message)
+  msg = message.to_s.downcase
+  
+  if msg.include?('mfa') || msg.include?('dois fatores') || msg.include?('autenticação')
+    "**[Guia de Implementação: MFA & Autenticação Forte]**\n\n" \
+    "Para alinhar sua infraestrutura com as exigências do **NIST PR.AA-02** e **ISO 27001 A.5.15**, siga o passo a passo:\n\n" \
+    "1. **Júnior**: Habilite políticas de senhas locais complexas (mínimo de 12 caracteres contendo letras maiúsculas, minúsculas, números e símbolos).\n" \
+    "2. **Pleno**: Integre um gerador de TOTP (como o Google Authenticator ou Microsoft Authenticator) nas rotas de login do sistema backend, utilizando chaves secretas exclusivas em Base32 por usuário.\n" \
+    "3. **Especialista**: Implemente fluxos de MFA em nível de federação (Microsoft Entra ID ou Keycloak OIDC Broker) e force políticas condicionais de acesso, bloqueando logins fora de faixas de IP corporativas ou dispositivos não registrados."
+  elsif msg.include?('sql injection') || msg.include?('sqli') || msg.include?('injeção sql')
+    "**[Guia de Mitigação: SQL Injection (OWASP A03)]**\n\n" \
+    "Para proteger o banco de dados contra consultas maliciosas (referente ao controle **CIS Control 3** e **ISO A.12.4**):\n\n" \
+    "1. **Júnior**: Nunca concatene entradas do usuário diretamente em strings SQL. Utilize sempre o seu ORM (como o ActiveRecord em Ruby ou sequer parametrizado no Node.js).\n" \
+    "2. **Pleno**: Escreva testes SAST/DAST automatizados em seu pipeline de CI/CD para detectar o uso de queries brutas sem parametrização e aplique filtros estritos de sanitização nas APIs de entrada.\n" \
+    "3. **Especialista**: Configure privilégios de menor privilégio (PoLP) a nível de banco de dados, garanta que o usuário do app não tenha permissões administrativas (como DROP TABLE) e use Web Application Firewalls (WAF) com regras ativas de bloqueio a SQLi."
+  elsif msg.include?('prompt injection') || msg.include?('llm') || msg.include?('ia') || msg.include?('inteligência artificial')
+    "**[Diretrizes de Segurança para LLMs: OWASP LLM01]**\n\n" \
+    "Aplicações que integram IA Generativa estão expostas a injeções de instruções indiretas. Mitigue seguindo estas etapas:\n\n" \
+    "1. **Júnior**: Trate a saída do modelo como código não confiável. Nunca execute comandos diretamente ou jogue em views HTML sem sanitização rigorosa.\n" \
+    "2. **Pleno**: Crie uma camada intermediária de moderação e sanitização de prompts (limite de caracteres, filtros heurísticos de palavras bloqueadas) e limite o escopo de tokens de sistema.\n" \
+    "3. **Especialista**: Projete firewalls semânticos ativos que analisam a intenção do prompt antes dele atingir o modelo e implemente isolamento estrito de sandbox nos plug-ins acionados por agentes IA."
+  elsif msg.include?('risk') || msg.include?('risco') || msg.include?('crisc')
+    "**[Governança de Riscos: Padrão CRISC & ISACA]**\n\n" \
+    "O gerenciamento de riscos de TI requer processos contínuos de identificação e análise de cenários de ameaça:\n\n" \
+    "1. **Júnior**: Registre todos os incidentes ou gaps de conformidade identificados na matriz de riscos e atribua um responsável para cada item.\n" \
+    "2. **Pleno**: Realize análises qualitativas (Matriz de Impacto e Probabilidade) e quantitativas (estimativa de prejuízo financeiro) para priorizar as ações de mitigação do backlog SecOps.\n" \
+    "3. **Especialista**: Defina o Apetite de Risco corporativo junto à diretoria executiva, estabeleça Indicadores-Chave de Risco (KRIs) e decida estratégias formais de transferência (ex: seguro cibernético), mitigação ativa ou aceitação de risco residual."
+  elsif msg.include?('iso 27001') || msg.include?('iso') || msg.include?('norma')
+    "**[Conformidade ISO/IEC 27001:2022]**\n\n" \
+    "O estabelecimento de um Sistema de Gestão de Segurança da Informação (SGSI) requer governança e controle estrito:\n\n" \
+    "1. **Júnior**: Siga as políticas de segurança da informação estabelecidas e mantenha os inventários de ativos atualizados e classificados.\n" \
+    "2. **Pleno**: Realize análises de risco de ativos e estabeleça planos de tratamento de risco alinhados aos controles do Anexo A (como controle de acesso A.5.15 e proteção de rede A.8.20).\n" \
+    "3. **Especialista**: Desenhe a Declaração de Aplicabilidade (SoA), lidere auditorias de certificação e estabeleça o ciclo PDCA para melhoria contínua dos controles organizacionais e tecnológicos."
+  elsif msg.include?('nist') || msg.include?('csf')
+    "**[Melhores Práticas: NIST CSF v2.0]**\n\n" \
+    "O framework do NIST divide as ações de segurança em 6 funções principais:\n\n" \
+    "1. **Júnior**: Execute procedimentos de triagem (ID.RA) e inventário básico de software e hardware (ID.AM).\n" \
+    "2. **Pleno**: Configure monitoramento ativo de eventos (DE.AE) e prepare procedimentos e cenários de testes do plano de resposta a incidentes (RS.MA).\n" \
+    "3. **Especialista**: Integre a governança de riscos corporativos (GV) no planejamento estratégico de tecnologia e estruture processos de resiliência e recuperação pós-incidente (RC)."
+  else
+    "Olá! Sou o **Agente SecOps Cognitivo** do CyberITSM.\n\n" \
+    "Posso ajudar com dúvidas de arquitetura de segurança e conformidade baseando-me nos frameworks **NIST CSF, ISO 27001, CIS Controls, CRISC** e no **OWASP Top 10 (Web/LLM)**.\n\n" \
+    "Experimente me perguntar sobre:\n" \
+    "- *Como mitigar SQL Injection?*\n" \
+    "- *Qual o procedimento do NIST para MFA?*\n" \
+    "- *Como gerenciar riscos segundo o CRISC?*\n" \
+    "- *Como defender meu modelo de IA de Prompt Injection?*"
+  end
 end
 
 # ----------------- MODELS -----------------
@@ -925,5 +1008,19 @@ post '/api/auth/mfa/toggle' do
     json_response({ mfa_enabled: false })
   end
 end
+
+# POST /api/chat - AI SecOps Chatbot API endpoint
+post '/api/chat' do
+  data = JSON.parse(request.body.read) rescue {}
+  user_message = data['message'] || ''
+
+  if user_message.strip.empty?
+    return json_response({ reply: 'Por favor, envie uma mensagem válida.' }, 400)
+  end
+
+  reply = generate_secops_reply(user_message)
+  json_response({ reply: reply })
+end
+
 
 

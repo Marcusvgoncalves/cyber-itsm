@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberITSM SPN - OWASP Top 10</title>
+  <link rel="stylesheet" href="/css/mistica.css">
+  <style>
+    body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-family); padding: 40px; overflow-y: auto; }
+    .kb-container { max-width: 900px; margin: 0 auto; }
+    .kb-header { margin-bottom: 30px; }
+    .kb-header h1 { color: var(--color-primary); font-size: 28px; font-weight: 800; }
+    .kb-header p { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+    .kb-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 24px; margin-bottom: 20px; }
+    .kb-section h2 { color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+    .kb-section h3 { color: var(--color-accent); font-size: 14px; font-weight: 600; margin: 16px 0 8px 0; }
+    .kb-section p, .kb-section li { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+    .kb-section ul, .kb-section ol { padding-left: 20px; }
+    .kb-tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--color-primary); color: #fff; font-weight: 600; margin-right: 6px; }
+    .kb-back { display: inline-block; margin-bottom: 20px; color: var(--color-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+    .kb-back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="kb-container">
+    <a href="/" class="kb-back">← Voltar ao CyberITSM SPN</a>
+    <div class="kb-header">
+      <h1>OWASP Top 10 Web Application Vulnerabilities</h1>
+      <p>Procedimentos operacionais passo a passo estruturados do nível Júnior ao Especialista para remediação das 10 principais falhas em aplicações web.</p>
+    </div>
+
+    <!-- A05:2021: Security Misconfiguration -->
+    <div class="kb-section">
+      <h2>A05:2021 — Configurações Incorretas de Segurança (Security Misconfiguration)</h2>
+      <p>Falhas de hardening, serviços ativos desnecessários, senhas padrão em sistemas e falta de cabeçalhos de segurança adequados.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Garanta que todas as senhas de sistema padrão de fábrica sejam alteradas imediatamente após o provisionamento e remova arquivos de configuração de demonstração ou testes.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Configure os cabeçalhos de segurança obrigatórios HTTP (X-Frame-Options: DENY, X-Content-Type-Options: nosniff, X-XSS-Protection: 1; mode=block) e estruture as políticas de Content-Security-Policy (CSP) nas configurações do Vercel/servidor web.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Crie scripts Ansible/Terraform de hardening de infraestrutura automatizada e implemente monitoramento contínuo de drift de configuração na nuvem corporativa.</li>
+      </ul>
+    </div>
+
+    <!-- A02:2021: Cryptographic Failures -->
+    <div class="kb-section">
+      <h2>A02:2021 — Falhas Criptográficas (Cryptographic Failures)</h2>
+      <p>Falhas na proteção de dados sensíveis em repouso e trânsito por falta de cifragem ou algoritmos fracos.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Verifique se nenhuma credencial de acesso, senha ou token está hardcoded em arquivos de código fonte e configure chaves sensíveis em arquivos <code>.env</code> locais excluídos do git.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Substitua algoritmos criptográficos legados (como MD5 ou SHA1) por chaves robustas (SHA256, BCrypt, AES-GCM-256) e force a redireção de todo tráfego HTTP para HTTPS/TLS.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li><strong>Procedimento</strong>: Projete arquiteturas HSM (Hardware Security Module) e KMS (Key Management Service) corporativas para rotação de chaves criptográficas automatizada e configure criptografia homomórfica em dados críticos.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

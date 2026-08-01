@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberITSM SPN - NIST CSF v2.0</title>
+  <link rel="stylesheet" href="/css/mistica.css">
+  <style>
+    body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-family); padding: 40px; overflow-y: auto; }
+    .kb-container { max-width: 900px; margin: 0 auto; }
+    .kb-header { margin-bottom: 30px; }
+    .kb-header h1 { color: var(--color-primary); font-size: 28px; font-weight: 800; }
+    .kb-header p { color: var(--text-secondary); font-size: 14px; margin-top: 6px; }
+    .kb-section { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 24px; margin-bottom: 20px; }
+    .kb-section h2 { color: var(--color-primary); font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+    .kb-section h3 { color: var(--color-accent); font-size: 14px; font-weight: 600; margin: 16px 0 8px 0; }
+    .kb-section p, .kb-section li { color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+    .kb-section ul, .kb-section ol { padding-left: 20px; }
+    .kb-tag { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--color-primary); color: #fff; font-weight: 600; margin-right: 6px; }
+    .kb-back { display: inline-block; margin-bottom: 20px; color: var(--color-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+    .kb-back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="kb-container">
+    <a href="/" class="kb-back">← Voltar ao CyberITSM SPN</a>
+    <div class="kb-header">
+      <h1>NIST Cybersecurity Framework (CSF) v2.0</h1>
+      <p>Procedimentos operacionais passo a passo estruturados do nível Júnior ao Especialista para a adoção do framework voluntário de gestão de riscos do NIST.</p>
+    </div>
+
+    <!-- GOVERN -->
+    <div class="kb-section">
+      <h2>1. GV — Govern (Governança)</h2>
+      <p>Estabelece e monitora a estratégia de gestão de riscos de cibersegurança da organização, expectativas e políticas.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li>Apoie o levantamento e mapeamento das políticas internas existentes e certifique-se de que estão catalogadas e acessíveis a todos os colaboradores.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li>Implemente e gerencie programas de conformidade da cadeia de suprimentos cibernéticos, avaliando fornecedores e aplicando questionários de risco (ex: SOC2, ISO).</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li>Apresente relatórios de maturidade de segurança e apetite de risco diretamente para o comitê executivo e defina formalmente os objetivos de governançaSecOps da empresa.</li>
+      </ul>
+    </div>
+
+    <!-- IDENTIFY -->
+    <div class="kb-section">
+      <h2>2. ID — Identify (Identificar)</h2>
+      <p>Desenvolve a compreensão organizacional para gerenciar riscos de cibersegurança a sistemas, ativos, dados e capacidades.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li>Mantenha o inventário de hardware e software atualizado e mapeie quais sistemas possuem dependências em bibliotecas com vulnerabilidades conhecidas (CVEs).</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li>Configure ferramentas de scanner de vulnerabilidades (SAST/DAST e agentes de infraestrutura) para varreduras automatizadas e analise a inteligência de ameaças recebida de fóruns externos.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li>Desenhe a modelagem de ameaças (Threat Modeling) para sistemas críticos e defina a classificação de dados corporativos baseada em probabilidade de impacto e custos financeiros.</li>
+      </ul>
+    </div>
+
+    <!-- PROTECT -->
+    <div class="kb-section">
+      <h2>3. PR — Protect (Proteger)</h2>
+      <p>Desenvolve e implementa salvaguardas apropriadas para garantir a entrega de serviços críticos de infraestrutura.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li>Configure permissões básicas de usuários usando políticas RBAC de menor privilégio e monitore expirações de senhas.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li>Habilite autenticação multifatorial obrigatória (MFA TOTP) nas APIs críticas e configure HTTPS/TLS com cifras de criptografia forte nos dados em trânsito.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li>Implemente criptografia ponta a ponta com chaves controladas (KMS/HSM), segregação rígida de rede baseada em arquitetura Zero-Trust e políticas ativas de RLS nos bancos de dados produtivos.</li>
+      </ul>
+    </div>
+
+    <!-- DETECT -->
+    <div class="kb-section">
+      <h2>4. DE — Detect (Detectar)</h2>
+      <p>Desenvolve e implementa atividades para identificar a ocorrência de um evento de cibersegurança.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li>Revise logs diários de acessos e logins de sistemas de produção e reporte comportamentos anômalos simples.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li>Centralize os logs de auditoria em um sistema SIEM (ex: Splunk ou Elasticsearch) e programe regras de detecção automática para falhas consecutivas de login e injeções de payloads.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li>Desenhe regras de machine learning aplicadas a comportamentos de usuário (UEBA) para detectar exfiltração de dados silenciosa e projete sensores ativos de intrusão (IDS/IPS) na nuvem.</li>
+      </ul>
+    </div>
+
+    <!-- RESPOND & RECOVER -->
+    <div class="kb-section">
+      <h2>5. RS & RC — Respond & Recover (Responder e Recuperar)</h2>
+      <p>Ações de contenção de incidentes cibernéticos e processos de resiliência e continuidade de negócios.</p>
+      
+      <h3>Júnior</h3>
+      <ul>
+        <li>Siga o playbook básico de incidentes para isolar máquinas comprometidas ou usuários sob suspeita.</li>
+      </ul>
+
+      <h3>Pleno</h3>
+      <ul>
+        <li>Lidere a contenção ativa de incidentes de segurança, coordene a erradicação da causa raiz e conduza análises forenses simples em logs e backups.</li>
+      </ul>
+
+      <h3>Especialista</h3>
+      <ul>
+        <li>Desenhe e teste anualmente o Plano de Continuidade de Negócios (BCP) e Recuperação de Desastres (DRP), garantindo backups imutáveis e redundâncias automáticas de alta disponibilidade.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

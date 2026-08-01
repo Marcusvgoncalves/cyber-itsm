@@ -95,9 +95,6 @@
       <button class="btn btn-primary" onclick="submitLogin()" style="width: 100%; padding: 10px; margin-top: 8px;">
         Entrar no Sistema
       </button>
-      <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
-        Dica: Use <strong style="color: var(--text-primary);">marcus.goncalves@telefonica.com</strong> e senha <strong style="color: var(--text-primary);">CyberITSM@2026!Password</strong>
-      </div>
     </div>
 
     <!-- PANEL 2: MFA VERIFICATION -->
@@ -130,9 +127,6 @@
       <button class="btn btn-secondary" onclick="showPanel('login')" style="width: 100%;">
         Voltar para o Login
       </button>
-      <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
-        Dica sandbox: Se acabou de ativar e não configurou o app, use <strong style="color: var(--text-primary);">123456</strong>
-      </div>
     </div>
 
     <!-- PANEL 3: FORGOT PASSWORD -->
@@ -172,6 +166,10 @@
   </div>
 
   <script>
+    const API_BASE = window.location.hostname.includes('vercel.app') 
+      ? 'https://cyber-itsm-spn.onrender.com' 
+      : '';
+
     lucide.createIcons();
 
     // Check if token exists in URL on load (for reset password flow redirection)
@@ -215,7 +213,7 @@
       }
 
       try {
-        const res = await fetch('/api/auth/login', {
+        const res = await fetch(API_BASE + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -262,7 +260,7 @@
       }
 
       try {
-        const res = await fetch('/api/auth/mfa/verify', {
+        const res = await fetch(API_BASE + '/api/auth/mfa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: mfaPendingEmail, code })
@@ -291,7 +289,7 @@
       }
 
       try {
-        const res = await fetch('/api/auth/forgot_password', {
+        const res = await fetch(API_BASE + '/api/auth/forgot_password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
@@ -326,7 +324,7 @@
       }
 
       try {
-        const res = await fetch('/api/auth/reset_password', {
+        const res = await fetch(API_BASE + '/api/auth/reset_password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, new_password: newPassword })

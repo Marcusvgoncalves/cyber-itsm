@@ -147,3 +147,73 @@ To transition the application from a simulated sandbox to a production-grade ent
 3. **Production OAuth2/OIDC Flow**: Replace local mock users with standard OIDC redirect flows (authorization code exchange) utilizing gems like `omniauth` to bind live EntraID and Keycloak tokens.
 4. **Immutable Log Signatures**: Implement asymmetric cryptography (RSA/ECDSA) to digitally sign every entry in the `audit_logs` table, securing audit trails from tampering.
 5. **Key Management (Vault)**: Remove client secrets and system credentials from the database and retrieve them dynamically from an external key vault (such as HashiCorp Vault or Azure Key Vault).
+
+---
+
+## 7. Arquitetura de Implantação Híbrida (Localhost vs. Produção Vercel + Render)
+
+### 🇧🇷 Português - Detalhes da Implantação
+
+#### A. Ambiente Localhost (Desenvolvimento)
+No ambiente local, todos os componentes são executados na máquina do desenvolvedor de forma unificada. O servidor Ruby Sinatra (utilizando o servidor web Puma) serve tanto as APIs REST no endpoint `/api/*` quanto os ativos estáticos (HTML, CSS, JS) na pasta `/public`. A persistência é mantida em um arquivo SQLite local (`db/development.sqlite3`).
+
+```mermaid
+graph LR
+  subgraph Localhost ["Ambiente Localhost (Porta 4567)"]
+    Client["Navegador (Client SPA)"] -->|Chamadas Relativas /api| Puma["Servidor Web Puma (Sinatra Backend)"]
+    Puma -->|Serviço de Arquivos Estáticos| Client
+    Puma -->|ORM ActiveRecord| SQLite["Banco SQLite3 (db/development.sqlite3)"]
+  end
+```
+
+#### B. Ambiente de Produção Híbrido (Vercel + Render)
+Em produção, a arquitetura é dividida em dois provedores diferentes (modelo híbrido) para maximizar o desempenho e resiliência:
+1. **Frontend SPA (Hospedado na Vercel)**:
+   - Os arquivos estáticos da pasta `public/` são compilados e distribuídos de forma estática através da CDN da Vercel.
+   - O cliente roda no domínio `https://cyber-itsm-spn.vercel.app`.
+2. **Backend API (Hospedado na Render)**:
+   - O microsserviço Ruby Sinatra é executado em um Web Service Linux no Render.
+   - O backend roda no domínio `https://cyber-itsm-spn.onrender.com`.
+   - A persistência utiliza um disco de armazenamento persistente montado no contêiner em `/opt/render/project/src/db` mapeado no banco SQLite3 `db/production.sqlite3`.
+
+```mermaid
+graph TD
+  subgraph Vercel ["Hospedagem Frontend (Vercel CDN)"]
+    ClientProd["Navegador (https://cyber-itsm-spn.vercel.app)"]
+  end
+
+  subgraph Render ["Hospedagem Backend (Render Web Service)"]
+    APIProd["Puma / Sinatra (https://cyber-itsm-spn.onrender.com)"]
+    Volume["Disco Montado (db/production.sqlite3)"]
+    APIProd -->|ActiveRecord| Volume
+  end
+
+  ClientProd -->|1. GET /index.html| Vercel
+  ClientProd -->|2. CORS Request com Credenciais| APIProd
+```
+
+#### C. Integração e Segurança Híbrida
+- **CORS e OPTIONS Preflight**: Como as chamadas saem de um domínio da Vercel (`vercel.app`) para a Render (`onrender.com`), o navegador exige cabeçalhos CORS. O backend Sinatra foi atualizado para validar a origem da chamada e responder cabeçalhos `Access-Control-Allow-Origin` dinamicamente correspondendo à origem autorizada.
+- **Autorização e Cookies de Sessão (Credentials)**: Para manter sessões seguras cross-domain, as requisições AJAX configuram `credentials: 'include'`. O backend autoriza explicitamente com `Access-Control-Allow-Credentials: true`.
+- **Roteamento Dinâmico (Fetch Interceptor)**: No frontend, um interceptor global na biblioteca `app.js` detecta se o hostname atual é um domínio Vercel. Caso seja, ele reescreve automaticamente todos os endpoints de `/api/...` para a URL absoluta da Render backend.
+
+---
+
+### 🇺🇸 English - Deployment Architecture
+
+#### A. Localhost Environment (Development)
+Under the local development setup, the entire platform runs on the developer's station. The Ruby Sinatra application (powered by the Puma web server) serves both static client assets (`/public`) and REST APIs (`/api/*`) on port `4567`. A local SQLite file (`db/development.sqlite3`) acts as the datastore.
+
+#### B. Production Hybrid Deployment (Vercel + Render)
+For production environments, the platform transitions to a multi-cloud hybrid architecture:
+1. **Frontend SPA (Vercel CDN)**:
+   - Public assets inside `public/` are served and distributed globally via Vercel's Edge network under the domain `https://cyber-itsm-spn.vercel.app`.
+2. **Backend API Microservice (Render Web Service)**:
+   - The Sinatra backend is deployed as a managed service on Render under the domain `https://cyber-itsm-spn.onrender.com`.
+   - Persistence is achieved through a SQLite3 database (`db/production.sqlite3`) mounted on a persistent block storage volume at `/opt/render/project/src/db`.
+
+#### C. Connectivity & Cross-Origin Security
+- **CORS Preflight (OPTIONS)**: To resolve cross-origin calls between Vercel and Render domains, the Sinatra server validates requesting origins (echoing matching ones) and responds to HTTP `OPTIONS` preflight requests.
+- **Session Credentials**: Session cookies are transmitted across origins securely. Client requests invoke `credentials: 'include'` and the server returns `Access-Control-Allow-Credentials: true`.
+- **Dynamic Fetch Interceptor**: A global fetch wrapper in `app.js` intercepts client API requests and prepends the remote Render backend address when Vercel hostnames are detected.
+

@@ -1,3 +1,23 @@
+// Dynamic API URL interception for hybrid Render/Vercel deploys
+const API_BASE = window.location.hostname.includes('vercel.app') 
+  ? 'https://cyber-itsm-spn.onrender.com' 
+  : '';
+
+if (API_BASE) {
+  const originalFetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string' && input.startsWith('/api/')) {
+      input = API_BASE + input;
+      if (init) {
+        init.credentials = 'include';
+      } else {
+        init = { credentials: 'include' };
+      }
+    }
+    return originalFetch(input, init);
+  };
+}
+
 // State management
 let statuses = [];
 let tickets = [];
@@ -23,7 +43,11 @@ function switchView(viewName) {
   }
 
   // Show selected view
-  if (viewName === 'board') {
+  if (viewName === 'dashboard') {
+    document.getElementById('view-dashboard').style.display = 'flex';
+    document.getElementById('menu-dashboard').classList.add('active');
+    fetchDashboardData();
+  } else if (viewName === 'board') {
     document.getElementById('view-board').style.display = 'flex';
     document.getElementById('menu-board').classList.add('active');
     fetchBoardData();
@@ -1127,7 +1151,7 @@ async function checkSession() {
         document.getElementById('menu-c4').style.display = 'none';
       }
 
-      fetchBoardData();
+      switchView('dashboard');
     } else {
       window.location.href = '/login.html';
     }
@@ -1248,3 +1272,257 @@ function copyMfaSecret() {
   document.execCommand('copy');
   showToast('Chave secreta copiada!', 'info');
 }
+
+// --- SecOps Dashboard Metrics, Projections, and Actions ---
+async function fetchDashboardData() {
+  const dbRefreshIcon = document.getElementById('db-refresh-icon');
+  if (dbRefreshIcon) dbRefreshIcon.classList.add('spin-animation');
+
+  try {
+    const res = await fetch('/api/tickets');
+    tickets = await res.json();
+    
+    calculateDashboardMetrics();
+  } catch (err) {
+    console.error('Erro ao buscar dados para o Dashboard:', err);
+  } finally {
+    if (dbRefreshIcon) {
+      setTimeout(() => dbRefreshIcon.classList.remove('spin-animation'), 500);
+    }
+  }
+}
+
+function calculateDashboardMetrics() {
+  const total = tickets.length;
+  const critical = tickets.filter(t => t.priority === 'critical' || t.priority === 'high').length;
+  
+  // Concluídos filters based on database positions or category
+  const done = tickets.filter(t => {
+    const isDoneCategory = t.status_category === 'done';
+    const isDoneName = t.status_name && t.status_name.toLowerCase().includes('conclu');
+    return isDoneCategory || isDoneName;
+  }).length;
+
+  const rate = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  document.getElementById('stat-total-tickets').textContent = total;
+  document.getElementById('stat-critical-tickets').textContent = critical;
+  document.getElementById('stat-done-tickets').textContent = done;
+  document.getElementById('stat-mitigation-rate').textContent = `${rate}%`;
+
+  // Mathematical Projections
+  const activeTickets = total - done;
+  
+  // MTTR projection (heuristic for ticket count load)
+  const projectedMttr = 8 + (activeTickets * 1.5);
+  document.getElementById('proj-mttr-days').textContent = Math.round(projectedMttr);
+
+  // Projeção de dias para mitigar incidentes críticos pendentes
+  const daysToZero = rate > 0 ? Math.round((activeTickets * 12) / (done || 1)) : (activeTickets > 0 ? 'Infinito' : 0);
+  document.getElementById('proj-rate').textContent = `${rate}%`;
+  document.getElementById('proj-days-to-zero').textContent = activeTickets > 0 ? `${daysToZero} dias` : '0 dias';
+
+  // Framework Volumetrics (NIST, ISO, CIS, SABSA, OWASP)
+  const frameworks = { nist: 0, iso: 0, cis: 0, sabsa: 0, owasp: 0 };
+  tickets.forEach(t => {
+    if (t.framework_nist && t.framework_nist.trim() !== '') frameworks.nist++;
+    if (t.framework_iso && t.framework_iso.trim() !== '') frameworks.iso++;
+    if (t.framework_cis && t.framework_cis.trim() !== '') frameworks.cis++;
+    if (t.framework_sabsa && t.framework_sabsa.trim() !== '') frameworks.sabsa++;
+    
+    // Auto-detect OWASP by keywords or title
+    const titleLower = t.title.toLowerCase();
+    if (titleLower.includes('owasp') || titleLower.includes('injection') || titleLower.includes('mfa')) {
+      frameworks.owasp++;
+    }
+  });
+
+  const barsContainer = document.getElementById('framework-bars-container');
+  barsContainer.innerHTML = '';
+  
+  const maxVal = Math.max(...Object.values(frameworks), 1);
+  const labels = { nist: 'NIST CSF v2.0', iso: 'ISO/IEC 27001', cis: 'CIS Controls v8', sabsa: 'SABSA Layers', owasp: 'OWASP Top 10' };
+  
+  Object.entries(frameworks).forEach(([fw, val]) => {
+    const percentage = Math.round((val / maxVal) * 100);
+    const color = fw === 'nist' ? 'var(--color-primary)' :
+                  fw === 'iso' ? '#9b51e0' :
+                  fw === 'cis' ? 'var(--color-accent)' :
+                  fw === 'sabsa' ? 'var(--color-done)' : '#2d9cdb';
+                  
+    barsContainer.innerHTML += `
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600;">
+          <span>${labels[fw]}</span>
+          <span>${val} chamados</span>
+        </div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden;">
+          <div style="width: ${percentage}%; height: 100%; background: ${color}; border-radius: 4px; transition: width 0.8s ease-in-out;"></div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Suggested Hardening Actions
+  const actionsContainer = document.getElementById('dashboard-suggested-actions');
+  actionsContainer.innerHTML = '';
+
+  const openTickets = tickets.filter(t => !t.status_category || t.status_category !== 'done');
+  const criticalOpen = openTickets.filter(t => t.priority === 'critical' || t.priority === 'high');
+
+  const suggestedActionsList = [];
+
+  if (criticalOpen.length > 0) {
+    suggestedActionsList.push({
+      title: '🔒 Alocação Especializada para Incidentes Críticos',
+      desc: `Existem ${criticalOpen.length} vulnerabilidades críticas sem resolução. Recomenda-se alocar um arquiteto especialista para triagem e aplicação de patches (ref: CRISC Risk Response).`,
+      border: 'var(--color-critical)'
+    });
+  }
+
+  const mfaTicket = openTickets.find(t => t.title.toLowerCase().includes('mfa') || t.title.toLowerCase().includes('autentic'));
+  if (mfaTicket) {
+    suggestedActionsList.push({
+      title: '🛡️ Hardening de Acesso e Governança MFA',
+      desc: `O chamado ${mfaTicket.key} exige autenticação multifatorial. Atrasar essa ação descumpre controles do NIST PR.AA e ISO 27001 A.5.15.`,
+      border: 'var(--color-accent)'
+    });
+  }
+
+  const sqliTicket = openTickets.find(t => t.title.toLowerCase().includes('inject') || t.title.toLowerCase().includes('sqli'));
+  if (sqliTicket) {
+    suggestedActionsList.push({
+      title: '🧩 Parametrização contra SQL Injection (OWASP A03)',
+      desc: `Chamado ${sqliTicket.key} indica risco de vazamento de dados. Garantir que todas as APIs consumam queries parametrizadas via ORM.`,
+      border: '#9b51e0'
+    });
+  }
+
+  if (suggestedActionsList.length < 3) {
+    suggestedActionsList.push({
+      title: '🌐 Hardening de Segurança de Servidores e Headers',
+      desc: 'Validar cabeçalhos CSP, HSTS, X-Content-Type-Options e X-Frame-Options contra ataques de injeção e clickjacking (ref: OWASP Top 10 A05).',
+      border: 'var(--color-done)'
+    });
+    suggestedActionsList.push({
+      title: '🔑 Governança de Acessos Recorrentes',
+      desc: 'Efetuar auditoria Sailpoint nos perfis locais para mitigar acúmulo de privilégios (ref: CIS Control 6).',
+      border: 'var(--color-primary)'
+    });
+  }
+
+  suggestedActionsList.forEach(act => {
+    actionsContainer.innerHTML += `
+      <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-left: 4px solid ${act.border}; border-radius: var(--border-radius-sm); padding: 12px; font-size: 12px; line-height: 1.5;">
+        <strong style="color: var(--text-primary); display: block; margin-bottom: 4px;">${escapeHTML(act.title)}</strong>
+        <span style="color: var(--text-secondary);">${escapeHTML(act.desc)}</span>
+      </div>
+    `;
+  });
+}
+
+// --- Floating Cognitive AI Chatbot UI Handlers ---
+let chatbotOpen = false;
+
+function toggleChatbot() {
+  chatbotOpen = !chatbotOpen;
+  const panel = document.getElementById('chatbot-panel');
+  const trigger = document.getElementById('chatbot-trigger');
+  const iconMsg = document.getElementById('chatbot-icon-msg');
+  const iconClose = document.getElementById('chatbot-icon-close');
+
+  if (chatbotOpen) {
+    panel.style.display = 'flex';
+    trigger.style.transform = 'rotate(90deg)';
+    iconMsg.style.display = 'none';
+    iconClose.style.display = 'block';
+    
+    // Focus chatbot input
+    setTimeout(() => {
+      document.getElementById('chatbot-input').focus();
+    }, 150);
+  } else {
+    panel.style.display = 'none';
+    trigger.style.transform = 'rotate(0deg)';
+    iconMsg.style.display = 'block';
+    iconClose.style.display = 'none';
+  }
+}
+
+async function submitChatbot(event) {
+  event.preventDefault();
+  const inputEl = document.getElementById('chatbot-input');
+  const message = inputEl.value.trim();
+  if (!message) return;
+
+  // Clear input
+  inputEl.value = '';
+
+  const messagesContainer = document.getElementById('chatbot-messages');
+
+  // Render User Message bubble
+  messagesContainer.innerHTML += `
+    <div style="align-self: flex-end; background: var(--color-primary); color: #ffffff; padding: 10px 14px; border-radius: var(--border-radius-md) var(--border-radius-md) 0 var(--border-radius-md); max-width: 85%; line-height: 1.5; word-wrap: break-word;">
+      ${escapeHTML(message)}
+    </div>
+  `;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  // Render Typing Indicator
+  const typingId = 'typing-' + Date.now();
+  messagesContainer.innerHTML += `
+    <div id="${typingId}" style="align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md); max-width: 85%; color: var(--text-muted);">
+      <span style="font-style: italic; opacity: 0.8;">Digitando...</span>
+    </div>
+  `;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await res.json();
+    
+    // Remove typing indicator
+    const typingIndicator = document.getElementById(typingId);
+    if (typingIndicator) typingIndicator.remove();
+
+    // Render bot response (supporting Markdown formatting / newlines)
+    const formattedReply = formatMarkdown(data.reply);
+    
+    messagesContainer.innerHTML += `
+      <div style="align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md); max-width: 85%; line-height: 1.5; color: var(--text-primary); word-wrap: break-word;">
+        ${formattedReply}
+      </div>
+    `;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  } catch (err) {
+    console.error('Erro na conversa com chatbot:', err);
+    const typingIndicator = document.getElementById(typingId);
+    if (typingIndicator) typingIndicator.remove();
+    
+    messagesContainer.innerHTML += `
+      <div style="align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md); max-width: 85%; color: var(--color-critical);">
+        Falha de conexão com o agente SecOps.
+      </div>
+    `;
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+}
+
+// Simple markdown converter helper for chat bubbles
+function formatMarkdown(text) {
+  if (!text) return '';
+  let html = text;
+  // Bold
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Lists
+  html = html.replace(/^\s*-\s*(.+)$/gm, '• $1');
+  // Newlines to br
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
