@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberITSM - Cybersecurity Architecture Board</title>
+  <link rel="stylesheet" href="/css/mistica.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="dark-mode">
+
+  <div class="app-container">
+    
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">CyberITSM</div>
+        <span class="brand-tag">SECOPS</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openCreateModal()">
+          <i data-lucide="plus"></i> Novo Chamado
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN LAYOUT -->
+    <div class="main-layout">
+      
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <a class="sidebar-item active" id="menu-board" onclick="switchView('board')">
+          <i data-lucide="kanban-square"></i> Kanban Board
+        </a>
+        <a class="sidebar-item" id="menu-status" onclick="switchView('status')">
+          <i data-lucide="settings"></i> Gerenciar Status
+        </a>
+        <a class="sidebar-item" id="menu-c4" onclick="switchView('c4')">
+          <i data-lucide="git-fork"></i> Arquitetura C4
+        </a>
+        <a class="sidebar-item" id="menu-kb" onclick="switchView('kb')">
+          <i data-lucide="book-open"></i> Base de Conhecimento
+        </a>
+      </aside>
+
+      <!-- WORKSPACE -->
+      <main class="workspace">
+        
+        <!-- BOARD VIEW -->
+        <div id="view-board" class="view-content" style="display: flex; flex-direction: column; height: 100%;">
+          <div class="workspace-header">
+            <div class="workspace-title">
+              <h2>Quadro Geral de Chamados</h2>
+              <p>Mapeamento de riscos e arquitetura de segurança SecOps</p>
+            </div>
+            <div>
+              <button class="btn btn-secondary" onclick="fetchBoardData()" title="Recarregar">
+                <i data-lucide="refresh-cw" id="refresh-icon"></i>
+              </button>
+            </div>
+          </div>
+          <div class="kanban-container" id="kanban-board">
+            <!-- Columns rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- STATUS MANAGER VIEW -->
+        <div id="view-status" class="view-content settings-panel" style="display: none;">
+          <div class="workspace-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border-color);">
+            <div class="workspace-title">
+              <h2>Gerenciar Status do Kanban</h2>
+              <p>Adicione, ordene e configure os status do fluxo Jira</p>
+            </div>
+            <button class="btn btn-primary" onclick="openNewStatusModal()">
+              <i data-lucide="plus"></i> Novo Status
+            </button>
+          </div>
+          
+          <div class="status-manager-list" id="status-manager-list">
+            <!-- Statuses rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- ARCHITECTURE C4 VIEW -->
+        <div id="view-c4" class="view-content architecture-container" style="display: none;">
+          <div class="workspace-header" style="padding: 0 0 10px 0; border-bottom: none;">
+            <div class="workspace-title">
+              <h2>Desenho de Arquitetura - Modelo C4</h2>
+              <p>Visualização interativa da arquitetura do rebuild em Ruby Sinatra</p>
+            </div>
+          </div>
+          
+          <div class="c4-diagram">
+            <div class="c4-interactive-canvas">
+              <!-- Context Level / Interactive Nodes -->
+              <div class="c4-node primary" onclick="showC4Detail('analyst')">
+                <div class="c4-node-title">Analista / Arquiteto</div>
+                <div class="c4-node-tech">Usuário Final</div>
+                <div class="c4-node-desc">Gerencia chamados, transiciona status e audita frameworks.</div>
+              </div>
+              
+              <div style="font-size: 20px; color: var(--text-muted);">⬇ requisições HTTPS</div>
+              
+              <!-- Container level boundary -->
+              <div class="c4-system-boundary">
+                <div style="font-size: 11px; font-weight: 700; color: var(--color-primary); width: 100%; text-align: left;">Limites do Sistema CyberITSM</div>
+                
+                <div class="c4-row">
+                  <div class="c4-node secondary" onclick="showC4Detail('frontend')">
+                    <div class="c4-node-title">Frontend SPA</div>
+                    <div class="c4-node-tech">HTML5, Vanilla JS, CSS (Mistica)</div>
+                    <div class="c4-node-desc">Painel SPA interativo que renderiza o Kanban de acordo com a paleta da Vivo.</div>
+                  </div>
+                  
+                  <div class="c4-node secondary" onclick="showC4Detail('backend')">
+                    <div class="c4-node-title">Backend API</div>
+                    <div class="c4-node-tech">Ruby, Sinatra (Puma Server)</div>
+                    <div class="c4-node-desc">API REST que valida e transiciona estados de chamados e insere logs de auditoria.</div>
+                  </div>
+                </div>
+                
+                <div style="font-size: 18px; color: var(--text-muted);">⬇ ActiveRecord ORM</div>
+
+                <div class="c4-node secondary" onclick="showC4Detail('database')">
+                  <div class="c4-node-title">Banco de Dados</div>
+                  <div class="c4-node-tech">SQLite3 Engine</div>
+                  <div class="c4-node-desc">Persiste tabelas de tickets, status configuráveis, comentários e logs imutáveis.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="c4-legend">
+            <div class="c4-legend-item">
+              <div class="legend-color" style="background-color: var(--color-primary);"></div>
+              <span>Usuário / Pessoa</span>
+            </div>
+            <div class="c4-legend-item">
+              <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid var(--color-accent);"></div>
+              <span>Contêiner / Tecnologia</span>
+            </div>
+          </div>
+
+          <!-- Interactive detail panel -->
+          <div id="c4-detail-panel" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md); font-size: 13px;">
+            <strong>Clique em qualquer componente acima</strong> para ver o detalhamento técnico de sua arquitetura.
+          </div>
+        </div>
+
+        <!-- KNOWLEDGE BASE VIEW -->
+        <div id="view-kb" class="view-content settings-panel" style="display: none;">
+          <div class="workspace-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border-color);">
+            <div class="workspace-title">
+              <h2>Base de Conhecimento SecOps (KB)</h2>
+              <p>Manuais e diretrizes para arquiteturas e controles de conformidade</p>
+            </div>
+          </div>
+          
+          <div class="status-manager-list" style="max-width: 800px; gap: 16px;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
+              <h3 style="color: var(--color-accent); font-size: 16px; margin-bottom: 8px;">[KB-1001] Mitigação de OWASP Top 10 A01: Broken Access Control</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                O controle de acesso em nível de registro deve ser validado via backend. No rebuild em Ruby Sinatra, as operações CRUD realizam verificações rígidas associadas a perfis e identificadores únicos.
+              </p>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+                Frameworks relacionados: NIST Protect (PR.AC) | ISO 27001 A.9 | SABSA Camada Lógica
+              </div>
+            </div>
+            
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--border-radius-md);">
+              <h3 style="color: var(--color-accent); font-size: 16px; margin-bottom: 8px;">[KB-1002] Implementação e Configuração de Cabeçalhos de Segurança HTTP</h3>
+              <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                Para mitigar ataques de clickjacking e Cross-Site Scripting (XSS), foram inseridos filtros de interceptação no backend Sinatra para emitir cabeçalhos HTTP estritos como <code>Content-Security-Policy</code>, <code>X-Frame-Options: DENY</code> e <code>X-Content-Type-Options: nosniff</code>.
+              </p>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+                Frameworks relacionados: NIST Respond (RS.MI) | CIS Control 4 | ISO 27001 A.12.6
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- TICKET DETAIL DRAWER -->
+    <div class="drawer" id="ticket-drawer">
+      <div class="drawer-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="brand-tag" id="drawer-ticket-key" style="background: var(--color-primary);">SEC-XXXX</span>
+          <h3 id="drawer-ticket-title-text" style="font-size: 16px; font-weight: 600;">Detalhes do Chamado</h3>
+        </div>
+        <button class="btn btn-secondary" onclick="closeDrawer()" style="padding: 4px 8px;">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-split">
+          
+          <!-- Left: Description and comments -->
+          <div class="drawer-column-left">
+            <div class="form-group">
+              <label>Descrição</label>
+              <textarea class="form-control" id="drawer-ticket-description" rows="5" onchange="updateTicketField('description')"></textarea>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 12px 0;">
+            
+            <div>
+              <h4>Comentários</h4>
+              <div class="comment-input-area">
+                <input type="text" class="form-control" id="new-comment-author" placeholder="Seu nome" style="padding: 6px 10px; font-size: 12px;">
+                <textarea class="form-control" id="new-comment-content" placeholder="Adicione um comentário de arquitetura..." rows="2" style="font-size: 13px;"></textarea>
+                <button class="btn btn-primary" onclick="addComment()" style="align-self: flex-end; padding: 6px 12px; font-size: 12px;">Comentar</button>
+              </div>
+              <div class="comment-list" id="drawer-comments-list">
+                <!-- Comments rendered here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Status / fields / audit -->
+          <div class="drawer-column-right">
+            <div class="form-group">
+              <label>Status</label>
+              <select class="form-control" id="drawer-ticket-status" onchange="updateTicketField('status_id')">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Prioridade</label>
+              <select class="form-control" id="drawer-ticket-priority" onchange="updateTicketField('priority')">
+                <option value="low">Baixa</option>
+                <option value="medium">Média</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Responsável</label>
+              <input type="text" class="form-control" id="drawer-ticket-assignee" onchange="updateTicketField('assignee_name')">
+            </div>
+
+            <div class="form-group">
+              <label>NIST CSF</label>
+              <select class="form-control" id="drawer-ticket-nist" onchange="updateTicketField('framework_nist')">
+                <option value="">Sem mapeamento</option>
+                <option value="Identify">Identify</option>
+                <option value="Protect">Protect</option>
+                <option value="Detect">Detect</option>
+                <option value="Respond">Respond</option>
+                <option value="Recover">Recover</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>CIS Controls</label>
+              <input type="text" class="form-control" id="drawer-ticket-cis" placeholder="Ex: CIS Control 1" onchange="updateTicketField('framework_cis')">
+            </div>
+
+            <div class="form-group">
+              <label>ISO 27001</label>
+              <input type="text" class="form-control" id="drawer-ticket-iso" placeholder="Ex: A.12.1" onchange="updateTicketField('framework_iso')">
+            </div>
+
+            <div class="form-group">
+              <label>SABSA Layer</label>
+              <input type="text" class="form-control" id="drawer-ticket-sabsa" placeholder="Ex: Logical" onchange="updateTicketField('framework_sabsa')">
+            </div>
+
+            <div class="form-group" style="margin-top: 10px;">
+              <button class="btn btn-danger" onclick="deleteTicket()" style="width: 100%; justify-content: center; font-size: 12px; padding: 6px;">
+                <i data-lucide="trash-2"></i> Excluir Chamado
+              </button>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 8px 0;">
+            
+            <div>
+              <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Histórico de Auditoria</label>
+              <div class="audit-list" id="drawer-audit-list">
+                <!-- Audit logs rendered here -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CREATE TICKET MODAL -->
+    <div class="modal-overlay" id="create-ticket-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Novo Chamado de Arquitetura</h3>
+          <button class="btn btn-secondary" onclick="closeCreateModal()" style="padding: 4px 8px;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Título *</label>
+            <input type="text" class="form-control" id="new-ticket-title" placeholder="Ex: Validar controle de MFA nos endpoints legados">
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea class="form-control" id="new-ticket-description" placeholder="Detalhes técnicos, cenários e riscos..." rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Status Inicial</label>
+            <select class="form-control" id="new-ticket-status">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prioridade</label>
+            <select class="form-control" id="new-ticket-priority">
+              <option value="low">Baixa</option>
+              <option value="medium" selected>Média</option>
+              <option value="high">Alta</option>
+              <option value="critical">Crítica</option>
+            </select>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label>NIST CSF</label>
+              <select class="form-control" id="new-ticket-nist">
+                <option value="">Não mapeado</option>
+                <option value="Identify">Identify</option>
+                <option value="Protect">Protect</option>
+                <option value="Detect">Detect</option>
+                <option value="Respond">Respond</option>
+                <option value="Recover">Recover</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>CIS Control</label>
+              <input type="text" class="form-control" id="new-ticket-cis" placeholder="Ex: CIS Control 3">
+            </div>
+            <div class="form-group">
+              <label>ISO 27001</label>
+              <input type="text" class="form-control" id="new-ticket-iso" placeholder="Ex: A.12.4">
+            </div>
+            <div class="form-group">
+              <label>SABSA Layer</label>
+              <input type="text" class="form-control" id="new-ticket-sabsa" placeholder="Ex: Physical">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label>Responsável</label>
+              <input type="text" class="form-control" id="new-ticket-assignee-name" placeholder="Nome do Analista">
+            </div>
+            <div class="form-group">
+              <label>E-mail Responsável</label>
+              <input type="email" class="form-control" id="new-ticket-assignee-email" placeholder="email@telefonica.com">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeCreateModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="submitCreateTicket()">Criar Chamado</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW STATUS MODAL -->
+    <div class="modal-overlay" id="create-status-modal">
+      <div class="modal-content" style="width: 400px;">
+        <div class="modal-header">
+          <h3>Novo Status do Kanban</h3>
+          <button class="btn btn-secondary" onclick="closeNewStatusModal()" style="padding: 4px 8px;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nome do Status *</label>
+            <input type="text" class="form-control" id="new-status-name" placeholder="Ex: Aguardando Aprovação">
+          </div>
+          <div class="form-group">
+            <label>Categoria de Status</label>
+            <select class="form-control" id="new-status-category">
+              <option value="todo">A Fazer (Todo)</option>
+              <option value="in_progress">Em Progresso (In Progress)</option>
+              <option value="done">Concluído (Done)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeNewStatusModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="submitCreateStatus()">Salvar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

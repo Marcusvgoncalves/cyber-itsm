@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ruby / SQLite / Bundler
+/db/*.sqlite3
+/db/*.sqlite3-journal
+/db/*.sqlite3-*
+/.bundle/
+/Gemfile.lock.local
+

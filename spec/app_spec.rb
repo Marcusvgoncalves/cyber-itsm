@@ -1,0 +1,137 @@
+require_relative 'spec_helper'
+
+RSpec.describe 'CyberITSM REST API' do
+  let(:json_headers) { { 'CONTENT_TYPE' => 'application/json' } }
+
+  describe 'Security Headers' do
+    it 'includes rigid security headers in responses' do
+      get '/'
+      expect(last_response.headers['X-Frame-Options']).to eq('DENY')
+      expect(last_response.headers['X-Content-Type-Options']).to eq('nosniff')
+      expect(last_response.headers['Content-Security-Policy']).to include("default-src 'self'")
+    end
+  end
+
+  describe 'Statuses API' do
+    it 'lists all default statuses' do
+      get '/api/statuses'
+      expect(last_response.status).to eq(200)
+      res = JSON.parse(last_response.body)
+      expect(res.size).to eq(5)
+      expect(res.map { |s| s['name'] }).to include('Backlog', 'Concluído')
+    end
+
+    it 'creates a new status' do
+      payload = { name: 'Aguardando Validação', category: 'in_progress' }
+      post '/api/statuses', payload.to_json, json_headers
+      expect(last_response.status).to eq(201)
+      res = JSON.parse(last_response.body)
+      expect(res['name']).to eq('Aguardando Validação')
+      expect(res['position']).to eq(6)
+    end
+
+    it 'updates an existing status' do
+      status_obj = Status.find_by(name: 'A Fazer')
+      payload = { name: 'A Fazer Urgente', category: 'todo' }
+      put "/api/statuses/#{status_obj.id}", payload.to_json, json_headers
+      expect(last_response.status).to eq(200)
+      expect(status_obj.reload.name).to eq('A Fazer Urgente')
+    end
+
+    it 'deletes a status and moves tickets to fallback status' do
+      status_to_del = Status.find_by(name: 'Em Revisão')
+      fallback = Status.find_by(name: 'Backlog')
+      
+      # Create a ticket in status to delete
+      ticket = Ticket.create!(
+        title: 'MFA Vulnerability',
+        status_id: status_to_del.id,
+        priority: 'high'
+      )
+
+      delete "/api/statuses/#{status_to_del.id}"
+      expect(last_response.status).to eq(200)
+      
+      # Status should be deleted
+      expect(Status.find_by(id: status_to_del.id)).to be_nil
+      # Ticket should be moved to fallback status
+      expect(ticket.reload.status_id).to eq(fallback.id)
+    end
+  end
+
+  describe 'Tickets API' do
+    it 'creates a new ticket with automatic key assignment and audit log' do
+      status_obj = Status.find_by(name: 'Backlog')
+      payload = {
+        title: 'Corrigir CSP bloqueando scripts da Vivo',
+        description: 'CSP atual bloqueia scripts legítimos do design system Mistica',
+        status_id: status_obj.id,
+        priority: 'high',
+        framework_nist: 'Protect',
+        framework_cis: 'CIS Control 4',
+        assignee_name: 'Marcus Gonçalves',
+        author: 'Arquiteto Seg'
+      }
+
+      post '/api/tickets', payload.to_json, json_headers
+      expect(last_response.status).to eq(201)
+      res = JSON.parse(last_response.body)
+      
+      expect(res['key']).to eq('SEC-1001')
+      expect(res['title']).to eq('Corrigir CSP bloqueando scripts da Vivo')
+      
+      # Assert audit log was generated
+      ticket_id = res['id']
+      audit = AuditLog.where(ticket_id: ticket_id).first
+      expect(audit).not_to be_nil
+      expect(audit.action).to eq('Criado')
+      expect(audit.author).to eq('Arquiteto Seg')
+    end
+
+    it 'records status transition in audit logs' do
+      status_todo = Status.find_by(name: 'A Fazer')
+      status_progress = Status.find_by(name: 'Em Progresso')
+      
+      ticket = Ticket.create!(
+        title: 'Exposição de Chaves de API',
+        status_id: status_todo.id,
+        priority: 'critical'
+      )
+
+      payload = { status_id: status_progress.id, author: 'Analista Vivo' }
+      put "/api/tickets/#{ticket.id}", payload.to_json, json_headers
+      
+      expect(last_response.status).to eq(200)
+      expect(ticket.reload.status_id).to eq(status_progress.id)
+      
+      # Audit log assert
+      audit = AuditLog.where(ticket_id: ticket.id, action: 'Atualizado').first
+      expect(audit).not_to be_nil
+      expect(audit.changes_log).to include("Status alterado de 'A Fazer' para 'Em Progresso'")
+      expect(audit.author).to eq('Analista Vivo')
+    end
+  end
+
+  describe 'Comments API' do
+    it 'allows comment creation and generates audit log' do
+      status_obj = Status.find_by(name: 'Backlog')
+      ticket = Ticket.create!(
+        title: 'Review de código Ruby',
+        status_id: status_obj.id,
+        priority: 'low'
+      )
+
+      payload = { author: 'Seguranca Info', content: 'Código revisado sem achados de SAST.' }
+      post "/api/tickets/#{ticket.id}/comments", payload.to_json, json_headers
+      expect(last_response.status).to eq(201)
+      
+      expect(ticket.comments.count).to eq(1)
+      expect(ticket.comments.first.content).to eq('Código revisado sem achados de SAST.')
+      
+      # Audit log assertion
+      audit = AuditLog.where(ticket_id: ticket.id, action: 'Comentado').first
+      expect(audit).not_to be_nil
+      expect(audit.author).to eq('Seguranca Info')
+    end
+  end
+end

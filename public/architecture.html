@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberITSM - Desenho de Arquitetura C4 Interativo</title>
+  <link rel="stylesheet" href="/css/mistica.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      padding: 40px;
+      overflow-y: auto;
+      height: auto;
+    }
+    .back-btn {
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="back-btn">
+    <a href="/" class="btn btn-secondary"><i data-lucide="arrow-left"></i> Voltar ao Quadro</a>
+  </div>
+  
+  <div class="workspace-header" style="padding: 0 0 20px 0; border-bottom: 1px solid var(--border-color); margin-bottom: 30px;">
+    <div class="workspace-title">
+      <h2>Desenho de Arquitetura C4 Interativo - CyberITSM</h2>
+      <p>Visualização em contêineres e componentes do rebuild da aplicação em Ruby Sinatra</p>
+    </div>
+  </div>
+
+  <div class="c4-diagram">
+    <div class="c4-interactive-canvas">
+      <!-- Analyst -->
+      <div class="c4-node primary" onclick="showC4Detail('analyst')">
+        <div class="c4-node-title">Pessoa: Analista / Arquiteto</div>
+        <div class="c4-node-tech">Usuário de Segurança</div>
+        <div class="c4-node-desc">Utiliza o dashboard para cadastrar ameaças e transicionar status.</div>
+      </div>
+      
+      <div style="font-size: 20px; color: var(--text-muted);">⬇ Requisições HTTPS</div>
+      
+      <!-- Boundary -->
+      <div class="c4-system-boundary" style="width: 100%; max-width: 700px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--color-primary); width: 100%; text-align: left; margin-bottom: 12px;">CyberITSM - Sistema SecOps</div>
+        
+        <div class="c4-row" style="width: 100%;">
+          <div class="c4-node secondary" onclick="showC4Detail('frontend')" style="flex: 1; min-width: 200px;">
+            <div class="c4-node-title">Contêiner: Frontend SPA</div>
+            <div class="c4-node-tech">HTML5, Vanilla JS, Mistica CSS</div>
+            <div class="c4-node-desc">Interface baseada nos padrões Vivo Telefônica. Consome API REST do Sinatra.</div>
+          </div>
+          
+          <div class="c4-node secondary" onclick="showC4Detail('backend')" style="flex: 1; min-width: 200px;">
+            <div class="c4-node-title">Contêiner: Backend API</div>
+            <div class="c4-node-tech">Ruby, Sinatra (Puma Server)</div>
+            <div class="c4-node-desc">Regras de transição de status, geração de logs imutáveis e conformidades de frameworks.</div>
+          </div>
+        </div>
+        
+        <div style="font-size: 18px; color: var(--text-muted); margin: 12px 0;">⬇ ORM (ActiveRecord)</div>
+
+        <div class="c4-node secondary" onclick="showC4Detail('database')" style="width: 250px;">
+          <div class="c4-node-title">Contêiner: Banco de Dados</div>
+          <div class="c4-node-tech">SQLite3 Engine</div>
+          <div class="c4-node-desc">Persistência local e íntegra de tickets, status customizáveis e trilhas.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="c4-legend" style="margin-top: 24px; margin-bottom: 24px;">
+    <div class="c4-legend-item">
+      <div class="legend-color" style="background-color: var(--color-primary);"></div>
+      <span>Usuário / Pessoa</span>
+    </div>
+    <div class="c4-legend-item">
+      <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid var(--color-accent);"></div>
+      <span>Contêiner Tecnológico</span>
+    </div>
+  </div>
+
+  <div id="c4-detail-panel" style="background: var(--bg-secondary); border: 1px solid var(--border-color); padding: 20px; border-radius: var(--border-radius-md); font-size: 14px; margin-top: 20px; line-height: 1.6;">
+    <strong>Clique em qualquer componente acima</strong> para ver o detalhamento técnico e a atribuição de responsabilidades arquiteturais.
+  </div>
+
+  <script>
+    lucide.createIcons();
+    
+    function showC4Detail(componentKey) {
+      const panel = document.getElementById('c4-detail-panel');
+      const details = {
+        analyst: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Pessoa: Analista / Arquiteto de Segurança</h3>
+          <p><strong>Responsabilidade:</strong> Gerenciamento operacional e resposta rápida a incidentes e avaliações de arquitetura.</p>
+          <p style="margin-top: 6px; color: var(--text-secondary);">
+            O analista é o ponto central do ITSM. Ele interage com o quadro Kanban (estilo Jira) para arrastar chamados conforme eles passam pelas etapas de tratamento e resolução, garantindo que o status reflita a realidade regulatória.
+          </p>
+        `,
+        frontend: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Frontend SPA</h3>
+          <p><strong>Tecnologia:</strong> HTML5, Vanilla JavaScript, CSS customizado no padrão Mistica (Vivo Telefônica).</p>
+          <p style="margin-top: 6px; color: var(--text-secondary);">
+            A interface do usuário adota o design system oficial da Telefônica para a marca Vivo, utilizando a paleta roxa primary (#660099), laranja de realce e fontes customizadas. O JavaScript gerencia o estado da aplicação de forma dinâmica, permitindo reordenar status do Kanban e obter atualizações assíncronas do backend via requisições REST (Fetch API).
+          </p>
+        `,
+        backend: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Backend API</h3>
+          <p><strong>Tecnologia:</strong> Ruby, Sinatra Micro-framework, Puma Web Server.</p>
+          <p style="margin-top: 6px; color: var(--text-secondary);">
+            O backend Sinatra expõe rotas HTTP JSON para a manipulação dos chamados e dos status dinâmicos. Ele implementa middleware de segurança para injetar cabeçalhos estritos (OWASP mitigation) e garante que toda alteração em um ticket gere um log de auditoria imutável (Audit Trail).
+          </p>
+        `,
+        database: `
+          <h3 style="color: var(--color-accent); margin-bottom: 8px;">Contêiner: Banco de Dados</h3>
+          <p><strong>Tecnologia:</strong> SQLite3 Engine (ActiveRecord ORM).</p>
+          <p style="margin-top: 6px; color: var(--text-secondary);">
+            O banco de dados SQLite armazena em arquivo todas as entidades. A modelagem através do ActiveRecord garante integridade referencial rígida: se um status contendo chamados for excluído pelo usuário, os chamados correspondentes são atualizados em transação para outro status válido, evitando dados órfãos.
+          </p>
+        `
+      };
+      
+      if (details[componentKey]) {
+        panel.innerHTML = details[componentKey];
+      }
+    }
+  </script>
+</body>
+</html>
