@@ -1,27 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "config.ru",
-      "use": "@vercel/ruby"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(css|js|images|docs)/(.*)",
-      "dest": "public/$1/$2"
-    },
-    {
-      "src": "/login.html",
-      "dest": "public/login.html"
-    },
-    {
-      "src": "/architecture.html",
-      "dest": "public/architecture.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "config.ru"
-    }
-  ]
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "rewrites": []
 }

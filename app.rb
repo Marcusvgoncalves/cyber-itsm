@@ -23,7 +23,7 @@ after do
     'X-Frame-Options' => 'DENY',
     'X-Content-Type-Options' => 'nosniff',
     'X-XSS-Protection' => '1; mode=block',
-    'Content-Security-Policy' => "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+    'Content-Security-Policy' => "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://api.qrserver.com;"
   )
 end
 
