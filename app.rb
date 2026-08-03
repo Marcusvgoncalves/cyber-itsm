@@ -38,6 +38,9 @@ end
 
 # Security Headers (OWASP Mitigation) & CORS Injections
 after do
+  # Clean up database connections to prevent pool exhaustion and hangs
+  ActiveRecord::Base.connection_handler.clear_active_connections!
+
   content_type :json unless request.path_info.start_with?('/css/', '/js/', '/images/', '/architecture') || request.path_info == '/' || request.path_info == '/index.html'
 
   request_origin = request.env['HTTP_ORIGIN'] || '*'
