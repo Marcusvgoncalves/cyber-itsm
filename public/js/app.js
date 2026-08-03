@@ -1,22 +1,3 @@
-// Dynamic API URL interception for hybrid Render/Vercel deploys
-const API_BASE = window.location.hostname.includes('vercel.app') 
-  ? 'https://cyber-itsm-spn.onrender.com' 
-  : '';
-
-if (API_BASE) {
-  const originalFetch = window.fetch;
-  window.fetch = function(input, init) {
-    if (typeof input === 'string' && input.startsWith('/api/')) {
-      input = API_BASE + input;
-      if (init) {
-        init.credentials = 'include';
-      } else {
-        init = { credentials: 'include' };
-      }
-    }
-    return originalFetch(input, init);
-  };
-}
 
 // State management
 let statuses = [];

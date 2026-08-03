@@ -166,10 +166,6 @@
   </div>
 
   <script>
-    const API_BASE = window.location.hostname.includes('vercel.app') 
-      ? 'https://cyber-itsm-spn.onrender.com' 
-      : '';
-
     lucide.createIcons();
 
     // Check if token exists in URL on load (for reset password flow redirection)
@@ -213,7 +209,7 @@
       }
 
       try {
-        const res = await fetch(API_BASE + '/api/auth/login', {
+        const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -260,7 +256,7 @@
       }
 
       try {
-        const res = await fetch(API_BASE + '/api/auth/mfa/verify', {
+        const res = await fetch('/api/auth/mfa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: mfaPendingEmail, code })
@@ -289,7 +285,7 @@
       }
 
       try {
-        const res = await fetch(API_BASE + '/api/auth/forgot_password', {
+        const res = await fetch('/api/auth/forgot_password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email })
@@ -324,7 +320,7 @@
       }
 
       try {
-        const res = await fetch(API_BASE + '/api/auth/reset_password', {
+        const res = await fetch('/api/auth/reset_password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, new_password: newPassword })
