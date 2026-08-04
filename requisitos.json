@@ -1,0 +1,121 @@
+[
+  {
+    "Controle/Correlação": "Obrigatorio publicar serviços na arquitetura “Hub-Spoken”, estabelecidas durante cada Landingzone, com todas as proteções",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "STRIDE",
+    "OWASP-TOP10": "A04:2021-Insecure Design",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não",
+    "Tecnologia/Processo": "IPS, WAF, Firewall, TLS, API Gateway etc. "
+  },
+  {
+    "Controle/Correlação": "A arquitetura deve seguir o modelo de segregação por funcionalidades. (Apresentação, Lógica de negócio, Persistência/Dados) ",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Indisponibilidade",
+    "STRIDE LM": "Lateral Movement",
+    "OWASP-TOP10": "A04:2021-Insecure Design",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "O control plane deve seguir modelos de segurança adaptativo",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Elevation of Privilege",
+    "OWASP-TOP10": "A01:2021-Broken Access Control",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Especificar política a nível de organização para NÃO PERMITIR que portas de serviços sejam expostas para internet. Ex: 22, 1433, 1521, 3306, 3389, 5432, 6379, 6380, 8000, 8080, 27017 e 21",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Tampering",
+    "OWASP-TOP10": "A05:2021-Security Misconfiguration",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Especificar política a nível de organização para NÃO PERMITIR exposição na internet de interfaces administrativas de recursos.",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Tampering",
+    "OWASP-TOP10": "A05:2021-Security Misconfiguration",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Especificar política a nível de organização para NÃO PERMITIR provisionamento de endereços sem filtragem de origem; destino e serviço/porta",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Tampering",
+    "OWASP-TOP10": "A02:2021-Cryptographic Failures",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Todos os recursos provisionados deveram estar com sua trilha de logs cyber habilitados",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Regulatório/Compliance",
+    "STRIDE LM": "Repudiation",
+    "OWASP-TOP10": "A09:2021-Security Logging and Monitoring Failures",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Recursos provisionados não podem ter interface exposta para a internet, o consumo deverá passar por camadas de proteção.",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Information Disclosure",
+    "OWASP-TOP10": "A02:2021-Cryptographic Failures",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Em novas construções de Landing Zone considerar a implementação dos Guardrails (políticas de segurança da Companhia) a nível do novo Tenant",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Vazamento de dados",
+    "STRIDE LM": "Tampering",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Integrar o tenant a ferramenta corporativa de CNAPP (mandatório as funções de CSPM e CWPP)",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Regulatório/Compliance",
+    "STRIDE LM": "Tampering",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  },
+  {
+    "Controle/Correlação": "Respeitar o processo de exceções estabelecido por governança",
+    "Componente": "Cloud Security - Estruturante",
+    "Riscos": "Regulatório/Compliance",
+    "STRIDE LM": "Information Disclosure",
+    "On-Prem": "Não",
+    "IaaS": "Sim",
+    "PaaS": "Sim",
+    "SaaS": "Não"
+  }
+]

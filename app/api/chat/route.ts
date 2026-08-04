@@ -41,16 +41,18 @@ export async function POST(req: Request) {
 - **ISO/IEC 27001:2022**: A.8.8 (Gestão de vulnerabilidades técnicas).
 
 **Ação:** Mova o card correspondente no Kanban para "Em Progresso" e documente a evidência de aplicação do patch na atividade.`;
-    } else if (lastMessage.includes('arquitet') || lastMessage.includes('framework')) {
-      responseContent = `Como **Agente de IA SecOps**, oriento que o design e arquitetura devem aderir aos seguintes frameworks e controles:
+    } else if (lastMessage.includes('arquitet') || lastMessage.includes('framework') || lastMessage.includes('projeto') || lastMessage.includes('cloud') || lastMessage.includes('landing zone')) {
+      responseContent = `Como **Agente de IA SecOps**, analisei a **Base de Requisitos SD v4.1** para apoiar no seu projeto/arquitetura. As principais diretrizes de Cloud Security Estruturante são:
       
-### 🛡️ Mapeamento de Controles para Arquitetura
-- **NIST CSF 2.0**: Função *Protect (PR.DS)* - Segurança de Dados. A arquitetura deve garantir confidencialidade, integridade e disponibilidade.
-- **CIS Controls (v8)**: Controle 12 (Gerenciamento de Infraestrutura de Rede). Segregação de redes e arquitetura Zero Trust.
-- **ISO/IEC 27001:2022**: Controle A.8.25 (Ciclo de vida de desenvolvimento seguro). Requisitos de segurança embutidos na fase de design.
-- **SABSA**: Mapeamento da camada de Arquitetura Lógica, garantindo que IAM, criptografia e logging de auditoria sejam requisitos não funcionais obrigatórios.
+### 🛡️ Requisitos Mandatórios (Base de Requisitos SD v4.1)
+- **Topologia de Rede**: É obrigatório publicar serviços na arquitetura “Hub-Spoken” durante cada Landingzone, com proteções como IPS, WAF e API Gateway (A04:2021).
+- **Segregação**: A arquitetura deve seguir o modelo de segregação por funcionalidades (Apresentação, Lógica de negócio, Dados).
+- **Exposição na Internet**: É expressamente proibida a exposição na internet de portas de serviços (ex: 22, 3306, 5432, 8080) e interfaces administrativas. Todo consumo deve passar por camadas de proteção.
+- **Filtragem de Rede**: Não é permitido provisionar endereços sem filtragem restrita de origem, destino e serviço/porta.
+- **Monitoramento e Logs**: Todos os recursos provisionados devem estar com sua trilha de logs cyber habilitados (A09:2021).
+- **Integração e Governança**: O tenant deve ser integrado à ferramenta corporativa de CNAPP (CSPM e CWPP mandatórios) e implementar Guardrails a nível do Tenant.
 
-**Recomendação Prática:** Sempre adote os princípios de *Security by Design* e *Zero Trust*. Assegure que as integrações sigam padrões seguros de API e autenticação OIDC.`;
+**Recomendação Prática:** Sempre adote os princípios de *Security by Design* e garanta o mapeamento das ameaças via STRIDE para cada componente de arquitetura. O Control Plane deve seguir modelos de segurança adaptativo.`;
     }
 
     return NextResponse.json({
