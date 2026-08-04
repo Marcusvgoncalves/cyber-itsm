@@ -646,6 +646,8 @@ function switchIamTab(tabName) {
   document.getElementById('tab-iam-providers').classList.remove('btn-active-tab');
   document.getElementById('tab-iam-users').classList.remove('btn-active-tab');
   document.getElementById('tab-iam-governance').classList.remove('btn-active-tab');
+  const logsTab = document.getElementById('tab-iam-logs');
+  if (logsTab) logsTab.classList.remove('btn-active-tab');
   
   // Show target tab content
   if (tabName === 'providers') {
@@ -660,6 +662,47 @@ function switchIamTab(tabName) {
     document.getElementById('iam-content-governance').style.display = 'block';
     document.getElementById('tab-iam-governance').classList.add('btn-active-tab');
     renderIamGovernance();
+  } else if (tabName === 'logs') {
+    document.getElementById('iam-content-logs').style.display = 'block';
+    if (logsTab) logsTab.classList.add('btn-active-tab');
+    renderSystemAuditLogs();
+  }
+}
+
+async function renderSystemAuditLogs() {
+  const tbody = document.getElementById('iam-logs-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Carregando logs...</td></tr>';
+  
+  try {
+    const res = await fetch('/api/admin/audit_logs');
+    if (!res.ok) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-critical); padding: 20px;">Erro ao carregar logs</td></tr>';
+      return;
+    }
+    const logs = await res.json();
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum log registrado</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    logs.forEach(log => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border-color)';
+      
+      const date = new Date(log.created_at).toLocaleString('pt-BR');
+      
+      tr.innerHTML = `
+        <td style="padding: 10px 8px; color: var(--text-secondary);">${escapeHTML(date)}</td>
+        <td style="padding: 10px 8px; font-weight: 600; color: var(--color-accent);">${escapeHTML(log.action)}</td>
+        <td style="padding: 10px 8px; color: var(--text-secondary);">${escapeHTML(log.author)}</td>
+        <td style="padding: 10px 8px; font-family: monospace; font-size: 11px;">${escapeHTML(log.description || '')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error('Erro ao renderizar logs:', err);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--color-critical); padding: 20px;">Erro ao carregar logs</td></tr>';
   }
 }
 
@@ -1168,6 +1211,16 @@ async function checkSession() {
           submitBtn.style.opacity = '0.5';
           submitBtn.style.cursor = 'not-allowed';
           submitBtn.title = 'Acesso restrito a Administradores';
+        }
+      }
+
+      // Control Audit Logs tab in IAM (Admin only)
+      const logsTab = document.getElementById('tab-iam-logs');
+      if (logsTab) {
+        if (currentUser.role === 'Admin') {
+          logsTab.style.display = 'inline-flex';
+        } else {
+          logsTab.style.display = 'none';
         }
       }
 

@@ -426,6 +426,7 @@
             <button class="btn btn-secondary btn-active-tab" id="tab-iam-providers" onclick="switchIamTab('providers')" style="padding: 6px 12px; font-size: 13px;">Provedores IAM</button>
             <button class="btn btn-secondary" id="tab-iam-users" onclick="switchIamTab('users')" style="padding: 6px 12px; font-size: 13px;">Usuários & Perfis (RBAC)</button>
             <button class="btn btn-secondary" id="tab-iam-governance" onclick="switchIamTab('governance')" style="padding: 6px 12px; font-size: 13px;">Governança (Sailpoint)</button>
+            <button class="btn btn-secondary" id="tab-iam-logs" onclick="switchIamTab('logs')" style="padding: 6px 12px; font-size: 13px; display: none;">Logs de Auditoria</button>
           </div>
 
           <!-- Content Tab 1: Providers -->
@@ -502,6 +503,27 @@
               </div>
 
             </div>
+          </div>
+
+          <!-- Content Tab 4: Audit Logs -->
+          <div id="iam-content-logs" class="iam-tab-content" style="display: none; overflow-y: auto; flex: 1;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius-md); padding: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="shield-alert" style="color: var(--color-accent);"></i>
+              <span style="font-size: 13px; font-weight: 600;">Painel de Rastreabilidade SecOps (Logs do Sistema)</span>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border-color); color: var(--text-secondary);">
+                  <th style="padding: 10px 8px; width: 160px;">Data/Hora</th>
+                  <th style="padding: 10px 8px; width: 180px;">Ação</th>
+                  <th style="padding: 10px 8px; width: 220px;">Autor</th>
+                  <th style="padding: 10px 8px;">Descrição</th>
+                </tr>
+              </thead>
+              <tbody id="iam-logs-table-body">
+                <!-- Logs rendered here -->
+              </tbody>
+            </table>
           </div>
         </div>
 

@@ -351,6 +351,60 @@ RSpec.describe 'CyberITSM REST API' do
         # Now, create a user manually.
         post '/api/iam/users', { name: 'Success User', email: 'success@test.com' }.to_json, rbac_headers
         expect(last_response.status).to eq(201)
+
+        # Verify that a SystemAuditLog was written
+        log = SystemAuditLog.last
+        expect(log).not_to be_nil
+        expect(log.action).to eq('Usuário Criado')
+        expect(log.description).to include('Success User')
+      end
+
+      it 'allows Admin to view system audit logs' do
+        # Log in as Admin
+        admin = IamUser.create!(
+          name: 'Admin Test 2',
+          email: 'admin.test2@telefonica.com',
+          role: 'Admin',
+          provider_type: 'local',
+          status: 'Ativo',
+          password: 'CyberITSM@2026!Password',
+          mfa_enabled: false
+        )
+        post '/api/auth/login', { email: admin.email, password: 'CyberITSM@2026!Password' }.to_json, json_headers
+        login_res = JSON.parse(last_response.body)
+        
+        totp = ROTP::TOTP.new(login_res['secret'])
+        post '/api/auth/mfa/verify', { email: admin.email, code: totp.now }.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        # Fetch audit logs
+        get '/api/admin/audit_logs', {}, rbac_headers
+        expect(last_response.status).to eq(200)
+        logs = JSON.parse(last_response.body)
+        expect(logs).to be_an(Array)
+      end
+
+      it 'blocks Requester from viewing system audit logs' do
+        # Log in as Requester
+        req = IamUser.create!(
+          name: 'Requester Test 2',
+          email: 'req.test2@telefonica.com',
+          role: 'Requester',
+          provider_type: 'local',
+          status: 'Ativo',
+          password: 'CyberITSM@2026!Password',
+          mfa_enabled: false
+        )
+        post '/api/auth/login', { email: req.email, password: 'CyberITSM@2026!Password' }.to_json, json_headers
+        login_res = JSON.parse(last_response.body)
+        
+        totp = ROTP::TOTP.new(login_res['secret'])
+        post '/api/auth/mfa/verify', { email: req.email, code: totp.now }.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        # Try to fetch audit logs
+        get '/api/admin/audit_logs', {}, rbac_headers
+        expect(last_response.status).to eq(403)
       end
     end
   end
