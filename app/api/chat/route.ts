@@ -2,33 +2,34 @@ import { streamText, convertToModelMessages, type ModelMessage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 // ============================================================================
-// PROVEDOR ATIVO: Google Gemini (gemini-1.5-flash) - COMENTADO PARA USO LOCAL
+// PROVEDOR ATIVO: Google Gemini (gemini-1.5-flash)
 // Modelo leve e gratuito dentro das quotas do plano Free do Google AI Studio.
 // Variável de ambiente obrigatória: GOOGLE_GENERATIVE_AI_API_KEY
 // ============================================================================
-// const google = createGoogleGenerativeAI({
-//   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-// });
-//
-// const MODEL_ID = 'gemini-1.5-flash';
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+
+const MODEL_ID = 'gemini-1.5-flash';
 
 // ============================================================================
-// PROVEDOR LOCAL (OLLAMA) - ATIVO
+// PROVEDOR LOCAL (OLLAMA) - COMENTADO
 // Para rodar o agente 100% localmente via Ollama.
 // O Docker precisa estar de pé com o modelo baixado:
 //
 //   docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
 //   docker exec ollama ollama pull phi3   # ou: llama3
+//
+// import { createOpenAI } from '@ai-sdk/openai';
+//
+// const openai = createOpenAI({
+//   apiKey: process.env.OLLAMA_API_KEY ?? 'ollama',
+//   baseURL: 'http://localhost:11434/v1', // endpoint compatível com OpenAI do Ollama
+// });
+//
+// const MODEL_ID = 'phi3'; // alternativa leve: 'llama3'
+// const PROVIDER = openai;
 // ============================================================================
-import { createOpenAI } from '@ai-sdk/openai';
-
-const openai = createOpenAI({
-  apiKey: process.env.OLLAMA_API_KEY ?? 'ollama',
-  baseURL: 'http://localhost:11434/v1', // endpoint compatível com OpenAI do Ollama
-});
-
-const MODEL_ID = 'phi3'; // alternativa leve: 'llama3'
-const PROVIDER = openai;
 
 const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM. SUA ÚNICA FUNÇÃO é analisar o [CONTEXTO DO CHAMADO] e responder baseando-se ESTRITAMENTE nele. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver no contexto, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos.`;
 
@@ -100,7 +101,7 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-      model: PROVIDER(MODEL_ID), // Google: google(MODEL_ID)
+      model: google(MODEL_ID),
       system: SYSTEM_PROMPT,
       messages: history,
       // Valores seguros para reduzir custo e latência no modelo leve.
