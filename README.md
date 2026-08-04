@@ -6,9 +6,7 @@
 
 ## 📐 Desenho de Arquitetura C4 (Nível 2 e Nível 3)
 
-Abaixo está o mapeamento visual detalhado dos limites do sistema, contêineres internos e conexões com microsserviços e provedores externos (IAM / IGA):
-
-![CyberITSM SPN C4 Diagram](public/images/architecture.svg)
+Abaixo está o mapeamento visual interativo dos limites do sistema, contêineres internos e conexões com microsserviços e provedores externos (IAM / IGA). O sistema agora conta com um **Mapa de Arquitetura Interativo** no dashboard de Administração.
 
 ### 🚀 Tecnologias Adotadas
 
@@ -17,6 +15,7 @@ Abaixo está o mapeamento visual detalhado dos limites do sistema, contêineres 
 | **Frontend UI** | React 19 / Tailwind CSS v4 (Mistica) | Cores da marca, tipografia Outfit e responsividade premium com micro-animações. |
 | **Frontend Logic** | Next.js Client Components | Gerenciamento de estado local reativo e drag-and-drop nativo de cartões. |
 | **Backend API** | Next.js Server Actions & Middleware | Lógica do servidor executando sob Vercel Serverless. Proteção de rotas com cookies HTTP. |
+| **Agente de IA** | Vercel AI SDK Mock | Assistente Inteligente especializado em frameworks de segurança (NIST, CIS, ISO 27001, SABSA, LGPD, PCI-DSS). |
 | **Banco de Dados** | Supabase PostgreSQL | Persistência na nuvem com políticas estritas de Row Level Security (RLS) habilitadas. |
 | **Autenticação & MFA** | Supabase Auth & TOTP (SHA-1) | Autenticação com sessão segura e MFA configurável com onboarding via QR Code. |
 | **Integração IAM / IGA** | Adaptadores Simulados (Entra ID, Keycloak, OAM, Sailpoint) | Fluxo de governança de identidades e fila de aprovação de perfis (Identity Requests). |

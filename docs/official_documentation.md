@@ -44,10 +44,11 @@ graph TD
 #### A. Camada de Frontend (SPA)
 - **UI View Layer (React 19 / Tailwind CSS v4)**: Utiliza a marca oficial **Telefônica Mistica** (cores roxas `#660099`, laranja Vivo `#FF9900` e tipografia Outfit do Google Fonts) para renderizar a tela de login, o console do Kanban, logs de auditoria e os formulários de acesso.
 - **State Controller (React Hooks)**: Controla o estado em tempo de execução no cliente, gerencia a lógica de drag-and-drop de chamados SPN e manipula os estados de abas no painel de controle.
+- **Agente SecOps de Inteligência Artificial**: Uma interface de Chat nativa injetada como FAB (Floating Action Button), provendo interações de conformidade instantâneas com mapeamento de frameworks (NIST, CIS, ISO 27001, SABSA, LGPD e PCI-DSS).
 
 #### B. Camada de Backend (Vercel Serverless / Server Actions)
 - **Next.js Middleware**: Roda na Edge da Vercel. Intercepta requisições ao `/dashboard/*` para garantir que o usuário está logado, possui MFA verificado (através do cookie seguro `mfa_verified`) e se o perfil RBAC atende a rotas administrativas (`/architecture`).
-- **Server Actions**: Expõe ações tipadas de leitura e escrita (`app/actions/tickets.ts`, `app/actions/auth.ts`, `app/actions/iam.ts`), aplicando as regras de auditoria e controle.
+- **Server Actions & API Routes**: Expõe ações tipadas de leitura e escrita (`app/actions/tickets.ts`, `app/actions/auth.ts`, `app/actions/iam.ts`), aplicando as regras de auditoria e controle. O endpoint de API (`app/api/chat/route.ts`) gerencia as requisições conversacionais da inteligência artificial SecOps.
 - **TOTP Validator (`lib/totp.ts`)**: Validador de algoritmos de senhas temporárias de 6 dígitos baseado em RFC 6238, utilizando o Web Crypto API nativo para HMAC-SHA1.
 
 #### C. Camada de Dados & Segurança (Supabase)

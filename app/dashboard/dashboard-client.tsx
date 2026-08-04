@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
+import { AiChat } from "@/components/ai-chat";
+import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
@@ -716,14 +718,7 @@ export function DashboardClient({
                 <CardDescription>Diagrama unificado das camadas Next.js + Supabase e Provedores IAM</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center gap-6">
-                {/* SVG Container */}
-                <div className="w-full max-w-3xl border border-gray-250 rounded-lg bg-white p-4 shadow-sm flex justify-center">
-                  <img
-                    src="/images/architecture.svg"
-                    alt="CyberITSM SPN C4 Architecture"
-                    className="w-full h-auto max-h-[400px] object-contain"
-                  />
-                </div>
+                <ArchitectureDiagram />
 
                 <div className="prose prose-sm max-w-none text-gray-600 space-y-4">
                   <h4 className="text-md font-bold text-gray-950">Componentes Técnicos Reconstruídos:</h4>
@@ -949,6 +944,7 @@ export function DashboardClient({
           </div>
         )}
       </main>
+      <AiChat />
     </div>
   );
 }
