@@ -1,8 +1,9 @@
-import { streamText, convertToModelMessages, type ModelMessage } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import requisitos from '../../../requisitos-sd.json';
 
 // ============================================================================
-// PROVEDOR ATIVO: Google Gemini (gemini-1.5-flash)
+// PROVEDOR ATIVO: Google Gemini (gemini-flash-latest)
 // Modelo leve e gratuito dentro das quotas do plano Free do Google AI Studio.
 // Variável de ambiente obrigatória: GOOGLE_GENERATIVE_AI_API_KEY
 // ============================================================================
@@ -10,7 +11,7 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
-const MODEL_ID = 'gemini-1.5-flash';
+const MODEL_ID = 'gemini-flash-latest'; // alias rolante do flash mais recente (modelos fixos 1.5/2.5 foram descontinuados)
 
 // ============================================================================
 // PROVEDOR LOCAL (OLLAMA) - COMENTADO
@@ -31,7 +32,76 @@ const MODEL_ID = 'gemini-1.5-flash';
 // const PROVIDER = openai;
 // ============================================================================
 
-const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM. SUA ÚNICA FUNÇÃO é analisar o [CONTEXTO DO CHAMADO] e responder baseando-se ESTRITAMENTE nele. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver no contexto, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos.`;
+const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM e na Base de Requisitos de Arquitetura Segura SD v4.1. Responda baseando-se ESTRITAMENTE nos dois contextos fornecidos: [CONTEXTO DO CHAMADO] e [BASE DE CONHECIMENTO DE FRAMEWORKS]. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver nos contextos, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos. 5. Quando aplicável, cite o ID do requisito (ex.: VIVO.SEGURA.*) e a categoria/criticidade da base de conhecimento.`;
+
+interface Requisito {
+  id: string | null;
+  controle: string | null;
+  detalhamento: string | null;
+  componente: string | null;
+  propriedade: string | null;
+  strideLM: string | null;
+  riscos: string | null;
+  owasp: string | null;
+  categoria: string | null;
+  criticidade: string | null;
+  tipoControle: string | null;
+  evidencia: string | null;
+  comoTestar: string | null;
+}
+
+/**
+ * Recupera os requisitos mais relevantes da base SD v4.1 para a pergunta,
+ * com base em correspondência de palavras-chave (RAG simplificado por BM25-aprox).
+ */
+const STOPWORDS = new Set([
+  'qual', 'quais', 'como', 'para', 'que', 'com', 'uma', 'um', 'das', 'dos', 'da', 'de', 'do', 'em',
+  'oque', 'pode', 'posso', 'me', 'mais', 'mas', 'por', 'na', 'no', 'se', 'sobre', 'quero', 'saber',
+  'falar', 'especifica', 'aplicar', 'ser', 'esta', 'este', 'estao', 'voce', 'contexto', 'chamado',
+]);
+
+function tokenize(text: string): string[] {
+  const normalized = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const tokens = normalized.split(/[^a-z0-9]+/).filter((t) => t.length > 2 && !STOPWORDS.has(t));
+  return Array.from(new Set(tokens));
+}
+
+function retrieveRelevantRequisitos(question: string, context: string, limit = 8): Requisito[] {
+  const queryTokens = [...tokenize(question), ...tokenize(context)];
+
+  const scored = (requisitos as unknown as Requisito[]).map((req) => {
+    // Campos com maior peso têm mais relevância para o matching.
+    const weighted = {
+      core: [req.controle, req.componente, req.id, req.owasp, req.strideLM],
+      detail: [req.detalhamento, req.riscos, req.categoria, req.propriedade],
+      light: [req.criticidade, req.propriedade],
+    };
+    let score = 0;
+    for (const token of queryTokens) {
+      if (weighted.core.some((f) => f && tokenize(f).includes(token))) score += 3;
+      if (weighted.detail.some((f) => f && tokenize(f).includes(token))) score += 2;
+      if (weighted.light.some((f) => f && tokenize(f).includes(token))) score += 1;
+    }
+    return { req, score };
+  });
+
+  return scored
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((s) => s.req);
+}
+
+function formatRequerimento(req: Requisito): string {
+  return [
+    `[${req.id ?? 'S/ID'}] ${req.controle ?? ''}`,
+    `  Detalhamento: ${req.detalhamento ?? 'N/A'}`,
+    `  Componente: ${req.componente ?? 'N/A'} | Propriedade: ${req.propriedade ?? req.categoria ?? 'N/A'}`,
+    `  STRIDE: ${req.strideLM ?? 'N/A'} | OWASP: ${req.owasp ?? 'N/A'}`,
+    `  Riscos: ${req.riscos ?? 'N/A'}`,
+    `  Categoria: ${req.categoria ?? 'N/A'} | Criticidade: ${req.criticidade ?? 'N/A'} | Tipo: ${req.tipoControle ?? 'N/A'}`,
+  ].join('\n');
+}
 
 /**
  * Sanitiza a string de entrada: remove espaços duplicados/iniciais/finais e
@@ -48,15 +118,26 @@ function sanitizeText(input: unknown): string {
 }
 
 /**
- * Concatena o contexto do chamado à última mensagem do usuário.
- * Ex.: "Contexto do Chamado: {ticketContext}. Pergunta: {userMessage}"
+ * Concatena o contexto do chamado, a base de conhecimento recuperada (RAG) e
+ * a pergunta na mensagem final do usuário.
  */
-function buildUserMessage(userMessage: string, ticketContext: string): string {
+function buildUserMessage(
+  userMessage: string,
+  ticketContext: string,
+  relevantRequisitos: Requisito[]
+): string {
   const cleanContext = sanitizeText(ticketContext);
   const contextSection = cleanContext
     ? `Contexto do Chamado: ${cleanContext}. `
     : '';
-  return `${contextSection}Pergunta: ${userMessage}`;
+
+  let baseSection = '';
+  if (relevantRequisitos.length > 0) {
+    const formatted = relevantRequisitos.map(formatRequerimento).join('\n\n');
+    baseSection = `\n\n[BASE DE CONHECIMENTO DE FRAMEWORKS - REQUISITOS RELEVANTES]\n${formatted}\n[FIM DA BASE DE CONHECIMENTO]`;
+  }
+
+  return `Contexto do Chamado: ${cleanContext}.${baseSection}\n\nPergunta: ${userMessage}`;
 }
 
 export async function POST(req: Request) {
@@ -74,8 +155,10 @@ export async function POST(req: Request) {
     }
 
     // Monta o histórico final: mantém todo o diálogo, mas injeta o contexto do
-    // chamado na última mensagem do usuário em vez da pergunta em texto puro.
+    // chamado + base de conhecimento na última mensagem do usuário.
     const history: ModelMessage[] = [];
+    let lastUserQuestion = '';
+
     for (let i = 0; i < rawMessages.length; i++) {
       const m = rawMessages[i];
       const isLast = i === rawMessages.length - 1;
@@ -91,10 +174,13 @@ export async function POST(req: Request) {
         textContent = String(m.content || '');
       }
 
+      if (m.role === 'user') lastUserQuestion = textContent;
+
       if (isLast && m.role === 'user') {
+        const relevant = retrieveRelevantRequisitos(lastUserQuestion, ticketContext);
         history.push({
           role: 'user',
-          content: buildUserMessage(textContent, ticketContext),
+          content: buildUserMessage(textContent, ticketContext, relevant),
         });
       } else {
         history.push({

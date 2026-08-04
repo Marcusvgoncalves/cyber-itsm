@@ -91,6 +91,8 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
     await sendMessage({ text });
   };
 
+  if (!isOpen) return null;
+
   return (
     <Card className="fixed bottom-4 right-4 z-50 flex h-[560px] w-[400px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl shadow-2xl ring-1 ring-black/5">
       {/* Header */}
