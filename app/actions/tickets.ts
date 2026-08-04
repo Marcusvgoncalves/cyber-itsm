@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Ticket, TicketStatus, User, AuditLog } from "@/lib/types";
 
+const VALID_PRIORITIES = ['baixa', 'media', 'alta', 'critica'];
+
 export async function getTickets(): Promise<Ticket[]> {
   const supabase = await createClient();
   
@@ -72,7 +74,7 @@ export async function createTicket(formData: Omit<Ticket, 'id' | 'created_at' | 
       title: formData.title,
       description: formData.description,
       status: formData.status,
-      priority: formData.priority,
+      priority: VALID_PRIORITIES.includes(formData.priority) ? formData.priority : 'media',
       framework_origem: formData.framework_origem,
       dominio_framework: formData.dominio_framework,
       assignee_id: formData.assignee_id,
@@ -95,10 +97,15 @@ export async function createTicket(formData: Omit<Ticket, 'id' | 'created_at' | 
 
 export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket> {
   const supabase = await createClient();
-  
+
+  const sanitized: Record<string, unknown> = { ...updates };
+  if (updates.priority !== undefined && !VALID_PRIORITIES.includes(updates.priority)) {
+    delete sanitized.priority;
+  }
+
   const { data, error } = await supabase
     .from('tickets')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...sanitized, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select(`
       *,

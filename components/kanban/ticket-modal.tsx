@@ -232,12 +232,12 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
                 <Label htmlFor="framework" className="block text-sm font-medium text-gray-700 mb-1">
                   Framework de Origem
                 </Label>
-                <Select value={formData.framework_origem} onValueChange={(v: string) => handleChange('framework_origem', v as FrameworkOrigem)} disabled={isLoading}>
+                <Select value={formData.framework_origem || 'none'} onValueChange={(v: string) => handleChange('framework_origem', v === 'none' ? '' : (v as FrameworkOrigem))} disabled={isLoading}>
                   <SelectTrigger id="framework">
                     <SelectValue placeholder="Selecione o framework" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {FRAMEWORK_OPTIONS.map((f) => (
                       <SelectItem key={f} value={f as FrameworkOrigem}>
                         <div className="flex items-center gap-2">
@@ -293,12 +293,12 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
                 <Label htmlFor="assignee" className="block text-sm font-medium text-gray-700 mb-1">
                   Responsável
                 </Label>
-                <Select value={formData.assignee_id} onValueChange={(v: string) => handleChange('assignee_id', v)} disabled={isLoading}>
+                <Select value={formData.assignee_id || 'none'} onValueChange={(v: string) => handleChange('assignee_id', v === 'none' ? '' : v)} disabled={isLoading}>
                   <SelectTrigger id="assignee">
                     <SelectValue placeholder="Selecione o responsável" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Não atribuído</SelectItem>
+                    <SelectItem value="none">Não atribuído</SelectItem>
                     {users.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.full_name || u.email}

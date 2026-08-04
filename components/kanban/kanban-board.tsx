@@ -46,6 +46,12 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser }: Ka
     setModalMode('edit');
   }, []);
 
+  const handleCloseModal = useCallback(() => {
+    setSelectedTicket(null);
+    setNewTicketStatusId(null);
+    setModalMode('edit');
+  }, []);
+
   const handleAddTicket = useCallback((statusId: string) => {
     setNewTicketStatusId(statusId);
     setSelectedTicket(null);
@@ -58,13 +64,14 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser }: Ka
       try {
         const newTicket = await createTicket({ ...ticketData, reporter_id: currentUser.id });
         setTickets(prev => [newTicket, ...prev]);
+        handleCloseModal();
       } catch (error) {
         console.error('Erro ao criar ticket:', error);
       } finally {
         setIsLoading(false);
       }
     });
-  }, [currentUser.id]);
+  }, [currentUser.id, handleCloseModal]);
 
   const handleTicketUpdated = useCallback(async (ticketId: string, updates: Partial<Ticket>) => {
     startTransition(async () => {
@@ -72,18 +79,14 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser }: Ka
       try {
         const updated = await updateTicket(ticketId, updates);
         setTickets(prev => prev.map(t => t.id === ticketId ? updated : t));
+        handleCloseModal();
       } catch (error) {
         console.error('Erro ao atualizar ticket:', error);
       } finally {
         setIsLoading(false);
       }
     });
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setSelectedTicket(null);
-    setNewTicketStatusId(null);
-  }, []);
+  }, [handleCloseModal]);
 
   const handleTicketSubmit = useCallback((data: any) => {
     if (modalMode === 'create') {
