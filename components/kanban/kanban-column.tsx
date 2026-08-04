@@ -19,7 +19,6 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [draggedTicketId, setDraggedTicketId] = useState<string | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -35,20 +34,18 @@ export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onT
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    if (draggedTicketId) {
-      onTicketMove(draggedTicketId, status.id);
-      setDraggedTicketId(null);
+    const ticketId = e.dataTransfer.getData("text/plain");
+    if (ticketId) {
+      onTicketMove(ticketId, status.id);
     }
-  }, [draggedTicketId, status.id, onTicketMove]);
+  }, [status.id, onTicketMove]);
 
   const handleDragStart = useCallback((e: React.DragEvent, ticketId: string) => {
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", ticketId);
-    setDraggedTicketId(ticketId);
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    setDraggedTicketId(null);
     setIsDragOver(false);
   }, []);
 
