@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import requisitosData from '../../../../requisitos.json';
+import requisitosData from '../../../requisitos.json';
 // Sistema de Mock Avançado de IA SecOps
 // Quando a chave de API real (OpenAI/Gemini) for adicionada, 
 // este endpoint pode ser substituído pelo Vercel AI SDK.
