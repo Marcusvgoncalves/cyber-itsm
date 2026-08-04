@@ -1,0 +1,213 @@
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { useRef, useEffect, useMemo, useState } from "react";
+import { Bot, X, Send, User as UserIcon, ShieldAlert, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+export interface TicketData {
+  id?: string;
+  title?: string;
+  description?: string | null;
+  framework_origem?: string | null;
+  dominio_framework?: string | null;
+  priority?: string;
+  tags?: string[];
+}
+
+interface SecurityAgentProps {
+  ticketData: TicketData;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const WELCOME_MESSAGE =
+  "Sou o Agente de Arquitetura de Cibersegurança. Faça perguntas estritamente sobre o contexto deste chamado.";
+
+/**
+ * Extrai o texto de uma UIMessage (parts[0] type='text').
+ */
+function getMessageText(message: { parts: Array<{ type: string; text?: string }> }): string {
+  const textPart = message.parts.find((p) => p.type === "text");
+  return textPart?.text ?? "";
+}
+
+export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [inputValue, setInputValue] = useState("");
+
+  const ticketContext = useMemo(
+    () =>
+      JSON.stringify({
+        id: ticketData.id ?? null,
+        title: ticketData.title ?? null,
+        description: ticketData.description ?? null,
+        framework_origem: ticketData.framework_origem ?? null,
+        dominio_framework: ticketData.dominio_framework ?? null,
+        priority: ticketData.priority ?? null,
+        tags: Array.isArray(ticketData.tags) ? ticketData.tags : [],
+      }),
+    [ticketData]
+  );
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { ticketContext },
+        credentials: "same-origin",
+      }),
+    [ticketContext]
+  );
+
+  const { messages, status, sendMessage, error } = useChat({
+    transport,
+  });
+
+  const isLoading = status === "streaming" || status === "submitted";
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (isOpen) scrollToBottom();
+  }, [messages, isLoading, isOpen]);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
+
+    const text = inputValue.trim();
+    setInputValue("");
+    await sendMessage({ text });
+  };
+
+  return (
+    <Card className="fixed bottom-4 right-4 z-50 flex h-[560px] w-[400px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl shadow-2xl ring-1 ring-black/5">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-gray-200 bg-primary px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15 text-white">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-white">Agente de Cibersegurança</h2>
+            <p className="text-[10px] text-white/80">Extração estrita · Contexto do chamado</p>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label="Fechar o agente"
+          className="h-8 w-8 rounded-md text-white/80 hover:bg-white/10 hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Contexto do chamado (resumo) */}
+      <div className="border-b border-gray-200 bg-amber-50/70 px-4 py-2">
+        <p className="line-clamp-2 text-[11px] leading-snug text-gray-600">
+          <span className="font-semibold text-amber-800">Contexto: </span>
+          {ticketData.id ? `SPN-${String(ticketData.id).slice(-6).toUpperCase()} · ` : ""}
+          {ticketData.title || "Alterar seleção do chamado."}
+          {ticketData.framework_origem ? ` (${ticketData.framework_origem})` : ""}
+        </p>
+      </div>
+
+      {/* Mensagens */}
+      <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50/60 p-4">
+        {messages.length === 0 ? (
+          <div className="flex items-start gap-3 rounded-2xl rounded-tl-sm border border-gray-100 bg-white px-4 py-2.5 text-[13px] text-gray-700 shadow-sm">
+            <Bot className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
+            <p>{WELCOME_MESSAGE}</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+            >
+              <div
+                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow-sm ${
+                  msg.role === "user"
+                    ? "bg-gray-200 text-gray-700"
+                    : "bg-primary text-white"
+                }`}
+              >
+                {msg.role === "user" ? (
+                  <UserIcon className="h-4 w-4" />
+                ) : (
+                  <Bot className="h-4 w-4" />
+                )}
+              </div>
+              <div
+                className={`flex max-w-[78%] flex-col ${
+                  msg.role === "user" ? "items-end" : "items-start"
+                }`}
+              >
+                <div
+                  className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                    msg.role === "user"
+                      ? "rounded-tr-sm bg-primary text-white"
+                      : "rounded-tl-sm border border-gray-100 bg-white text-gray-800"
+                  }`}
+                >
+                  {getMessageText(msg)}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+
+        {isLoading && (
+          <div className="flex items-center gap-2 py-1">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-xs text-gray-400">Analisando contexto...</span>
+          </div>
+        )}
+
+        {error && (
+          <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
+            Erro ao processar a solicitação. Tente novamente.
+          </p>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Entrada */}
+      <form onSubmit={handleSubmit} className="border-t border-gray-200 bg-white p-3">
+        <div className="flex items-center gap-2">
+          <Input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Pergunte sobre o chamado..."
+            disabled={isLoading}
+            className="h-10 flex-1 bg-gray-50 text-sm"
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!inputValue.trim() || isLoading}
+            aria-label="Enviar mensagem"
+            className="h-10 w-10 flex-shrink-0 rounded-full"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}

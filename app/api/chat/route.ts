@@ -1,69 +1,122 @@
-import { NextResponse } from 'next/server';
-import requisitosData from '../../../requisitos.json';
-// Sistema de Mock Avançado de IA SecOps
-// Quando a chave de API real (OpenAI/Gemini) for adicionada, 
-// este endpoint pode ser substituído pelo Vercel AI SDK.
+import { streamText, convertToModelMessages, type ModelMessage } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+
+// ============================================================================
+// PROVEDOR ATIVO: Google Gemini (gemini-1.5-flash)
+// Modelo leve e gratuito dentro das quotas do plano Free do Google AI Studio.
+// Variável de ambiente obrigatória: GOOGLE_GENERATIVE_AI_API_KEY
+// ============================================================================
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+
+const MODEL_ID = 'gemini-1.5-flash';
+
+// ============================================================================
+// PROVEDOR FALLBACK (LOCAL / DOCKER) - COMENTADO.
+// Para rodar o agente 100% localmente via Ollama, descomente o bloco abaixo,
+// comente as linhas do Google e troque a chamada `streamText` para usar o
+// `localModel`. O Docker precisa estar de pé com o modelo baixado:
+//
+//   docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+//   docker exec ollama ollama pull phi3   # ou: llama3
+//
+// import { createOpenAI } from '@ai-sdk/openai';
+//
+// const openai = createOpenAI({
+//   apiKey: process.env.OLLAMA_API_KEY ?? 'ollama',
+//   baseURL: 'http://localhost:11434/v1', // endpoint compatível com OpenAI do Ollama
+// });
+//
+// const MODEL_ID = 'phi3'; // alternativa leve: 'llama3'
+// const PROVIDER = openai;
+// ============================================================================
+
+const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM. SUA ÚNICA FUNÇÃO é analisar o [CONTEXTO DO CHAMADO] e responder baseando-se ESTRITAMENTE nele. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver no contexto, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos.`;
+
+/**
+ * Sanitiza a string de entrada: remove espaços duplicados/iniciais/finais e
+ * descarta quaisquer caracteres de controle que possam ser usados para
+ * injeção de prompt. Mantém apenas caracteres imprimíveis seguros de texto.
+ */
+function sanitizeText(input: unknown): string {
+  if (typeof input !== 'string') return '';
+  return input
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+}
+
+/**
+ * Concatena o contexto do chamado à última mensagem do usuário.
+ * Ex.: "Contexto do Chamado: {ticketContext}. Pergunta: {userMessage}"
+ */
+function buildUserMessage(userMessage: string, ticketContext: string): string {
+  const cleanContext = sanitizeText(ticketContext);
+  const contextSection = cleanContext
+    ? `Contexto do Chamado: ${cleanContext}. `
+    : '';
+  return `${contextSection}Pergunta: ${userMessage}`;
+}
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
-    const lastMessage = messages[messages.length - 1]?.content?.toLowerCase() || '';
+    const body = await req.json();
 
-    // Mock delay for realistic typing effect
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const rawMessages: Array<{ role: 'system' | 'user' | 'assistant'; parts: unknown[] }> =
+      Array.isArray(body?.messages)
+        ? (body.messages as Array<{ role: 'system' | 'user' | 'assistant'; parts: unknown[] }>)
+        : [];
+    const ticketContext = sanitizeText(body?.ticketContext);
 
-    let responseContent = `Baseado na sua requisição, como seu **Agente de IA SecOps**, analisei o cenário sob as óticas dos nossos frameworks de conformidade corporativa:
-
-### 🛡️ Análise de Conformidade e Riscos
-- **NIST CSF 2.0**: O evento relatado se enquadra primariamente na função *Detect (DE)* ou *Respond (RS)*. É crítico acionar o plano de resposta a incidentes.
-- **CIS Controls (v8)**: Recomendo a validação do Controle 4 (Configuração Segura de Ativos Corporativos) e Controle 5 (Gerenciamento de Contas), garantindo que privilégios mínimos estão aplicados.
-- **ISO/IEC 27001:2022**: Observe os controles do anexo A.8 (Segurança Tecnológica), especificamente sobre isolamento de incidentes e proteção contra malware.
-- **LGPD & PCI-DSS**: Se houver dados pessoais (PII) ou dados de cartão envolvidos (PAN), o DPO e o comitê de privacidade devem ser notificados imediatamente para conter vazamentos (Art. 48 da LGPD).
-
-**Ação Sugerida:** Recomendo a criação imediata de um Ticket no Kanban sob a categoria de Risco 'Crítico'. Quer que eu detalhe o plano de ação de resposta?`;
-
-    // Alguma inteligência básica para personalizar a resposta baseada no input
-    if (lastMessage.includes('senha') || lastMessage.includes('password') || lastMessage.includes('acesso')) {
-      responseContent = `Identifiquei que sua dúvida é sobre **Gestão de Acessos e Identidades (IAM)**.
-
-### 🛡️ Mapeamento de Controles IAM
-- **CIS Controls (v8)**: Controle 6 (Gerenciamento de Controle de Acesso). Devemos aplicar o princípio de Menor Privilégio.
-- **SABSA**: Na camada Lógica (Logical Security Architecture), os serviços de IAM, RBAC e SSO são vitais para mitigar riscos de intrusão.
-- **NIST CSF 2.0**: Função *Protect (PR)* - Gestão de Identidades (PR.AA).
-
-**Recomendação Prática:** O CyberITSM SPN já exige senhas complexas (12+ caracteres) e **Autenticação Multi-Fator (MFA/TOTP)** mandatória. Se houver falha de acesso, direcione o analista para o fluxo formal do *Sailpoint IdentityNow* na aba IAM.`;
-    } else if (lastMessage.includes('vulnerabilidade') || lastMessage.includes('patch')) {
-      responseContent = `Identifiquei o tema de **Gestão de Vulnerabilidades**.
-
-### 🛡️ Mapeamento de Controles
-- **CIS Controls (v8)**: Controle 7 (Gerenciamento Contínuo de Vulnerabilidades). É essencial aplicar patches em até 48 horas para CVSS Altos.
-- **PCI-DSS (v4.0)**: Requisito 6 (Desenvolver e manter sistemas seguros). O não reparo imediato pode expor o CDE (Cardholder Data Environment).
-- **ISO/IEC 27001:2022**: A.8.8 (Gestão de vulnerabilidades técnicas).
-
-**Ação:** Mova o card correspondente no Kanban para "Em Progresso" e documente a evidência de aplicação do patch na atividade.`;
-    } else if (lastMessage.includes('arquitet') || lastMessage.includes('framework') || lastMessage.includes('projeto') || lastMessage.includes('cloud') || lastMessage.includes('landing zone')) {
-      
-      const formatRequirements = () => {
-        return requisitosData.map((req: any, index: number) => {
-          return `- **${req.Componente} (Regra ${index+1})**: ${req['Controle/Correlação']} [Risco mitigado: ${req.Riscos}, STRIDE: ${req['STRIDE LM']}]`;
-        }).join('\n');
-      };
-
-      responseContent = `Como **Agente de IA SecOps**, embarquei e analisei a **Base de Requisitos SD v4.1** para apoiar no seu projeto/arquitetura. Eis as diretrizes extraídas diretamente da base atualizada:
-      
-### 🛡️ Requisitos Mandatórios Carregados da Planilha SD v4.1
-${formatRequirements()}
-
-**Recomendação Prática:** Sempre adote os princípios de *Security by Design* e garanta o mapeamento das ameaças via STRIDE para cada componente de arquitetura. O Control Plane deve seguir modelos de segurança adaptativo.`;
+    if (rawMessages.length === 0) {
+      return Response.json(
+        { error: 'Nenhuma mensagem fornecida.' },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({
-      role: 'assistant',
-      content: responseContent,
-      timestamp: new Date().toISOString()
+    // Converte as mensagens do cliente (UIMessage) para ModelMessage do SDK.
+    const modelMessages = await convertToModelMessages(
+      rawMessages as never
+    );
+
+    // Monta o histórico final: mantém todo o diálogo, mas injeta o contexto do
+// chamado na última mensagem do usuário em vez da pergunta em texto puro.
+    const history: ModelMessage[] = [];
+    for (let i = 0; i < modelMessages.length; i++) {
+      const m = modelMessages[i];
+      const isLast = i === modelMessages.length - 1;
+      if (isLast && m.role === 'user') {
+        history.push({
+          role: 'user',
+          content: buildUserMessage(
+            typeof m.content === 'string' ? m.content : '',
+            ticketContext
+          ),
+        });
+      } else {
+        history.push(m);
+      }
+    }
+
+    const result = streamText({
+      model: google(MODEL_ID), // troque para `PROVIDER(MODEL_ID)` ao usar Ollama
+      system: SYSTEM_PROMPT,
+      messages: history,
+      // Valores seguros para reduzir custo e latência no modelo leve.
+      temperature: 0.2,
+      maxOutputTokens: 1024,
     });
 
+    // Retorna a resposta em streaming no formato consumido pelo useChat.
+    return result.toUIMessageStreamResponse();
   } catch (error) {
-    return NextResponse.json({ error: 'Erro interno no Agente SecOps' }, { status: 500 });
+    console.error('[chat] erro no agente de contexto:', error);
+    return Response.json(
+      { error: 'Erro interno ao processar a análise do chamado.' },
+      { status: 500 }
+    );
   }
 }
