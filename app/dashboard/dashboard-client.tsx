@@ -16,7 +16,7 @@ import {
   KeyRound, Lock, QrCode, Bot
 } from "lucide-react";
 import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
-import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser } from "@/app/actions/iam";
+import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
 
 interface DashboardClientProps {
@@ -50,6 +50,8 @@ export function DashboardClient({
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(initialAuditLogs);
   const [statuses, setStatuses] = useState<Status[]>(initialStatuses);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
+  const [systemUsersState, setSystemUsersState] = useState<User[]>(systemUsers);
+  const [userMgmtMsg, setUserMgmtMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Security Agent state
   const [showAgent, setShowAgent] = useState(false);
@@ -72,6 +74,7 @@ export function DashboardClient({
   const [localFullName, setLocalFullName] = useState("");
   const [localRole, setLocalRole] = useState<'admin' | 'analista' | 'solicitante'>('solicitante');
   const [localSuccess, setLocalSuccess] = useState<string | null>(null);
+  const [localTempPassword, setLocalTempPassword] = useState<string | null>(null);
 
   // In-tab MFA setup states
   const [isSettingUpMfa, setIsSettingUpMfa] = useState(false);
@@ -192,12 +195,16 @@ export function DashboardClient({
   const handleCreateLocalUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalSuccess(null);
+    setLocalTempPassword(null);
     try {
-      await createLocalUser({
+      const created = await createLocalUser({
         email: localEmail,
         full_name: localFullName,
         role: localRole,
       });
+      if (created?.temp_password) {
+        setLocalTempPassword(created.temp_password);
+      }
       setLocalSuccess("Usuário local cadastrado com sucesso!");
       setLocalEmail("");
       setLocalFullName("");
@@ -205,9 +212,39 @@ export function DashboardClient({
       const { getAuditLogs } = await import("@/app/actions/tickets");
       const updatedLogs = await getAuditLogs(100);
       setAuditLogs(updatedLogs);
-    } catch (err: any) {
+      const updatedUsers = await listSystemUsers();
+      setSystemUsersState(updatedUsers);
+      setUserMgmtMsg({ type: 'success', text: 'Usuário cadastrado. Ele deverá configurar o MFA no primeiro login.' });
+    } catch (err) {
+      console.error(err);
+      setUserMgmtMsg({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao cadastrar usuário.' });
+    }
+  };
+
+  // User management actions (admin)
+  const runUserAction = async (action: () => Promise<void>, successMsg: string) => {
+    setUserMgmtMsg(null);
+    try {
+      await action();
+      const updated = await listSystemUsers();
+      setSystemUsersState(updated);
+      setUserMgmtMsg({ type: 'success', text: successMsg });
+    } catch (err) {
+      setUserMgmtMsg({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao executar a operação.' });
       console.error(err);
     }
+  };
+
+  const handleRoleChange = (userId: string, role: 'admin' | 'analista' | 'solicitante') => {
+    runUserAction(() => updateUserRole(userId, role), 'Perfil RBAC atualizado.');
+  };
+
+  const handleToggleActive = (userId: string, active: boolean) => {
+    runUserAction(() => setUserActive(userId, active), active ? 'Acesso reativado.' : 'Acesso desativado.');
+  };
+
+  const handleForceMfa = (userId: string) => {
+    runUserAction(() => forceMfaReconfiguration(userId), 'MFA reconfigurado. O usuário deverá configurar o 2º fator no próximo login.');
   };
 
   // MFA Controls inside Settings
@@ -519,6 +556,13 @@ export function DashboardClient({
                           {localSuccess}
                         </div>
                       )}
+                      {localTempPassword && (
+                        <div className="mb-4 text-xs bg-amber-50 text-amber-800 border border-amber-200 p-2.5 rounded">
+                          <p className="font-bold mb-1">Senha temporária de primeiro acesso:</p>
+                          <code className="font-mono font-bold break-all">{localTempPassword}</code>
+                          <p className="text-amber-700 mt-1">Repasse esta senha ao usuário. Ele deverá trocar a senha e configurar o MFA no primeiro login.</p>
+                        </div>
+                      )}
                       <form onSubmit={handleCreateLocalUser} className="space-y-3">
                         <div>
                           <Label htmlFor="localName" className="text-xs font-semibold">Nome Completo</Label>
@@ -561,6 +605,100 @@ export function DashboardClient({
                           Criar Perfil
                         </Button>
                       </form>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* User management (Admin only) */}
+                {isAdmin && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        Gestão de Usuários do Sistema
+                      </CardTitle>
+                      <CardDescription>Contas locais ativas. Gerencie perfis RBAC, estado de acesso e MFA.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {userMgmtMsg && (
+                        <div className={`mb-4 text-xs p-2.5 rounded border ${
+                          userMgmtMsg.type === 'success'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                        }`}>
+                          {userMgmtMsg.text}
+                        </div>
+                      )}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500">
+                          <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
+                            <tr>
+                              <th scope="col" className="px-4 py-3">Usuário</th>
+                              <th scope="col" className="px-4 py-3">Perfil</th>
+                              <th scope="col" className="px-4 py-3">MFA</th>
+                              <th scope="col" className="px-4 py-3 text-right">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {systemUsersState.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="text-center py-6 text-gray-400">
+                                  Nenhum usuário cadastrado.
+                                </td>
+                              </tr>
+                            ) : (
+                              systemUsersState.map((user) => (
+                                <tr key={user.id} className="bg-white hover:bg-gray-50">
+                                  <td className="px-4 py-3">
+                                    <div className="font-semibold text-gray-900">{user.full_name || 'Sem nome'}</div>
+                                    <div className="font-mono text-xs text-gray-500">{user.email}</div>
+                                    {user.id === currentUser.id && (
+                                      <span className="text-[10px] font-bold text-primary">(você)</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <select
+                                      value={user.role}
+                                      disabled={user.id === currentUser.id}
+                                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'analista' | 'solicitante')}
+                                      className="h-8 text-xs rounded border border-gray-300 bg-white px-2 text-gray-700 disabled:opacity-50"
+                                    >
+                                      <option value="solicitante">Solicitante</option>
+                                      <option value="analista">Analista</option>
+                                      <option value="admin">Admin</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                      user.mfa_setup_complete
+                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                        : 'bg-orange-50 text-orange-700 border-orange-200'
+                                    }`}>
+                                      {user.mfa_setup_complete ? 'Ativo' : 'Pendente'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <Button size="sm" variant="outline" className="h-8 text-xs"
+                                        onClick={() => handleForceMfa(user.id)} disabled={!user.mfa_setup_complete}>
+                                        <RefreshCw className="h-3 w-3 mr-1" /> Reset MFA
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-8 text-xs"
+                                        onClick={() => handleToggleActive(user.id, false)}
+                                        disabled={user.id === currentUser.id}>
+                                        <XCircle className="h-3 w-3 mr-1 text-red-500" /> Desativar
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">
+                        Novo usuários são criados com MFA obrigatório (2º fator) a configurar no primeiro login.
+                      </p>
                     </CardContent>
                   </Card>
                 )}

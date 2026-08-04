@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { createAuditLog, getCurrentUserProfile } from "./auth";
 import type { IamProvider, IamUser, IdentityRequest, User } from "@/lib/types";
@@ -238,41 +239,163 @@ export async function createLocalUser(formData: {
   email: string;
   full_name: string;
   role: 'admin' | 'analista' | 'solicitante';
-}): Promise<void> {
+}): Promise<User & { temp_password?: string }> {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const profile = await getCurrentUserProfile();
   if (!profile || profile.role !== 'admin') {
     throw new Error('Permissão negada. Apenas administradores podem cadastrar usuários locais.');
   }
 
-  // Since we are mocking / simulating local creation, we insert directly into users_profiles.
-  // In production, we'd create the user in auth.users first, then let the trigger create the profile.
-  // To allow easy testing, we generate a mock UUID.
-  const mockId = crypto.randomUUID();
-  const { error } = await supabase
-    .from('users_profiles')
-    .insert({
-      id: mockId,
-      email: formData.email,
+  // 1. Cria o usuário real em auth.users via Admin API (bypass de RLS).
+  //    Gera uma senha temporária forte e força troca no primeiro login + MFA.
+  const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + 'Aa1!';
+
+  const { data: authUser, error: createError } = await admin.auth.admin.createUser({
+    email: formData.email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: {
       full_name: formData.full_name,
       role: formData.role,
-      mfa_setup_complete: false
-    });
+      requires_password_change: true,
+    },
+    app_metadata: {
+      role: formData.role,
+    },
+  });
 
-  if (error) {
-    if (error.code === '23505') {
+  if (createError) {
+    if (createError.code === 'user_already_exists' || createError.message?.toLowerCase().includes('already')) {
       throw new Error('E-mail já cadastrado.');
     }
-    throw error;
+    throw createError;
+  }
+
+  if (!authUser.user) {
+    throw new Error('Falha ao criar o usuário.');
+  }
+
+  // 2. O trigger on_auth_user_created cria o registro em users_profiles.
+  //    Força MFA obrigatório (mfa_setup_complete = false) e garante o perfil.
+  const userId = authUser.user.id;
+  const { data: upserted, error: upsertError } = await supabase
+    .from('users_profiles')
+    .upsert(
+      {
+        id: userId,
+        email: formData.email,
+        full_name: formData.full_name,
+        role: formData.role,
+        mfa_secret: null,
+        mfa_setup_complete: false,
+      },
+      { ignoreDuplicates: true }
+    )
+    .select('*')
+    .single();
+
+  if (upsertError) {
+    throw upsertError;
   }
 
   await createAuditLog(
     'local_user_create',
     'users_profiles',
-    mockId,
+    userId,
     null,
     { email: formData.email, role: formData.role }
   );
 
+  revalidatePath('/dashboard');
+  const baseUser = (upserted as User) || { id: userId, email: formData.email, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
+  console.warn(`[IAM] Usuário local criado: ${formData.email} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
+  return { ...baseUser, temp_password: tempPassword };
+}
+
+/**
+ * Lista todos os usuários do sistema (perfis). Útil para a gestão de acessos.
+ */
+export async function listSystemUsers(): Promise<User[]> {
+  const supabase = await createClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem listar usuários.');
+  }
+
+  const { data, error } = await supabase
+    .from('users_profiles')
+    .select('*')
+    .order('full_name', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as User[];
+}
+
+/**
+ * Atualiza a role (perfil RBAC) de um usuário.
+ */
+export async function updateUserRole(userId: string, role: 'admin' | 'analista' | 'solicitante'): Promise<void> {
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem alterar perfis.');
+  }
+  if (userId === profile.id && role !== 'admin') {
+    throw new Error('Você não pode remover o próprio papel de administrador.');
+  }
+
+  const { error } = await supabase
+    .from('users_profiles')
+    .update({ role })
+    .eq('id', userId);
+  if (error) throw error;
+
+  // Mantém metadata do auth sincronizada.
+  await admin.auth.admin.updateUserById(userId, { app_metadata: { role } });
+
+  await createAuditLog('user_role_update', 'users_profiles', userId, null, { role });
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Ativa/desativa o acesso de um usuário (ban/soft-delete lógico).
+ */
+export async function setUserActive(userId: string, active: boolean): Promise<void> {
+  const admin = createAdminClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem alterar o status de acesso.');
+  }
+  if (userId === profile.id && !active) {
+    throw new Error('Você não pode desativar a própria conta.');
+  }
+
+  await admin.auth.admin.updateUserById(userId, { ban_duration: active ? 'none' : '876000h' });
+
+  await createAuditLog('user_active_update', 'users_profiles', userId, null, { active });
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Força o usuário a reconfigurar o MFA no próximo login, invalidando a
+ * verificação atual (remove o cookie mfa_verified) e limpando o secret.
+ */
+export async function forceMfaReconfiguration(userId: string): Promise<void> {
+  const supabase = await createClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem reconfigurar MFA.');
+  }
+
+  const { error } = await supabase
+    .from('users_profiles')
+    .update({ mfa_secret: null, mfa_setup_complete: false })
+    .eq('id', userId);
+
+  if (error) throw error;
+
+  await createAuditLog('mfa_force_reset', 'users_profiles', userId, null, { mfa_setup_complete: false });
   revalidatePath('/dashboard');
 }

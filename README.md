@@ -1,136 +1,343 @@
-# CyberITSM SPN 🛡️
+# 🛡️ CyberITSM SPN
 
-**CyberITSM SPN** é uma plataforma corporativa de IT Service Management (ITSM) especializada em **Arquitetura de Cibersegurança e Conformidade Regulatória**. O projeto foi reconstruído do zero utilizando o framework **Next.js (App Router)** integrado nativamente ao **Supabase (BaaS)**, oferecendo um quadro Kanban interativo completo para controle de atividades de mitigação de vulnerabilidades corporativas, seguindo a paleta de cores e tipografia clara do design system **Mistica da Vivo Telefônica**.
+[🇧🇷 Português](#português) · [🇺🇸 English](#english)
 
 ---
 
-## 📐 Desenho de Arquitetura C4 (Nível 2 e Nível 3)
+## 🇧🇷 Português
 
-Abaixo está o mapeamento visual interativo dos limites do sistema, contêineres internos e conexões com microsserviços e provedores externos (IAM / IGA). O sistema agora conta com um **Mapa de Arquitetura Interativo** no dashboard de Administração.
+**CyberITSM SPN** é uma plataforma corporativa de **IT Service Management (ITSM)** especializada em **Arquitetura de Cibersegurança e Conformidade Regulatória**. Ela entrega um quadro Kanban interativo para o controle de atividades de mitigação de vulnerabilidades, um **agente de IA generativa com RAG** sobre a base de requisitos Segura SD v4.1, e um **portal completo de governança de identidade (IAM/IGA)** com autenticação multi-fator (MFA) obrigatória.
+
+Construída do zero com **Next.js 16 (App Router)** e **Supabase (BaaS)**, seguindo a identidade visual do design system **Mistica da Vivo Telefônica** (paleta roxa `#660099`, laranja Vivo `#FF9900` e tipografia Outfit).
+
+### 🧭 Desenho de Arquitetura da Solução
+
+![Arquitetura CyberITSM SPN](./public/images/architecture.svg)
+
+O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco, fluxos de autenticação/MFA, pipeline RAG de IA e integrações IAM/IGA** da solução.
 
 ### 🚀 Tecnologias Adotadas
 
-| Camada / Componente | Tecnologia | Descrição |
+| Camada | Tecnologia | Descrição |
 | :--- | :--- | :--- |
-| **Frontend UI** | React 19 / Tailwind CSS v4 (Mistica) | Cores da marca, tipografia Outfit e responsividade premium com micro-animações. |
-| **Frontend Logic** | Next.js Client Components | Gerenciamento de estado local reativo e drag-and-drop nativo de cartões. |
-| **Backend API** | Next.js Server Actions & Middleware | Lógica do servidor executando sob Vercel Serverless. Proteção de rotas com cookies HTTP. |
-| **Agente de IA** | Vercel AI SDK Mock (rule-based) | Assistente SecOps funcional em `app/api/chat/route.ts` baseado em regras/keywords. Sem LLM externo por padrão; pronto para integrar OpenAI/Gemini via Vercel AI SDK quando uma API Key for configurada. |
-| **Banco de Dados** | Supabase PostgreSQL | Persistência na nuvem com políticas estritas de Row Level Security (RLS) habilitadas. |
-| **Autenticação & MFA** | Supabase Auth & TOTP (SHA-1) | Autenticação com sessão segura e MFA configurável com onboarding via QR Code. |
-| **Integração IAM / IGA** | Adaptadores Simulados (Entra ID, Keycloak, OAM, Sailpoint) | Fluxo de governança de identidades e fila de aprovação de perfis (Identity Requests). |
+| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA com tema Mistica da Vivo. |
+| **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Componentes acessíveis e primitivas de UI. |
+| **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
+| **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | Agente SecOps com RAG sobre 314 requisitos. `streamText`, temperatura 0.2. |
+| **RAG / Conhecimento** | `requisitos-sd.json` (origem: `BaseRequisitosSD_v4.1.xlsx`) | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
+| **Banco de Dados** | Supabase PostgreSQL 15 | 8 tabelas com Row Level Security (RLS) ativa, triggers e seeds. |
+| **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
+| **IAM / IGA** | Adaptadores simulados (Entra ID, Keycloak, OAM, Sailpoint) + criação local | Governança de identidade, fila de aprovação e gestão de usuários. |
+| **Deploy** | Vercel | CDN/Edge serverless; pronto para produção online. |
 
 ---
 
-## 🔒 Jornada de Segurança & Políticas Aplicadas
+### 🗂️ Estrutura do Projeto
 
-### 1. Complexidade de Senhas Obrigatória
-Todas as credenciais locais do sistema devem cumprir a política estrita de complexidade de senhas (12+ caracteres contendo maiúsculas, minúsculas, dígitos numéricos e símbolos especiais). Validação visual reativa durante a redefinição de senha.
-*Exemplo de senha padrão:* `CyberITSM@2026!Password`
-
-### 2. Fluxo de Autenticação com Sessão Segura e Middleware
-- Verificação de sessão gerenciada no `middleware.ts` do Next.js.
-- Redirecionamento automático se a sessão expirar ou o usuário não estiver logado.
-
-### 3. Configuração de MFA Obrigatória no Primeiro Acesso
-- No primeiro login, caso o usuário não possua o MFA configurado no perfil (`mfa_setup_complete == false`), o sistema o redireciona automaticamente para um painel de Onboarding na tela de login.
-- Exibe o QR Code e chave secreta para sincronização em dispositivos móveis (ex: Google Authenticator). A sessão só é liberada e o cookie `mfa_verified` gravado após a validação inicial do código de 6 dígitos.
-- Master Code de Teste no Sandbox: `123456`
-- **MFA habilitado para todos os usuários**: as colunas `mfa_secret` e `mfa_setup_complete` são preenchidas para toda a base (`users_profiles`) pelo provisionamento (ver seção abaixo), tornando o segundo fator obrigatório para todas as contas.
-
-### 4. Provisionamento de Usuário Administrador & MFA
-Para criar um usuário **super admin** com senha forte e habilitar o MFA para todos os usuários diretamente no Supabase (service role):
-1. Adicione a chave em `.env.local` (o arquivo é ignorado pelo Git):
-   ```env
-   SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxx   # Settings → API → service_role
-   ```
-2. Crie o usuário em `auth.users` (o trigger `on_auth_user_created` cria o perfil em `users_profiles` com a `role` vinda de `user_metadata.role`):
-   ```sql
-   select auth.admin_create_user(
-     email         => 'colaborador@telefonica.com',
-     password      => 'SenhaForte@2026!x',
-     email_confirm => true,
-     user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
-   );
-   ```
-3. Habilite o MFA para todos os perfis gerando uma chave Base32 válida e marcando `mfa_setup_complete`:
-   ```sql
-   CREATE OR REPLACE FUNCTION public.gen_base32_secret()
-   RETURNS TEXT AS $$
-   DECLARE alphabet TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; out TEXT := ''; i INT;
-   BEGIN
-     FOR i IN 1..16 LOOP out := out || substr(alphabet, 1 + floor(random()*32)::int, 1); END LOOP;
-     RETURN out;
-   END $$ LANGUAGE plpgsql;
-
-   UPDATE public.users_profiles
-   SET mfa_secret = COALESCE(mfa_secret, public.gen_base32_secret()),
-       mfa_setup_complete = TRUE
-   WHERE mfa_setup_complete = FALSE OR mfa_secret IS NULL;
-   ```
-   Os usuários autenticam com o código TOTP do autenticador ou o código de homologação `123456` (sandbox).
-
-### 5. Controle de Acesso Baseado em Função (RBAC) para C4 e Logs
-- Apenas usuários com a função **Admin** podem visualizar o Desenho de Arquitetura C4 interativo e o histórico de Logs de Auditoria do sistema. Outros perfis são bloqueados pelo middleware e redirecionados.
-
-### 6. Estado da Feature de IA
-- A feature de IA está **habilitada e funcional como mock (rule-based)**.
-- UI: `components/ai-chat.tsx` (FAB) renderizada em todas as páginas do dashboard.
-- Endpoint: `app/api/chat/route.ts` responde por regras/keywords (sem chave de API externa).
-- Para IA generativa real: adicionar `ai`/`@ai-sdk/openai` ao `package.json` e substituir a resposta do endpoint pelo SDK + API Key (`OPENAI_API_KEY`/`GEMINI_API_KEY`). Nenhuma chave é necessária para o mock funcionar.
-
----
-
-## ⚙️ Execução Local / Running Locally
-
-1. **Instale as dependências**:
-   ```bash
-   npm install
-   ```
-
-2. **Configuração de Variáveis de Ambiente**:
-   Crie um arquivo `.env.local` na raiz com as chaves do seu projeto Supabase:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=seu_projeto_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=seu_projeto_supabase_anon_key
-   ```
-   > Chave opcional apenas para operações de provisionamento no servidor (criar usuário admin, habilitar MFA para todos):
-   > ```env
-   > SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key
-   > ```
-
-3. **Banco de Dados**:
-   Copie o conteúdo de [supabase-schema.sql](supabase-schema.sql) e execute no SQL Editor do painel do seu projeto Supabase para criar as tabelas, RLS, triggers e dados sementes (Seeds) necessários.
-   > ⚠️ **Projetos com schema pré-existente/incompleto**: se o banco já possui apenas tabelas antigas (ex.: só `users_profiles` e `tickets`, sem colunas de MFA), não rode o script destrutivo. Adicione manualmente as colunas `mfa_secret`, `mfa_setup_complete`, `reset_token` e `reset_token_expires_at` em `users_profiles` e crie as tabelas/triggers/policies restantes (veja [docs/official_documentation.md](docs/official_documentation.md) para a migração aditiva).
-
-4. **Inicie o Servidor de Desenvolvimento**:
-   ```bash
-   npm run dev
-   ```
-
-5. **Acesso**: Abra `http://localhost:3000` no navegador.
-   *Credenciais de teste padrão:* `joao.secops@telefonica.com` / `CyberITSM@2026!Password`
-
----
-
-## 🧪 Verificando o Código / Typecheck & Linting
-
-Para validar a integridade estática das rotas, tipos e componentes do Next.js:
-```bash
-npx tsc --noEmit
-npm run build
+```
+cyber-itsm/
+├── app/                          # Rotas (App Router)
+│   ├── page.tsx                  # Redireciona para /dashboard ou /login
+│   ├── layout.tsx                # Layout raiz (fontes, metadados)
+│   ├── globals.css               # Estilos globais Mistica
+│   ├── actions/                  # Server Actions (tipadas, "use server")
+│   │   ├── auth.ts               #   Login, MFA, reset de senha, auditoria
+│   │   ├── iam.ts                #   IAM/IGA + gestão de usuários (createLocalUser etc.)
+│   │   └── tickets.ts            #   CRUD de tickets, status e comentários
+│   ├── api/chat/route.ts         # Endpoint RAG da IA (streamText + Gemini)
+│   ├── dashboard/                # Página principal (Kanban + IAM + Audit + C4 + Config)
+│   ├── login/page.tsx            # Página de autenticação
+│   └── reset-password/page.tsx   # Redefinição de senha
+├── components/
+│   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
+│   ├── SecurityAgent.tsx         # Agente de IA (FAB) via useChat/@ai-sdk/react
+│   ├── login-form.tsx            # Fluxo de login com 3 passos (credenciais, MFA onboarding, MFA verify)
+│   ├── architecture-diagram.tsx  # Mapa de arquitetura interativo (cliente)
+│   └── ui/                       # button, card, input, label, select, separator, textarea
+├── lib/
+│   ├── totp.ts                   # Geração/validação TOTP (RFC 6238, Web Crypto)
+│   ├── supabase.ts               # Acesso a dados (getTickets, getUsers, CRUD, auditoria)
+│   ├── types.ts                  # Modelos tipados + permissões RBAC
+│   └── utils.ts                  # cn() — combina classes
+├── utils/supabase/
+│   ├── server.ts                 # Client SSR (cookies de sessão)
+│   ├── client.ts                 # Client browser
+│   └── admin.ts                  # Client service role (operação de admin)
+├── proxy.ts                      # Middleware Next.js 16: sessão + RBAC + check MFA
+├── supabase-schema.sql           # Schema completo (tabelas, RLS, triggers, seeds)
+├── requisitos-sd.json            # Base de conhecimento RAG (314 requisitos)
+├── BaseRequisitosSD_v4.1.xlsx    # Fonte dos requisitos (excel)
+└── public/images/architecture.svg # Desenho de arquitetura da solução
 ```
 
 ---
 
-## ☁️ Publicação e Arquitetura de Deploy (Vercel)
+### 🔒 Jornada de Segurança & Políticas
 
-O projeto adota uma arquitetura de implantação nativa e simplificada no ecossistema Vercel:
+1. **Complexidade de senhas obrigatória** — mín. 12 caracteres com maiúsculas, minúsculas, números e símbolos. Ex.: `CyberITSM@2026!Password`.
+2. **Sessão segura** — Supabase Auth com cookies; `proxy.ts` (substitui o `middleware.ts` no Next.js 16) garante autenticação antes do `/dashboard`.
+3. **MFA obrigatório para todas as contas** — fluxo no `login-form.tsx`:
+   - **Sem MFA configurado** → onboarding: gera secret + QR Code, valida o código de 6 dígitos (`confirmMfaSetup`) e grava o cookie `mfa_verified`.
+   - **Com MFA configurado** → verificação de código (`verifyMfa`) na janela temporária ±1 intervalo.
+   - O `proxy.ts` bloqueia acesso ao dashboard sem o cookie — ninguém acessa sem 2º fator.
+   - Código de homologação (sandbox): `123456`.
+4. **RBAC** — perfis `admin`, `analista`, `solicitante`. Rotas administrativas (Audit Logs, Arquitetura) bloqueadas para não-admins.
+5. **Auditoria** — todo evento relevante gravado em `audit_logs` (login, MFA, criação de chamados, sincronizações IAM, alterações de perfil).
 
-1. **Vercel Hosting**: As páginas Next.js, Server Actions, imagens estáticas e middleware são empacotados e hospedados na infraestrutura global CDN/Edge da Vercel.
-2. **Deploy Automático**: Conecte o repositório GitHub ao painel da Vercel para acionar novos deploys automaticamente a cada push na branch `main`. Insira as variáveis de ambiente do Supabase nas configurações de Environment Variables do projeto na Vercel.
-3. **Deploy por Linha de Comando**:
+### 🧠 Agente de IA SecOps (RAG)
+
+- Endpoint: `app/api/chat/route.ts`.
+- Modelo: Google **Gemini** via `@ai-sdk/google` — `gemini-flash-latest` (um fallback local Ollama fica comentado/desabilitado).
+- Conhecimento: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura SD v4.1 (id `VIVO.SEGURA.*`, controle, componente, propriedade, STRIDE/LM, OWASP, categoria, criticidade, evidência, como testar).
+- Recuperação: tokenização com normalização NFD, remoção de stopwords e pontuação, pontuação ponderada por campo.
+- Injeção de contexto no prompt: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; sanitização anti-prompt-injection (`sanitizeText`).
+- Diretrizes do system prompt: respostas assertivas, completas e exaustivas, em bullets curtos, citando o ID e os campos do requisito, ou `'Informação não encontrada no contexto atual.'`.
+- UI: `components/SecurityAgent.tsx` (FAB) via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
+
+### 🆔 Portal de Governança de Identidades (IAM / IGA)
+
+- **Provedores simulados**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
+- **Sincronização** (`syncIamProvider`): importa usuários mock de Entra/Keycloak.
+- **Fila de aprovação Sailpoint**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisiona o perfil em `users_profiles`.
+- **Criação manual de usuários** (`createLocalUser`): cria um usuário **real** em `auth.users` via **Admin API** (service role), gera senha temporária de primeiro acesso, força troca de senha e **MFA obrigatório** (`mfa_setup_complete = false`). O trigger `on_auth_user_created` cria o perfil.
+- **Gestão de usuários (só admin)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reativação) e `forceMfaReconfiguration` (reset forçado do MFA). UI no card "Gestão de Usuários do Sistema" do dashboard.
+
+### 🗃️ Banco de Dados (Supabase)
+
+8 tabelas: `users_profiles`, `tickets`, `ticket_statuses`, `comments`, `audit_logs`, `iam_providers`, `iam_users`, `identity_requests`. Com RLS, triggers (`on_auth_user_created`, `handle_updated_at`, `handle_ticket_closed`) e funções de role (`is_admin`, `is_analista`, `is_admin_or_analista`). Schema completo em `supabase-schema.sql`.
+
+---
+
+### ⚙️ Execução Local
+
+1. Instale as dependências:
    ```bash
-   vercel --prod
+   npm install
    ```
-   
+2. Configure `.env.local`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=seu_projeto_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=seu_projeto_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key        # para criação de usuários/gestão IAM
+   GOOGLE_GENERATIVE_AI_API_KEY=sua_chave_gemini         # para a IA generativa
+   ```
+3. Banco de dados: execute o conteúdo de `supabase-schema.sql` no **SQL Editor** do Supabase (cria tabelas, RLS, triggers e seeds).
+4. Inicie:
+   ```bash
+   npm run dev
+   ```
+5. Acesse `http://localhost:3000`.
+
+> **Usuário admin inicial**: crie via SQL no SQL Editor, pois contas criadas pela UI já exigem MFA. Veja a seção "Provisionamento de Administrador".
+>
+> **Credenciais de teste**: `joao.secops@telefonica.com` / `CyberITSM@2026!Password`.
+
+### 👤 Provisionamento de Usuário Administrador & MFA
+
+Crie o super admin (o trigger cria o perfil com a `role` vinda de `user_metadata.role`):
+```sql
+select auth.admin_create_user(
+  email         => 'colaborador@telefonica.com',
+  password      => 'SenhaForte@2026!x',
+  email_confirm => true,
+  user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
+);
+```
+O primeiro acesso exigirá a configuração do MFA (2º fator).
+
+### 🧪 Verificando o Código
+
+```bash
+npx tsc --noEmit
+npm run build
+npm run lint
+```
+
+---
+
+### ☁️ Publicação na Vercel
+
+O projeto está pronto para deploy na Vercel (funcionamento online).
+
+1. **Aplique o schema** no SQL Editor do Supabase **antes** do deploy (tabelas, RLS, triggers, seeds).
+2. **Conecte o repositório** ao painel da Vercel (deploy automático por push na `main`) ou rode `vercel --prod`.
+3. Configure as **Environment Variables**:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=
+   SUPABASE_SERVICE_ROLE_KEY=
+   GOOGLE_GENERATIVE_AI_API_KEY=
+   ```
+4. **Segurança**: a `SUPABASE_SERVICE_ROLE_KEY` opera somente no servidor (nunca exponha em código client). A criação de usuários e a gestão de IAM dependem dela.
+
+> Detalhes técnicos completos (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
+
+---
+
+## 🇺🇸 English
+
+**CyberITSM SPN** is a corporate **IT Service Management (ITSM)** platform specialized in **Cybersecurity Architecture and Regulatory Compliance**. It delivers an interactive Kanban board for vulnerability remediation tracking, a **generative AI agent with RAG** over the Secure Architecture SD v4.1 requirements base, and a **complete identity governance portal (IAM/IGA)** with mandatory multi-factor authentication (MFA).
+
+Built from scratch with **Next.js 16 (App Router)** and **Supabase (BaaS)**, following the **Vivo Telefónica Mistica** design system (purple `#660099`, Vivo orange `#FF9900`, Outfit typography).
+
+### 🧭 Solution Architecture Diagram
+
+![CyberITSM SPN Architecture](./public/images/architecture.svg)
+
+The diagram details **every container, component, database table, authentication/MFA flow, AI RAG pipeline, and IAM/IGA integration** of the solution.
+
+### 🚀 Technology Stack
+
+| Layer | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA with Vivo Mistica theme. |
+| **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Accessible components and UI primitives. |
+| **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
+| **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | SecOps agent with RAG over 314 requirements. `streamText`, temperature 0.2. |
+| **RAG / Knowledge** | `requisitos-sd.json` (source: `BaseRequisitosSD_v4.1.xlsx`) | Weighted keyword retrieval (core×3, detail×2, light×1). |
+| **Database** | Supabase PostgreSQL 15 | 8 tables with Row Level Security (RLS), triggers and seeds. |
+| **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
+| **IAM / IGA** | Simulated adapters (Entra ID, Keycloak, OAM, Sailpoint) + local creation | Identity governance, approval queue and user management. |
+| **Deploy** | Vercel | CDN/Edge serverless; production-ready. |
+
+---
+
+### 🗂️ Project Structure
+
+```
+cyber-itsm/
+├── app/                          # Routes (App Router)
+│   ├── page.tsx                  # Redirects to /dashboard or /login
+│   ├── layout.tsx                # Root layout (fonts, metadata)
+│   ├── globals.css               # Mistica global styles
+│   ├── actions/                  # Typed Server Actions ("use server")
+│   │   ├── auth.ts               #   Login, MFA, password reset, audit
+│   │   ├── iam.ts                #   IAM/IGA + user mgmt (createLocalUser etc.)
+│   │   └── tickets.ts            #   Ticket/status/comment CRUD
+│   ├── api/chat/route.ts         # AI RAG endpoint (streamText + Gemini)
+│   ├── dashboard/                # Main page (Kanban + IAM + Audit + C4 + Config)
+│   ├── login/page.tsx            # Authentication page
+│   └── reset-password/page.tsx   # Password reset
+├── components/
+│   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
+│   ├── SecurityAgent.tsx         # AI agent (FAB) via useChat/@ai-sdk/react
+│   ├── login-form.tsx            # 3-step login (credentials, MFA onboarding, MFA verify)
+│   ├── architecture-diagram.tsx  # Interactive architecture map (client)
+│   └── ui/                       # button, card, input, label, select, separator, textarea
+├── lib/
+│   ├── totp.ts                   # TOTP generation/validation (RFC 6238, Web Crypto)
+│   ├── supabase.ts               # Data access (getTickets, getUsers, CRUD, audit)
+│   ├── types.ts                  # Typed models + RBAC permissions
+│   └── utils.ts                  # cn() — class combiner
+├── utils/supabase/
+│   ├── server.ts                 # SSR client (session cookies)
+│   ├── client.ts                 # Browser client
+│   └── admin.ts                  # Service-role client (admin operations)
+├── proxy.ts                      # Next.js 16 middleware: session + RBAC + MFA check
+├── supabase-schema.sql           # Full schema (tables, RLS, triggers, seeds)
+├── requisitos-sd.json            # RAG knowledge base (314 requirements)
+├── BaseRequisitosSD_v4.1.xlsx    # Requirements source (excel)
+└── public/images/architecture.svg # Solution architecture diagram
+```
+
+---
+
+### 🔒 Security Journey & Policies
+
+1. **Mandatory password strength** — min. 12 characters with uppercase, lowercase, numbers and symbols. E.g. `CyberITSM@2026!Password`.
+2. **Secure session** — Supabase Auth with cookies; `proxy.ts` (replaces `middleware.ts` in Next.js 16) enforces authentication before `/dashboard`.
+3. **MFA mandatory for all accounts** — flow in `login-form.tsx`:
+   - **MFA not configured** → onboarding: generates secret + QR Code, validates the 6-digit code (`confirmMfaSetup`) and stores the `mfa_verified` cookie.
+   - **MFA configured** → code verification (`verifyMfa`) within the ±1 interval window.
+   - `proxy.ts` blocks dashboard access without the cookie — nobody enters without the second factor.
+   - Sandbox test code: `123456`.
+4. **RBAC** — roles `admin`, `analista`, `solicitante`. Admin routes (Audit Logs, Architecture) are blocked for non-admins.
+5. **Auditing** — every relevant event is recorded in `audit_logs` (login, MFA, ticket creation, IAM sync, profile changes).
+
+### 🧠 SecOps AI Agent (RAG)
+
+- Endpoint: `app/api/chat/route.ts`.
+- Model: Google **Gemini** via `@ai-sdk/google` — `gemini-flash-latest` (a local Ollama fallback is commented out/disabled).
+- Knowledge: `requisitos-sd.json` — **314 requirements** of Secure Architecture SD v4.1 (id `VIVO.SEGURA.*`, control, component, property, STRIDE/LM, OWASP, category, criticality, evidence, how-to-test).
+- Retrieval: tokenization with NFD normalization, stopword and punctuation removal, weighted field scoring.
+- Prompt context injection: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; anti-prompt-injection sanitization (`sanitizeText`).
+- System-prompt directives: assertive, complete and exhaustive answers in short bullets, citing the requirement ID and fields, or `'Informação não encontrada no contexto atual.'`.
+- UI: `components/SecurityAgent.tsx` (FAB) via `useChat` from `@ai-sdk/react` with `DefaultChatTransport`, sending `ticketContext`.
+
+### 🆔 Identity Governance Portal (IAM / IGA)
+
+- **Simulated providers**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
+- **Sync** (`syncIamProvider`): imports mock users from Entra/Keycloak.
+- **Sailpoint approval queue**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisions the role in `users_profiles`.
+- **Manual user creation** (`createLocalUser`): creates a **real** user in `auth.users` via the **Admin API** (service role), generates a first-access temporary password, forces a password change and **mandatory MFA** (`mfa_setup_complete = false`). The `on_auth_user_created` trigger creates the profile.
+- **User management (admin only)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reactivation) and `forceMfaReconfiguration`. UI in the "Gestão de Usuários do Sistema" dashboard card.
+
+### 🗃️ Database (Supabase)
+
+8 tables: `users_profiles`, `tickets`, `ticket_statuses`, `comments`, `audit_logs`, `iam_providers`, `iam_users`, `identity_requests`. With RLS, triggers (`on_auth_user_created`, `handle_updated_at`, `handle_ticket_closed`) and role functions (`is_admin`, `is_analista`, `is_admin_or_analista`). Full schema in `supabase-schema.sql`.
+
+---
+
+### ⚙️ Running Locally
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure `.env.local`:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key      # for user creation/IAM management
+   GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key          # for generative AI
+   ```
+3. Database: run the contents of `supabase-schema.sql` in the Supabase **SQL Editor** (creates tables, RLS, triggers and seeds).
+4. Start:
+   ```bash
+   npm run dev
+   ```
+5. Visit `http://localhost:3000`.
+
+> **Initial admin user**: create it via SQL in the SQL Editor, since accounts created through the UI already require MFA. See "Admin Provisioning".
+>
+> **Test credentials**: `joao.secops@telefonica.com` / `CyberITSM@2026!Password`.
+
+### 👤 Admin & MFA Provisioning
+
+Create the super admin (the trigger creates the profile with `role` from `user_metadata.role`):
+```sql
+select auth.admin_create_user(
+  email         => 'colaborador@telefonica.com',
+  password      => 'SenhaForte@2026!x',
+  email_confirm => true,
+  user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
+);
+```
+The first login will require MFA setup.
+
+### 🧪 Verifying the Code
+
+```bash
+npx tsc --noEmit
+npm run build
+npm run lint
+```
+
+---
+
+### ☁️ Deploying on Vercel
+
+The project is ready for Vercel deployment (online operation).
+
+1. **Apply the schema** in the Supabase SQL Editor **before** deploying (tables, RLS, triggers, seeds).
+2. **Connect the repository** to the Vercel dashboard (auto-deploy on `main` push) or run `vercel --prod`.
+3. Configure the **Environment Variables**:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=
+   SUPABASE_SERVICE_ROLE_KEY=
+   GOOGLE_GENERATIVE_AI_API_KEY=
+   ```
+4. **Security**: the `SUPABASE_SERVICE_ROLE_KEY` runs only server-side (never expose it in client code). User creation and IAM management depend on it.
+
+> Full technical details (components, RLS, RAG, integrations) in [`docs/official_documentation.md`](docs/official_documentation.md).
