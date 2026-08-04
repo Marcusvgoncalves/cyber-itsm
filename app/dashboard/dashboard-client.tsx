@@ -946,6 +946,7 @@ export function DashboardClient({
                 </CardContent>
               </Card>
             </div>
+          </div>
         )}
       </main>
 
