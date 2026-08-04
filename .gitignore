@@ -47,3 +47,5 @@ next-env.d.ts
 /.bundle/
 /Gemfile.lock.local
 
+
+.vercel

@@ -259,50 +259,50 @@ ALTER TABLE public.identity_requests ENABLE ROW LEVEL SECURITY;
 -- users_profiles policies
 CREATE POLICY "Users can view own profile" ON public.users_profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON public.users_profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Admins can view all profiles" ON public.users_profiles FOR SELECT USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
-CREATE POLICY "Admins can update all profiles" ON public.users_profiles FOR UPDATE USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
-CREATE POLICY "Admins can insert profiles" ON public.users_profiles FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Admins can view all profiles" ON public.users_profiles FOR SELECT TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins can update all profiles" ON public.users_profiles FOR UPDATE TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins can insert profiles" ON public.users_profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin());
 -- Enable public profiles read for auth triggers and users linking
 CREATE POLICY "All authenticated can view profiles" ON public.users_profiles FOR SELECT TO authenticated USING (true);
 
 -- ticket_statuses policies
 CREATE POLICY "All authenticated can view statuses" ON public.ticket_statuses FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Admins can manage statuses" ON public.ticket_statuses FOR ALL USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Admins can manage statuses" ON public.ticket_statuses FOR ALL TO authenticated USING (public.is_admin());
 
 -- tickets policies
 CREATE POLICY "Users can view own tickets" ON public.tickets FOR SELECT TO authenticated USING (
-  auth.uid() = reporter_id OR auth.uid() = assignee_id OR EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista'))
+  auth.uid() = reporter_id OR auth.uid() = assignee_id OR public.is_admin_or_analista()
 );
 CREATE POLICY "Users can create tickets" ON public.tickets FOR INSERT TO authenticated WITH CHECK (auth.uid() = reporter_id);
 CREATE POLICY "Reporters can update own tickets" ON public.tickets FOR UPDATE TO authenticated USING (auth.uid() = reporter_id);
 CREATE POLICY "Assignees can update assigned tickets" ON public.tickets FOR UPDATE TO authenticated USING (auth.uid() = assignee_id);
-CREATE POLICY "Admins and Analistas can update any ticket" ON public.tickets FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista')));
-CREATE POLICY "Admins can delete tickets" ON public.tickets FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Admins and Analistas can update any ticket" ON public.tickets FOR UPDATE TO authenticated USING (public.is_admin_or_analista());
+CREATE POLICY "Admins can delete tickets" ON public.tickets FOR DELETE TO authenticated USING (public.is_admin());
 
 -- comments policies
 CREATE POLICY "Authenticated can view comments" ON public.comments FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated can create comments" ON public.comments FOR INSERT TO authenticated WITH CHECK (auth.uid() = author_id);
 CREATE POLICY "Authors can update own comments" ON public.comments FOR UPDATE TO authenticated USING (auth.uid() = author_id);
-CREATE POLICY "Authors/Admins can delete comments" ON public.comments FOR DELETE TO authenticated USING (auth.uid() = author_id OR EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Authors/Admins can delete comments" ON public.comments FOR DELETE TO authenticated USING (auth.uid() = author_id OR public.is_admin());
 
 -- audit_logs policies
-CREATE POLICY "Only admins can view audit logs" ON public.audit_logs FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Only admins can view audit logs" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin());
 CREATE POLICY "System/Users can insert audit logs" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- iam_providers policies
 CREATE POLICY "Authenticated can view providers" ON public.iam_providers FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Only admins can manage providers" ON public.iam_providers FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin'));
+CREATE POLICY "Only admins can manage providers" ON public.iam_providers FOR ALL TO authenticated USING (public.is_admin());
 
 -- iam_users policies
 CREATE POLICY "Authenticated can view iam users" ON public.iam_users FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Only admins/analistas can manage iam users" ON public.iam_users FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista')));
+CREATE POLICY "Only admins/analistas can manage iam users" ON public.iam_users FOR ALL TO authenticated USING (public.is_admin_or_analista());
 
 -- identity_requests policies
 CREATE POLICY "Authenticated can view identity requests" ON public.identity_requests FOR SELECT TO authenticated USING (
-  auth.uid() = requester_id OR EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista'))
+  auth.uid() = requester_id OR public.is_admin_or_analista()
 );
 CREATE POLICY "Authenticated can create identity requests" ON public.identity_requests FOR INSERT TO authenticated WITH CHECK (auth.uid() = requester_id);
-CREATE POLICY "Only admins/analistas can update requests" ON public.identity_requests FOR UPDATE TO authenticated USING (EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista')));
+CREATE POLICY "Only admins/analistas can update requests" ON public.identity_requests FOR UPDATE TO authenticated USING (public.is_admin_or_analista());
 
 
 -- ============================================
@@ -329,6 +329,26 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
+
+-- Helper role-check functions (SECURITY DEFINER -> bypass RLS -> avoid infinite recursion)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'admin');
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_analista()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role = 'analista');
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin_or_analista()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT EXISTS (SELECT 1 FROM public.users_profiles WHERE id = auth.uid() AND role IN ('admin', 'analista'));
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_analista() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_analista() TO authenticated;
 
 -- Function to set closed_at when status changes to 'fechado'
 CREATE OR REPLACE FUNCTION public.handle_ticket_closed()
