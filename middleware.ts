@@ -85,14 +85,12 @@ export default async function proxy(request: NextRequest) {
 
       if (profile) {
         // 1. MFA enforcement
-        if (profile.mfa_setup_complete) {
-          const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true';
-          if (!mfaVerified) {
-            // Redirect to login to verify MFA code
-            const redirectUrl = request.nextUrl.clone();
-            redirectUrl.pathname = '/login';
-            return NextResponse.redirect(redirectUrl);
-          }
+        const mfaVerified = request.cookies.get('mfa_verified')?.value === 'true';
+        if (!mfaVerified) {
+          // Redirect to login to verify or setup MFA code
+          const redirectUrl = request.nextUrl.clone();
+          redirectUrl.pathname = '/login';
+          return NextResponse.redirect(redirectUrl);
         }
 
         // 2. RBAC check for architecture (Admin-only)

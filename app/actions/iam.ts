@@ -259,7 +259,12 @@ export async function createLocalUser(formData: {
       mfa_setup_complete: false
     });
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error('E-mail já cadastrado.');
+    }
+    throw error;
+  }
 
   await createAuditLog(
     'local_user_create',

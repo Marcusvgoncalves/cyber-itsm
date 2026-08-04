@@ -41,6 +41,16 @@ export async function POST(req: Request) {
 - **ISO/IEC 27001:2022**: A.8.8 (Gestão de vulnerabilidades técnicas).
 
 **Ação:** Mova o card correspondente no Kanban para "Em Progresso" e documente a evidência de aplicação do patch na atividade.`;
+    } else if (lastMessage.includes('arquitet') || lastMessage.includes('framework')) {
+      responseContent = `Como **Agente de IA SecOps**, oriento que o design e arquitetura devem aderir aos seguintes frameworks e controles:
+      
+### 🛡️ Mapeamento de Controles para Arquitetura
+- **NIST CSF 2.0**: Função *Protect (PR.DS)* - Segurança de Dados. A arquitetura deve garantir confidencialidade, integridade e disponibilidade.
+- **CIS Controls (v8)**: Controle 12 (Gerenciamento de Infraestrutura de Rede). Segregação de redes e arquitetura Zero Trust.
+- **ISO/IEC 27001:2022**: Controle A.8.25 (Ciclo de vida de desenvolvimento seguro). Requisitos de segurança embutidos na fase de design.
+- **SABSA**: Mapeamento da camada de Arquitetura Lógica, garantindo que IAM, criptografia e logging de auditoria sejam requisitos não funcionais obrigatórios.
+
+**Recomendação Prática:** Sempre adote os princípios de *Security by Design* e *Zero Trust*. Assegure que as integrações sigam padrões seguros de API e autenticação OIDC.`;
     }
 
     return NextResponse.json({
