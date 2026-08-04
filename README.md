@@ -133,3 +133,4 @@ O projeto adota uma arquitetura de implantação nativa e simplificada no ecossi
    ```bash
    vercel --prod
    ```
+   
