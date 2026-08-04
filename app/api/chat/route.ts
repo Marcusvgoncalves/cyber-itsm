@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-
+import requisitosData from '../../../../requisitos.json';
 // Sistema de Mock Avançado de IA SecOps
 // Quando a chave de API real (OpenAI/Gemini) for adicionada, 
 // este endpoint pode ser substituído pelo Vercel AI SDK.
@@ -42,15 +42,17 @@ export async function POST(req: Request) {
 
 **Ação:** Mova o card correspondente no Kanban para "Em Progresso" e documente a evidência de aplicação do patch na atividade.`;
     } else if (lastMessage.includes('arquitet') || lastMessage.includes('framework') || lastMessage.includes('projeto') || lastMessage.includes('cloud') || lastMessage.includes('landing zone')) {
-      responseContent = `Como **Agente de IA SecOps**, analisei a **Base de Requisitos SD v4.1** para apoiar no seu projeto/arquitetura. As principais diretrizes de Cloud Security Estruturante são:
       
-### 🛡️ Requisitos Mandatórios (Base de Requisitos SD v4.1)
-- **Topologia de Rede**: É obrigatório publicar serviços na arquitetura “Hub-Spoken” durante cada Landingzone, com proteções como IPS, WAF e API Gateway (A04:2021).
-- **Segregação**: A arquitetura deve seguir o modelo de segregação por funcionalidades (Apresentação, Lógica de negócio, Dados).
-- **Exposição na Internet**: É expressamente proibida a exposição na internet de portas de serviços (ex: 22, 3306, 5432, 8080) e interfaces administrativas. Todo consumo deve passar por camadas de proteção.
-- **Filtragem de Rede**: Não é permitido provisionar endereços sem filtragem restrita de origem, destino e serviço/porta.
-- **Monitoramento e Logs**: Todos os recursos provisionados devem estar com sua trilha de logs cyber habilitados (A09:2021).
-- **Integração e Governança**: O tenant deve ser integrado à ferramenta corporativa de CNAPP (CSPM e CWPP mandatórios) e implementar Guardrails a nível do Tenant.
+      const formatRequirements = () => {
+        return requisitosData.map((req: any, index: number) => {
+          return `- **${req.Componente} (Regra ${index+1})**: ${req['Controle/Correlação']} [Risco mitigado: ${req.Riscos}, STRIDE: ${req['STRIDE LM']}]`;
+        }).join('\n');
+      };
+
+      responseContent = `Como **Agente de IA SecOps**, embarquei e analisei a **Base de Requisitos SD v4.1** para apoiar no seu projeto/arquitetura. Eis as diretrizes extraídas diretamente da base atualizada:
+      
+### 🛡️ Requisitos Mandatórios Carregados da Planilha SD v4.1
+${formatRequirements()}
 
 **Recomendação Prática:** Sempre adote os princípios de *Security by Design* e garanta o mapeamento das ameaças via STRIDE para cada componente de arquitetura. O Control Plane deve seguir modelos de segurança adaptativo.`;
     }
