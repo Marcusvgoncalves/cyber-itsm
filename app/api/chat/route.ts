@@ -32,7 +32,7 @@ const MODEL_ID = 'gemini-flash-latest'; // alias rolante do flash mais recente (
 // const PROVIDER = openai;
 // ============================================================================
 
-const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM e na Base de Requisitos de Arquitetura Segura SD v4.1. Responda baseando-se ESTRITAMENTE nos dois contextos fornecidos: [CONTEXTO DO CHAMADO] e [BASE DE CONHECIMENTO DE FRAMEWORKS]. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver nos contextos, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos. 5. Quando aplicável, cite o ID do requisito (ex.: VIVO.SEGURA.*) e a categoria/criticidade da base de conhecimento.`;
+const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM e na Base de Requisitos de Arquitetura Segura SD v4.1. Responda baseando-se ESTRITAMENTE nos dois contextos fornecidos: [CONTEXTO DO CHAMADO] e [BASE DE CONHECIMENTO DE FRAMEWORKS]. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver nos contextos, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos. 5. REGRA IMPORTANTE: responda de forma COMPLETA e exaustiva, cobrindo TODOS os requisitos relevantes da base, sem truncar. 6. Quando aplicável, cite o ID do requisito (ex.: VIVO.SEGURA.*), o componente, a categoria, a criticidade e a evidência/como testar da base de conhecimento.`;
 
 interface Requisito {
   id: string | null;
@@ -66,7 +66,7 @@ function tokenize(text: string): string[] {
   return Array.from(new Set(tokens));
 }
 
-function retrieveRelevantRequisitos(question: string, context: string, limit = 8): Requisito[] {
+function retrieveRelevantRequisitos(question: string, context: string, limit = 6): Requisito[] {
   const queryTokens = [...tokenize(question), ...tokenize(context)];
 
   const scored = (requisitos as unknown as Requisito[]).map((req) => {
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
       messages: history,
       // Valores seguros para reduzir custo e latência no modelo leve.
       temperature: 0.2,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 4096,
     });
 
     // Retorna a resposta em streaming no formato consumido pelo useChat.
