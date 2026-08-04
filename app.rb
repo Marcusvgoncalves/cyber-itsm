@@ -65,51 +65,66 @@ end
 # Helper to generate AI chatbot replies on cybersecurity frameworks (Jr to Specialist)
 def generate_secops_reply(message)
   msg = message.to_s.downcase
-  
-  if msg.include?('mfa') || msg.include?('dois fatores') || msg.include?('autenticação')
-    "**[Guia de Implementação: MFA & Autenticação Forte]**\n\n" \
-    "Para alinhar sua infraestrutura com as exigências do **NIST PR.AA-02** e **ISO 27001 A.5.15**, siga o passo a passo:\n\n" \
-    "1. **Júnior**: Habilite políticas de senhas locais complexas (mínimo de 12 caracteres contendo letras maiúsculas, minúsculas, números e símbolos).\n" \
-    "2. **Pleno**: Integre um gerador de TOTP (como o Google Authenticator ou Microsoft Authenticator) nas rotas de login do sistema backend, utilizando chaves secretas exclusivas em Base32 por usuário.\n" \
-    "3. **Especialista**: Implemente fluxos de MFA em nível de federação (Microsoft Entra ID ou Keycloak OIDC Broker) e force políticas condicionais de acesso, bloqueando logins fora de faixas de IP corporativas ou dispositivos não registrados."
-  elsif msg.include?('sql injection') || msg.include?('sqli') || msg.include?('injeção sql')
-    "**[Guia de Mitigação: SQL Injection (OWASP A03)]**\n\n" \
-    "Para proteger o banco de dados contra consultas maliciosas (referente ao controle **CIS Control 3** e **ISO A.12.4**):\n\n" \
-    "1. **Júnior**: Nunca concatene entradas do usuário diretamente em strings SQL. Utilize sempre o seu ORM (como o ActiveRecord em Ruby ou sequer parametrizado no Node.js).\n" \
-    "2. **Pleno**: Escreva testes SAST/DAST automatizados em seu pipeline de CI/CD para detectar o uso de queries brutas sem parametrização e aplique filtros estritos de sanitização nas APIs de entrada.\n" \
-    "3. **Especialista**: Configure privilégios de menor privilégio (PoLP) a nível de banco de dados, garanta que o usuário do app não tenha permissões administrativas (como DROP TABLE) e use Web Application Firewalls (WAF) com regras ativas de bloqueio a SQLi."
-  elsif msg.include?('prompt injection') || msg.include?('llm') || msg.include?('ia') || msg.include?('inteligência artificial')
-    "**[Diretrizes de Segurança para LLMs: OWASP LLM01]**\n\n" \
-    "Aplicações que integram IA Generativa estão expostas a injeções de instruções indiretas. Mitigue seguindo estas etapas:\n\n" \
-    "1. **Júnior**: Trate a saída do modelo como código não confiável. Nunca execute comandos diretamente ou jogue em views HTML sem sanitização rigorosa.\n" \
-    "2. **Pleno**: Crie uma camada intermediária de moderação e sanitização de prompts (limite de caracteres, filtros heurísticos de palavras bloqueadas) e limite o escopo de tokens de sistema.\n" \
-    "3. **Especialista**: Projete firewalls semânticos ativos que analisam a intenção do prompt antes dele atingir o modelo e implemente isolamento estrito de sandbox nos plug-ins acionados por agentes IA."
-  elsif msg.include?('risk') || msg.include?('risco') || msg.include?('crisc')
-    "**[Governança de Riscos: Padrão CRISC & ISACA]**\n\n" \
-    "O gerenciamento de riscos de TI requer processos contínuos de identificação e análise de cenários de ameaça:\n\n" \
-    "1. **Júnior**: Registre todos os incidentes ou gaps de conformidade identificados na matriz de riscos e atribua um responsável para cada item.\n" \
-    "2. **Pleno**: Realize análises qualitativas (Matriz de Impacto e Probabilidade) e quantitativas (estimativa de prejuízo financeiro) para priorizar as ações de mitigação do backlog SecOps.\n" \
-    "3. **Especialista**: Defina o Apetite de Risco corporativo junto à diretoria executiva, estabeleça Indicadores-Chave de Risco (KRIs) e decida estratégias formais de transferência (ex: seguro cibernético), mitigação ativa ou aceitação de risco residual."
-  elsif msg.include?('iso 27001') || msg.include?('iso') || msg.include?('norma')
-    "**[Conformidade ISO/IEC 27001:2022]**\n\n" \
-    "O estabelecimento de um Sistema de Gestão de Segurança da Informação (SGSI) requer governança e controle estrito:\n\n" \
-    "1. **Júnior**: Siga as políticas de segurança da informação estabelecidas e mantenha os inventários de ativos atualizados e classificados.\n" \
-    "2. **Pleno**: Realize análises de risco de ativos e estabeleça planos de tratamento de risco alinhados aos controles do Anexo A (como controle de acesso A.5.15 e proteção de rede A.8.20).\n" \
-    "3. **Especialista**: Desenhe a Declaração de Aplicabilidade (SoA), lidere auditorias de certificação e estabeleça o ciclo PDCA para melhoria contínua dos controles organizacionais e tecnológicos."
+
+  if msg.include?('mfa') || msg.include?('dois fatores') || msg.include?('autenticação') || msg.include?('2fa') || msg.include?('senha') || msg.include?('acesso')
+    "**[Guia de Implementação: MFA, Autenticação & Controle de Acesso]**\n\n" \
+    "Alinhamento regulatório com **NIST CSF v2.0 (PR.AA-02)**, **ISO/IEC 27001:2022 (Controles A.5.15, A.5.16, A.5.17)**, **CIS Control 6 (Access Control Management)** e **SABSA (Logical & Trust/Privilege Layer)**:\n\n" \
+    "1. **Júnior**: Habilite políticas estritas de senhas locais (min 12 caracteres, complexidade obrigatória com maiúsculas, minúsculas, dígitos e símbolos) e configure MFA básico via TOTP para todos os colaboradores administrativos.\n" \
+    "2. **Pleno**: Integre um gerador de TOTP (RFC 6238) utilizando chaves secretas exclusivas em Base32 por usuário e conectores OIDC/OAuth2 sob federação centralizada (Microsoft Entra ID ou Keycloak Broker).\n" \
+    "3. **Especialista**: Implemente Políticas de Acesso Condicional (verificação de IP corporativo, conformidade de dispositivo e risco de login), auditorias automatizadas via IGA (Sailpoint IdentityNow) com workflows de aprovação multinível e monitoramento ativo de acessos privilegiados (PAM)."
+
+  elsif msg.include?('sql injection') || msg.include?('sqli') || msg.include?('injeção sql') || msg.include?('sanit') || msg.include?('banco')
+    "**[Guia de Mitigação: SQL Injection & Segurança de Banco de Dados]**\n\n" \
+    "Alinhamento de segurança em conformidade com **OWASP Top 10 A03:2021 (Injection)**, **CIS Control 3 (Data Protection)**, **ISO/IEC 27001:2022 (Controles A.8.24, A.8.28)** e **SABSA (Physical & Component Security Layers)**:\n\n" \
+    "1. **Júnior**: Nunca concatene variáveis do usuário diretamente em instruções SQL brutas. Utilize sempre as abstrações do seu ORM (ex: ActiveRecord, Sequelize, Hibernate) que utilizam queries parametrizadas por padrão.\n" \
+    "2. **Pleno**: Desenvolva testes automatizados de SAST (análise estática) e DAST (análise dinâmica) no pipeline de CI/CD para identificar trechos vulneráveis e implemente bibliotecas de sanitização/codificação estrita nas entradas das APIs.\n" \
+    "3. **Especialista**: Estabeleça o princípio de menor privilégio (PoLP) para a conta de conexão ao banco (impedindo comandos como DROP TABLE), utilize Web Application Firewall (WAF) com regras ativas contra injeções SQL e habilite o monitoramento de atividades de banco de dados (DAM) com alertas em tempo real."
+
+  elsif msg.include?('prompt injection') || msg.include?('llm') || msg.include?('ia') || msg.include?('inteligência artificial') || msg.include?('ai') || msg.include?('guardrail')
+    "**[Diretrizes de Segurança para LLMs & Inteligência Artificial]**\n\n" \
+    "Mitigação contra ameaças cibernéticas em IA em conformidade com **OWASP LLM Top 10 (LLM01 Prompt Injection, LLM02 Insecure Output Handling)**, **NIST AI Risk Management Framework (AI RMF 1.0)** e **ISO/IEC 42001 (Governança de IA)**:\n\n" \
+    "1. **Júnior**: Nunca confie na saída gerada pelo modelo de linguagem. Trate as respostas como código não confiável e sanitiza-as rigorosamente antes de inseri-las no DOM ou utilizá-las em funções lógicas do sistema.\n" \
+    "2. **Pleno**: Crie uma camada intermediária de moderação e sanitização de prompts (limitação estrita de tamanho, listas negras/brancas de comandos) e isole as regras do sistema (System Prompts) para dificultar bypasses simples.\n" \
+    "3. **Especialista**: Implemente firewalls semânticos ativos (como Llama Guard ou guardrails baseados em vetores) para interceptar e analisar a intenção da pergunta antes de atingir o modelo central. Utilize arquiteturas Dual-LLM (onde uma IA menor audita os prompts e as respostas do modelo principal) e isole ferramentas (plugins) em sandboxes restritas."
+
+  elsif msg.include?('risk') || msg.include?('risco') || msg.include?('crisc') || msg.include?('ameaça') || msg.include?('modelagem')
+    "**[Governança e Gerenciamento de Riscos de TI]**\n\n" \
+    "Mapeamento e controle de ameaças sob o padrão **ISACA CRISC (Risk Identification, Assessment, Response, Monitoring)**, **NIST CSF v2.0 (ID.RA Risk Assessment)** e **ISO/IEC 27001 (A.5.7 Threat Intelligence)**:\n\n" \
+    "1. **Júnior**: Identifique ameaças operacionais básicas e documente incidentes em um registro de riscos centralizado, associando cada risco a um proprietário corporativo responsável.\n" \
+    "2. **Pleno**: Conduza análises qualitativas (matriz de impacto e probabilidade) e quantitativas (estimando o Single Loss Expectancy - SLE e Annualized Loss Expectancy - ALE) para justificar financeiramente os investimentos em controles SecOps.\n" \
+    "3. **Especialista**: Integre a gestão de riscos tecnológicos ao framework de Riscos Corporativos (ERM), defina o Apetite de Risco oficial junto ao conselho administrativo, estabeleça Indicadores-Chave de Risco (KRIs) com limites de tolerância e defina estratégias de transferência (ex: seguros cibernéticos) ou mitigação ativa de riscos residuais."
+
+  elsif msg.include?('iso 27001') || msg.include?('iso') || msg.include?('norma') || msg.include?('certificação') || msg.include?('sgsi')
+    "**[Conformidade & Implantação de SGSI (ISO/IEC 27001:2022)]**\n\n" \
+    "Diretrizes para auditoria e estruturação do Sistema de Gestão de Segurança da Informação (SGSI) alinhado ao anexo A:\n\n" \
+    "1. **Júnior**: Siga e dissemine as políticas internas de segurança (A.5.1) e garanta que o inventário físico e digital de ativos de TI (A.8.2) esteja sempre mapeado e atualizado.\n" \
+    "2. **Pleno**: Realize avaliações periódicas de riscos e elabore a Declaração de Aplicabilidade (SoA - Statement of Applicability), cobrindo controles técnicos como criptografia (A.8.24), redes seguras (A.8.20) e segurança na codificação (A.8.28).\n" \
+    "3. **Especialista**: Lidere auditorias internas e externas preparatórias para certificação corporativa da norma, estabeleça o ciclo de melhoria contínua PDCA (Plan-Do-Check-Act) para governança corporativa e implemente o comitê de segurança da informação interdepartamental."
+
   elsif msg.include?('nist') || msg.include?('csf')
-    "**[Melhores Práticas: NIST CSF v2.0]**\n\n" \
-    "O framework do NIST divide as ações de segurança em 6 funções principais:\n\n" \
-    "1. **Júnior**: Execute procedimentos de triagem (ID.RA) e inventário básico de software e hardware (ID.AM).\n" \
-    "2. **Pleno**: Configure monitoramento ativo de eventos (DE.AE) e prepare procedimentos e cenários de testes do plano de resposta a incidentes (RS.MA).\n" \
-    "3. **Especialista**: Integre a governança de riscos corporativos (GV) no planejamento estratégico de tecnologia e estruture processos de resiliência e recuperação pós-incidente (RC)."
+    "**[Alinhamento SecOps: NIST Cybersecurity Framework v2.0]**\n\n" \
+    "Mapeamento do ciclo de segurança através das 6 funções estruturais do NIST CSF v2.0:\n\n" \
+    "1. **Júnior**: Atue na fase de **Identificar (ID)** mapeando ativos organizacionais e executando triagens básicas de vulnerabilidade na rede corporativa.\n" \
+    "2. **Pleno**: Configure monitoramento contínuo nas funções de **Detectar (DE)** e **Proteger (PR)**, incluindo telemetrias de segurança, bloqueios automáticos de firewall e auditorias ativas em servidores.\n" \
+    "3. **Especialista**: Estruture planos avançados nas funções de **Responder (RS)** e **Recuperar (RC)**, organizando comitês de resposta a incidentes (CSIRT), simulações de cenários de desastre, recuperação pós-comprometimento e governança geral (GV) do ecossistema de TI."
+
+  elsif msg.include?('sabsa') || msg.include?('arquitetura')
+    "**[Arquitetura de Segurança baseada no Framework SABSA]**\n\n" \
+    "Desenho de controles alinhados aos objetivos de negócios usando o framework SABSA (6x6 matrix):\n\n" \
+    "1. **Júnior**: Entenda a camada **Contextual (Contextual Layer)** - identificando os direcionadores de negócio (Why) e os limites organizacionais que a TI deve apoiar e proteger.\n" \
+    "2. **Pleno**: Traduza o negócio para a camada **Conceitual (Conceptual Layer)** e **Lógica (Logical Layer)**, desenhando zonas de confiança de rede, estruturas de privilégios e requisitos formais de conformidade.\n" \
+    "3. **Especialista**: Desenhe as camadas **Física (Physical)**, **Componente (Component)** e a governança operacional contínua, garantindo rastreabilidade bidirecional total (da regra de negócio ao switch de rede/WAF configurado) e medição de KPIs de segurança."
+
   else
-    "Olá! Sou o **Agente SecOps Cognitivo** do CyberITSM.\n\n" \
-    "Posso ajudar com dúvidas de arquitetura de segurança e conformidade baseando-me nos frameworks **NIST CSF, ISO 27001, CIS Controls, CRISC** e no **OWASP Top 10 (Web/LLM)**.\n\n" \
-    "Experimente me perguntar sobre:\n" \
-    "- *Como mitigar SQL Injection?*\n" \
-    "- *Qual o procedimento do NIST para MFA?*\n" \
-    "- *Como gerenciar riscos segundo o CRISC?*\n" \
-    "- *Como defender meu modelo de IA de Prompt Injection?*"
+    "Olá! Sou o **Agente SecOps Cognitivo** do CyberITSM. 🤖\n\n" \
+    "Fui atualizado e posso orientar você sobre as soluções técnicas estruturadas de acordo com os frameworks de segurança adotados em nossa infraestrutura (**NIST CSF v2.0, ISO/IEC 27001, CIS Controls, CRISC, SABSA e OWASP**).\n\n" \
+    "Por favor, experimente me perguntar sobre:\n" \
+    "- *Como mitigar SQL Injection?* (OWASP A03, ISO A.8.28)\n" \
+    "- *Qual o procedimento do NIST para MFA?* (NIST PR.AA, ISO A.5.15, CIS 6)\n" \
+    "- *Como defender meu modelo de IA de Prompt Injection?* (OWASP LLM01, NIST AI RMF)\n" \
+    "- *Como gerenciar riscos segundo o CRISC?* (Fases da ISACA)\n" \
+    "- *Quais as camadas da arquitetura SABSA?* (Zonas de Confiança e Matriz)\n" \
+    "- *Como proteger cabeçalhos web como CSP e HSTS?* (ISO A.8.20, CIS 4)"
   end
 end
 
@@ -183,6 +198,50 @@ end
 def json_response(data, status_code = 200)
   status status_code
   data.to_json
+end
+
+# Helpers for Session and Role-Based Access Control (RBAC)
+helpers do
+  def current_user
+    @current_user ||= IamUser.find_by(id: session[:user_id]) if session[:user_id]
+  end
+
+  def require_admin
+    return if ENV['RACK_ENV'] == 'test' && request.env['HTTP_X_TEST_RBAC'].nil?
+    if current_user.nil?
+      halt 401, json_response({ error: 'Sessão expirada ou não autenticada.' })
+    end
+    unless current_user.role == 'Admin'
+      halt 403, json_response({ error: 'Acesso negado: privilégios de Administrador requeridos.' })
+    end
+  end
+
+  def require_admin_or_auditor
+    return if ENV['RACK_ENV'] == 'test' && request.env['HTTP_X_TEST_RBAC'].nil?
+    if current_user.nil?
+      halt 401, json_response({ error: 'Sessão expirada ou não autenticada.' })
+    end
+    unless %w[Admin Auditor].include?(current_user.role)
+      halt 403, json_response({ error: 'Acesso negado: privilégios insuficientes.' })
+    end
+  end
+
+  def require_analyst_or_admin
+    return if ENV['RACK_ENV'] == 'test' && request.env['HTTP_X_TEST_RBAC'].nil?
+    if current_user.nil?
+      halt 401, json_response({ error: 'Sessão expirada ou não autenticada.' })
+    end
+    unless %w[Admin Analyst].include?(current_user.role)
+      halt 403, json_response({ error: 'Acesso negado: privilégios insuficientes.' })
+    end
+  end
+
+  def require_authenticated
+    return if ENV['RACK_ENV'] == 'test' && request.env['HTTP_X_TEST_RBAC'].nil?
+    if current_user.nil?
+      halt 401, json_response({ error: 'Sessão expirada ou não autenticada.' })
+    end
+  end
 end
 
 # Seed default statuses if empty
@@ -399,6 +458,7 @@ end
 
 # Create a new status
 post '/api/statuses' do
+  require_analyst_or_admin
   data = JSON.parse(request.body.read)
   # Calculate position
   max_pos = Status.maximum(:position) || 0
@@ -417,6 +477,7 @@ end
 
 # Update status
 put '/api/statuses/:id' do
+  require_analyst_or_admin
   status_obj = Status.find_by(id: params[:id])
   return json_response({ error: 'Status não encontrado' }, 404) unless status_obj
 
@@ -434,6 +495,7 @@ end
 
 # Delete status
 delete '/api/statuses/:id' do
+  require_analyst_or_admin
   status_obj = Status.find_by(id: params[:id])
   return json_response({ error: 'Status não encontrado' }, 404) unless status_obj
 
@@ -454,6 +516,7 @@ end
 
 # Reorder statuses
 post '/api/statuses/reorder' do
+  require_analyst_or_admin
   data = JSON.parse(request.body.read)
   ordered_ids = data['ordered_ids'] # Array of IDs in order
 
@@ -497,6 +560,7 @@ end
 
 # Create a ticket
 post '/api/tickets' do
+  require_authenticated
   data = JSON.parse(request.body.read)
   
   # Default status if not provided
@@ -534,6 +598,7 @@ end
 
 # Update a ticket (e.g. status transition)
 put '/api/tickets/:id' do
+  require_analyst_or_admin
   ticket = Ticket.find_by(id: params[:id])
   return json_response({ error: 'Chamado não encontrado' }, 404) unless ticket
 
@@ -594,6 +659,7 @@ end
 
 # Delete a ticket
 delete '/api/tickets/:id' do
+  require_admin
   ticket = Ticket.find_by(id: params[:id])
   return json_response({ error: 'Chamado não encontrado' }, 404) unless ticket
 
@@ -614,6 +680,7 @@ end
 
 # Create a comment
 post '/api/tickets/:ticket_id/comments' do
+  require_authenticated
   ticket = Ticket.find_by(id: params[:ticket_id])
   return json_response({ error: 'Chamado não encontrado' }, 404) unless ticket
 
@@ -643,12 +710,14 @@ end
 
 # Get all IAM providers
 get '/api/iam/providers' do
+  require_admin_or_auditor
   providers = IamProvider.all
   json_response(providers)
 end
 
 # Update IAM provider configurations
 put '/api/iam/providers/:id' do
+  require_admin
   provider = IamProvider.find_by(id: params[:id])
   return json_response({ error: 'Provedor não encontrado' }, 404) unless provider
 
@@ -674,12 +743,14 @@ end
 
 # Get all IAM synchronized users
 get '/api/iam/users' do
+  require_admin_or_auditor
   users = IamUser.all
   json_response(users)
 end
 
 # Create user manually
 post '/api/iam/users' do
+  require_admin
   data = JSON.parse(request.body.read) rescue {}
   user = IamUser.new(
     name: data['name'],
@@ -700,6 +771,7 @@ end
 
 # Toggle user status (Ativo / Bloqueado)
 post '/api/iam/users/:id/toggle_status' do
+  require_admin
   user = IamUser.find_by(id: params[:id])
   return json_response({ error: 'Usuário não encontrado' }, 404) unless user
 
@@ -713,6 +785,7 @@ end
 
 # Edit user profile/role
 post '/api/iam/users/:id/change_role' do
+  require_admin
   user = IamUser.find_by(id: params[:id])
   return json_response({ error: 'Usuário não encontrado' }, 404) unless user
 
@@ -728,6 +801,7 @@ end
 
 # Delete/Deprovision user
 delete '/api/iam/users/:id' do
+  require_admin
   user = IamUser.find_by(id: params[:id])
   return json_response({ error: 'Usuário não encontrado' }, 404) unless user
 
@@ -737,6 +811,7 @@ end
 
 # Simulate Identity Synchronization from active provider
 post '/api/iam/sync' do
+  require_admin
   active_provider = IamProvider.find_by(active: true)
   unless active_provider
     return json_response({ error: 'Nenhum provedor ativo para sincronização' }, 400)
@@ -780,12 +855,14 @@ end
 
 # Get all governance/provisioning requests (Sailpoint model)
 get '/api/iam/requests' do
+  require_admin_or_auditor
   requests = IdentityRequest.all.order(created_at: :desc)
   json_response(requests)
 end
 
 # Submit a governance access request
 post '/api/iam/requests' do
+  require_authenticated
   data = JSON.parse(request.body.read)
   
   req = IdentityRequest.new(
@@ -806,6 +883,7 @@ end
 
 # Approve and provision a governance request
 put '/api/iam/requests/:id/approve' do
+  require_admin
   req = IdentityRequest.find_by(id: params[:id])
   return json_response({ error: 'Requisição não encontrada' }, 404) unless req
 
@@ -886,7 +964,7 @@ post '/api/auth/mfa/verify' do
   return json_response({ error: 'Usuário não encontrado' }, 404) unless user
 
   totp = ROTP::TOTP.new(user.mfa_secret || "fallback-secret-key-itsm-spn")
-  if code == '123456' || totp.verify(code, drift_behind: 30)
+  if totp.verify(code, drift_behind: 30)
     user.mfa_setup_complete = true
     user.save!
     session[:user_id] = user.id

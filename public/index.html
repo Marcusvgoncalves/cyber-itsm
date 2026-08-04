@@ -415,7 +415,7 @@
               <p>Mapeamento de grupos de provedores (EntraID, Keycloak, OAM) e governança Sailpoint</p>
             </div>
             <div class="topbar-actions">
-              <button class="btn btn-secondary" onclick="runSimulationSync()">
+              <button class="btn btn-secondary" id="btn-iam-sync" onclick="runSimulationSync()">
                 <i data-lucide="refresh-cw"></i> Sincronizar Identidades
               </button>
             </div>
@@ -438,7 +438,7 @@
           <!-- Content Tab 2: Users & Profiles -->
           <div id="iam-content-users" class="iam-tab-content" style="display: none; overflow-y: auto; flex: 1;">
             <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-              <button class="btn btn-primary" onclick="openCreateUserModal()" style="font-size: 11px; padding: 6px 12px;">
+              <button class="btn btn-primary" id="btn-iam-create-user" onclick="openCreateUserModal()" style="font-size: 11px; padding: 6px 12px;">
                 <i data-lucide="user-plus"></i> Criar Usuário Manual
               </button>
             </div>
@@ -487,7 +487,7 @@
                   </select>
                 </div>
                 
-                <button class="btn btn-primary" onclick="submitGovernanceRequest()" style="width: 100%; justify-content: center; font-size: 13px;">
+                <button class="btn btn-primary" id="btn-iam-submit-request" onclick="submitGovernanceRequest()" style="width: 100%; justify-content: center; font-size: 13px;">
                   Solicitar Acesso (Sailpoint)
                 </button>
               </div>

@@ -3,7 +3,7 @@ services:
     name: cyber-itsm-spn
     runtime: ruby
     buildCommand: "bundle install"
-    startCommand: "bundle exec ruby app.rb -p $PORT -o 0.0.0.0"
+    startCommand: "bundle exec rake db:migrate && bundle exec ruby app.rb -p $PORT -o 0.0.0.0"
     envVars:
       - key: RACK_ENV
         value: production
@@ -11,5 +11,5 @@ services:
         value: 3.3.0
     disk:
       name: cyber-itsm-data
-      mountPath: /opt/render/project/src/db
+      mountPath: /opt/render/project/src/db/data
       sizeGB: 1

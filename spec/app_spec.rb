@@ -223,7 +223,7 @@ RSpec.describe 'CyberITSM REST API' do
       it 'validates credentials and logs in' do
         # Seeded user marcus.goncalves@telefonica.com has password 'CyberITSM@2026!Password'
         user = IamUser.find_by(email: 'marcus.goncalves@telefonica.com')
-        user.update!(mfa_enabled: true, mfa_setup_complete: true)
+        user.update!(mfa_enabled: true, mfa_setup_complete: true, mfa_secret: ROTP::Base32.random)
 
         payload = { email: 'marcus.goncalves@telefonica.com', password: 'CyberITSM@2026!Password' }
         post '/api/auth/login', payload.to_json, json_headers
@@ -233,7 +233,8 @@ RSpec.describe 'CyberITSM REST API' do
         expect(res['mfa_required']).to be_truthy
 
         # Now verify standard MFA code
-        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: '123456' }
+        totp = ROTP::TOTP.new(user.mfa_secret)
+        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: totp.now }
         post '/api/auth/mfa/verify', verify_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
 
@@ -268,8 +269,9 @@ RSpec.describe 'CyberITSM REST API' do
         login_res = JSON.parse(last_response.body)
         expect(login_res['mfa_setup_required']).to be_truthy
 
-        # Verify code verify (sandbox fallback '123456')
-        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: '123456' }
+        # Verify code verify with dynamic TOTP
+        totp = ROTP::TOTP.new(res['secret'])
+        verify_payload = { email: 'marcus.goncalves@telefonica.com', code: totp.now }
         post '/api/auth/mfa/verify', verify_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
       end
@@ -297,6 +299,58 @@ RSpec.describe 'CyberITSM REST API' do
         login_payload = { email: 'marcus.goncalves@telefonica.com', password: 'CyberITSM@2026!NewPassword' }
         post '/api/auth/login', login_payload.to_json, json_headers
         expect(last_response.status).to eq(200)
+      end
+    end
+
+    describe 'RBAC (Role-Based Access Control) Integration' do
+      let(:rbac_headers) { { 'CONTENT_TYPE' => 'application/json', 'HTTP_X_TEST_RBAC' => 'true' } }
+
+      it 'blocks Analyst/Requester/Auditor from creating users (returns 403)' do
+        requester = IamUser.create!(
+          name: 'Requester Test',
+          email: 'req.test@telefonica.com',
+          role: 'Requester',
+          provider_type: 'local',
+          status: 'Ativo',
+          password: 'CyberITSM@2026!Password',
+          mfa_enabled: false
+        )
+        # Log in
+        post '/api/auth/login', { email: 'req.test@telefonica.com', password: 'CyberITSM@2026!Password' }.to_json, json_headers
+        login_res = JSON.parse(last_response.body)
+        
+        # Verify MFA
+        totp = ROTP::TOTP.new(login_res['secret'])
+        post '/api/auth/mfa/verify', { email: 'req.test@telefonica.com', code: totp.now }.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        # Now, try to create a user manually.
+        post '/api/iam/users', { name: 'Hack User', email: 'hack@test.com' }.to_json, rbac_headers
+        expect(last_response.status).to eq(403)
+        expect(JSON.parse(last_response.body)['error']).to include('Acesso negado')
+      end
+
+      it 'allows Admin to create users' do
+        admin = IamUser.create!(
+          name: 'Admin Test',
+          email: 'admin.test@telefonica.com',
+          role: 'Admin',
+          provider_type: 'local',
+          status: 'Ativo',
+          password: 'CyberITSM@2026!Password',
+          mfa_enabled: false
+        )
+        post '/api/auth/login', { email: 'admin.test@telefonica.com', password: 'CyberITSM@2026!Password' }.to_json, json_headers
+        login_res = JSON.parse(last_response.body)
+        
+        # Verify MFA
+        totp = ROTP::TOTP.new(login_res['secret'])
+        post '/api/auth/mfa/verify', { email: 'admin.test@telefonica.com', code: totp.now }.to_json, json_headers
+        expect(last_response.status).to eq(200)
+
+        # Now, create a user manually.
+        post '/api/iam/users', { name: 'Success User', email: 'success@test.com' }.to_json, rbac_headers
+        expect(last_response.status).to eq(201)
       end
     end
   end

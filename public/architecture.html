@@ -136,36 +136,36 @@
         
         <!-- Frontend Container Boundary -->
         <div class="c4-system-boundary" style="border-color: var(--color-accent); background-color: rgba(255, 153, 0, 0.01);">
-          <div class="c4-boundary-title" style="color: var(--color-accent);">Contêiner: Frontend SPA (Browser client)</div>
+          <div class="c4-boundary-title" style="color: var(--color-accent);">Contêiner: Frontend SPA [Vercel CDN]</div>
           <div class="c4-row">
             
             <div class="c4-node accent" onclick="showC4Detail('fe_view')">
               <div class="c4-node-title">Componente: UI View Layer</div>
               <div class="c4-node-tech">HTML5, CSS3 (Mistica Brand)</div>
-              <div class="c4-node-desc">Exibe o quadro Kanban e os painéis de controle seguindo o padrão oficial da marca Vivo.</div>
+              <div class="c4-node-desc">Exibe o quadro Kanban e painéis de controle, com travas de RBAC visuais para o perfil Auditor.</div>
             </div>
             
             <div class="c4-node accent" onclick="showC4Detail('fe_controller')">
               <div class="c4-node-title">Componente: DOM Controller</div>
               <div class="c4-node-tech">JavaScript (app.js)</div>
-              <div class="c4-node-desc">Gerencia o estado no browser, drag-and-drop de cartões e atualizações assíncronas (Fetch API).</div>
+              <div class="c4-node-desc">Gerencia estado no browser, drag-and-drop e atualizações assíncronas via sessões de mesma origem.</div>
             </div>
             
           </div>
         </div>
 
-        <div class="c4-relation">⬇ Comunicação REST API (JSON / HTTP)</div>
+        <div class="c4-relation">⬇ Proxy Reverso na Edge: Vercel rewrites (/api/*) ⬇</div>
 
         <!-- Backend Container Boundary -->
         <div class="c4-system-boundary" style="border-color: #9b51e0; background-color: rgba(155, 81, 224, 0.01);">
-          <div class="c4-boundary-title" style="color: #9b51e0;">Contêiner: Backend Microservice (Ruby Sinatra API)</div>
+          <div class="c4-boundary-title" style="color: #9b51e0;">Contêiner: Backend Microservice [Render Service]</div>
           
           <div class="c4-row">
             
             <div class="c4-node" onclick="showC4Detail('be_router')" style="border-color: #9b51e0;">
-              <div class="c4-node-title">Componente: REST Router</div>
-              <div class="c4-node-tech">Sinatra Router & Controllers</div>
-              <div class="c4-node-desc">Expõe endpoints JSON (tickets, comments, statuses, iam). Aplica cabeçalhos de segurança OWASP.</div>
+              <div class="c4-node-title">Componente: REST Router &amp; RBAC</div>
+              <div class="c4-node-tech">Sinatra Router &amp; Filters</div>
+              <div class="c4-node-desc">Expõe rotas JSON protegidas por controle RBAC corporativo rígido e autenticação TOTP (sem backdoors).</div>
             </div>
             
             <div class="c4-node" onclick="showC4Detail('be_orm')" style="border-color: #9b51e0;">
@@ -187,9 +187,9 @@
 
         <!-- Database Container -->
         <div class="c4-node" onclick="showC4Detail('database')" style="margin: 0 auto; width: 260px;">
-          <div class="c4-node-title">Contêiner: Banco de Dados SQLite3</div>
-          <div class="c4-node-tech">SQLite database engine</div>
-          <div class="c4-node-desc">Persiste tabelas de tickets, status, comentários, audit_logs imutáveis, provedores e usuários IAM.</div>
+          <div class="c4-node-title">Contêiner: SQLite3 [Render Volume]</div>
+          <div class="c4-node-tech">SQLite Engine (Persistência)</div>
+          <div class="c4-node-desc">Persiste tabelas sob volume montado `/db/data/` (evitando ocultação de migrations). PostgreSQL Ready.</div>
         </div>
 
       </div>
@@ -238,15 +238,15 @@
     </div>
     <div class="c4-legend-item">
       <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid var(--color-accent);"></div>
-      <span>Contêiner / Componente Frontend</span>
+      <span>Frontend SPA [Vercel]</span>
     </div>
     <div class="c4-legend-item">
       <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid #9b51e0;"></div>
-      <span>Componente Backend (Sinatra)</span>
+      <span>Backend Sinatra [Render]</span>
     </div>
     <div class="c4-legend-item">
-      <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px dashed var(--text-muted);"></div>
-      <span>Provedores Externos Simulados</span>
+      <div class="legend-color" style="background-color: var(--bg-tertiary); border: 1px solid var(--color-primary); border-style: dashed;"></div>
+      <span>Fronteira Híbrida de Deploy</span>
     </div>
   </div>
 
@@ -291,13 +291,14 @@
           </ul>
         `,
         be_router: `
-          <h3 style="color: #9b51e0; margin-bottom: 8px;">Componente: REST Router & Controllers (Backend)</h3>
+          <h3 style="color: #9b51e0; margin-bottom: 8px;">Componente: REST Router & RBAC (Backend)</h3>
           <p><strong>Nível C4:</strong> Componente (Component) | <strong>Tecnologia:</strong> Ruby / Sinatra</p>
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
-            <li>Mapeamento de rotas HTTP JSON para CRUD de chamados, comentários, status e base IAM.</li>
-            <li>Middleware de cabeçalhos de segurança (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff) aprovados em DAST.</li>
-            <li>Intermediação e tratamento de payloads com resposta em formato padronizado JSON.</li>
+            <li>Mapeamento de rotas HTTP JSON para CRUD de chamados, status, governança e logs.</li>
+            <li>Filtros e Helpers rígidos de controle RBAC por perfil de acesso (Admin, Analyst, Auditor, Requester).</li>
+            <li>Autenticação MFA segura com chaves dinâmicas TOTP (sem backdoors) geradas em tempo de execução via biblioteca ROTP.</li>
+            <li>Headers de segurança OWASP (CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff).</li>
           </ul>
         `,
         be_orm: `
@@ -322,12 +323,13 @@
           </ul>
         `,
         database: `
-          <h3 style="color: var(--text-primary); margin-bottom: 8px;">Contêiner: Banco de Dados SQLite3</h3>
+          <h3 style="color: var(--text-primary); margin-bottom: 8px;">Contêiner: Banco de Dados SQLite3 [Render Volume]</h3>
           <p><strong>Nível C4:</strong> Contêiner (Container) | <strong>Tecnologia:</strong> SQLite Engine</p>
           <p><strong>Responsabilidades:</strong></p>
           <ul style="margin-left: 20px; margin-top: 4px;">
-            <li>Armazenamento físico em arquivo local estruturado das identidades e chamados.</li>
-            <li>Execução de transações relacionais seguras e garantia de integridade com chaves estrangeiras.</li>
+            <li>Armazenamento persistente de dados no volume isolado e montado em `/db/data/` no contêiner do Render.</li>
+            <li>Prevenção de sobrescritas ou ocultações das migrações físicas do ActiveRecord em `db/migrate/`.</li>
+            <li>Estrutura modular 100% pronta para migração e transição corporativa para PostgreSQL (Enterprise).</li>
           </ul>
         `,
         ext_entraid: `

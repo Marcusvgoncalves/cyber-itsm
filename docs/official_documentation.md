@@ -133,20 +133,120 @@ The system exposes modular adapters mimicking four market-leading identity provi
 ---
 
 ### 5. Automated Security Pipeline (SecOps / SPN)
-- **RSpec & Rack::Test**: Features 17 functional integration test cases validating Kanban board behavior, safe status cascades, logins, MFA checks, recovery tokens, and audit logging.
+- **RSpec & Rack::Test**: Features 19 functional integration test cases validating Kanban board behavior, safe status cascades, logins, MFA checks, recovery tokens, audit logging, and RBAC rules.
 - **SCA**: `bundler-audit` scans gem dependencies for known security advisories (CVEs).
 - **SAST**: `brakeman` and `rubocop` perform static analysis on source code to identify code injection risks and syntactical formatting issues.
 - **DAST**: `scripts/security_scan.rb` boots a test Puma server and dynamically verifies HTTP response security headers and SQL Injection parameter sanitization.
 
 ---
 
-### 6. Enterprise Roadmap & Next Steps
-To transition the application from a simulated sandbox to a production-grade enterprise platform, the following roadmap is proposed:
-1. **Docker Containerization**: Author a standard `Dockerfile` and `docker-compose.yml` to package the Sinatra microservice and database assets for multi-environment orchestration.
-2. **PostgreSQL Migration**: Switch database driver config in `database.yml` to use PostgreSQL, unlocking connection pooling, horizontal scaling, and high availability.
-3. **Production OAuth2/OIDC Flow**: Replace local mock users with standard OIDC redirect flows (authorization code exchange) utilizing gems like `omniauth` to bind live EntraID and Keycloak tokens.
-4. **Immutable Log Signatures**: Implement asymmetric cryptography (RSA/ECDSA) to digitally sign every entry in the `audit_logs` table, securing audit trails from tampering.
-5. **Key Management (Vault)**: Remove client secrets and system credentials from the database and retrieve them dynamically from an external key vault (such as HashiCorp Vault or Azure Key Vault).
+### 6. Guia de Migração Enterprise / Enterprise Migration Guide
+
+Para transicionar a aplicação de um ambiente sandbox simulado para uma infraestrutura produtiva corporativa integrada, o seguinte roteiro com guias técnicos deve ser seguido:
+
+#### A. Migração do Banco de Dados para PostgreSQL
+O SQLite3 deve ser substituído pelo PostgreSQL para suportar concorrência, alta disponibilidade e backups automatizados.
+1. Adicione a gem do PostgreSQL no `Gemfile`:
+   ```ruby
+   gem 'pg'
+   ```
+2. Atualize o `config/database.yml`:
+   ```yaml
+   production:
+     adapter: postgresql
+     encoding: unicode
+     database: <%= ENV['DATABASE_URL'] %>
+     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 15 } %>
+     timeout: 5000
+   ```
+3. Execute o comando de migração nos servidores de release da esteira CI/CD.
+
+#### B. Conteinerização com Docker (Dockerfile & Compose)
+Para deploy em Kubernetes corporativo ou serviços gerenciados (como AWS ECS ou Google Cloud Run), crie o `Dockerfile` na raiz:
+```dockerfile
+# Dockerfile
+FROM ruby:3.3.0-slim
+
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs
+
+WORKDIR /app
+COPY Gemfile Gemfile.lock ./
+RUN bundle install --without development test
+
+COPY . .
+
+EXPOSE 4567
+CMD ["bundle", "exec", "ruby", "app.rb", "-p", "4567", "-o", "0.0.0.0"]
+```
+
+E crie o `docker-compose.yml` para orquestração local/homologação:
+```yaml
+version: '3.8'
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: cyber_itsm_prod
+      POSTGRES_PASSWORD: StrongPasswordSecOps123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  web:
+    build: .
+    command: bundle exec rake db:migrate && bundle exec ruby app.rb -p 4567 -o 0.0.0.0
+    ports:
+      - "4567:4567"
+    environment:
+      - DATABASE_URL=postgres://postgres:StrongPasswordSecOps123@db:5432/cyber_itsm_prod
+      - RACK_ENV=production
+    depends_on:
+      - db
+volumes:
+  pgdata:
+```
+
+#### C. Fluxo de Autenticação Real OIDC/OAuth2 (Microsoft Entra ID / Keycloak)
+Para eliminar os usuários mock, substitua o fluxo de login manual pelas gems do OmniAuth.
+1. Instale as dependências:
+   ```ruby
+   gem 'omniauth'
+   gem 'omniauth-oauth2'
+   gem 'omniauth-openid-connect'
+   ```
+2. Configure o middleware de autenticação em `app.rb`:
+   ```ruby
+   use OmniAuth::Builder do
+     provider :openid_connect,
+       name: :openid_connect,
+       scope: [:openid, :profile, :email],
+       response_type: :code,
+       client_options: {
+         port: 443,
+         scheme: "https",
+         host: "login.microsoftonline.com",
+         authorization_endpoint: "/{tenant_id}/oauth2/v2.0/authorize",
+         token_endpoint: "/{tenant_id}/oauth2/v2.0/token",
+         userinfo_endpoint: "/{tenant_id}/openid/v2.0/userinfo",
+         jwks_uri: "/{tenant_id}/discovery/v2.0/keys"
+       },
+       client_id: ENV['ENTRA_CLIENT_ID'],
+       client_secret: ENV['ENTRA_CLIENT_SECRET']
+   end
+   ```
+
+#### D. Gerenciamento Seguro de Segredos (HashiCorp Vault)
+Remova qualquer credencial em formato de texto simples do banco de dados e utilize injeção de variáveis de ambiente dinâmicas via Secrets Manager corporativo (ex: AWS Secrets Manager ou HashiCorp Vault).
+1. Configure o client no backend Ruby:
+   ```ruby
+   require 'vault'
+   Vault.configure do |config|
+     config.address = ENV['VAULT_ADDR']
+     config.token = ENV['VAULT_TOKEN']
+   end
+   
+   # Leitura de segredo na inicialização
+   db_secret = Vault.logical.read("secret/data/database")
+   ENV['DATABASE_URL'] = db_secret.data[:data][:url]
+   ```
 
 ---
 
@@ -174,7 +274,7 @@ Em produção, a arquitetura é dividida em dois provedores diferentes (modelo h
 2. **Backend API (Hospedado na Render)**:
    - O microsserviço Ruby Sinatra é executado em um Web Service Linux no Render.
    - O backend roda no domínio `https://cyber-itsm-spn.onrender.com`.
-   - A persistência utiliza um disco de armazenamento persistente montado no contêiner em `/opt/render/project/src/db` mapeado no banco SQLite3 `db/production.sqlite3`.
+   - A persistência utiliza um disco de armazenamento persistente montado no contêiner em `/opt/render/project/src/db/data` mapeado no banco SQLite3 `db/data/production.sqlite3` (o que previne a ocultação acidental da pasta de migrações `db/migrate`).
 
 ```mermaid
 graph TD
@@ -184,18 +284,18 @@ graph TD
 
   subgraph Render ["Hospedagem Backend (Render Web Service)"]
     APIProd["Puma / Sinatra (https://cyber-itsm-spn.onrender.com)"]
-    Volume["Disco Montado (db/production.sqlite3)"]
+    Volume["Disco Montado (db/data/production.sqlite3)"]
     APIProd -->|ActiveRecord| Volume
   end
 
   ClientProd -->|1. GET /index.html| Vercel
-  ClientProd -->|2. CORS Request com Credenciais| APIProd
+  ClientProd -->|2. Chamada Proxied via Vercel Edge| APIProd
 ```
 
 #### C. Integração e Segurança Híbrida
 - **CORS e OPTIONS Preflight**: Como as chamadas saem de um domínio da Vercel (`vercel.app`) para a Render (`onrender.com`), o navegador exige cabeçalhos CORS. O backend Sinatra foi atualizado para validar a origem da chamada e responder cabeçalhos `Access-Control-Allow-Origin` dinamicamente correspondendo à origem autorizada.
-- **Autorização e Cookies de Sessão (Credentials)**: Para manter sessões seguras cross-domain, as requisições AJAX configuram `credentials: 'include'`. O backend autoriza explicitamente com `Access-Control-Allow-Credentials: true`.
-- **Roteamento Dinâmico (Fetch Interceptor)**: No frontend, um interceptor global na biblioteca `app.js` detecta se o hostname atual é um domínio Vercel. Caso seja, ele reescreve automaticamente todos os endpoints de `/api/...` para a URL absoluta da Render backend.
+- **Autorização e Cookies de Sessão (Credentials)**: Para manter sessões seguras cross-domain, as requisições AJAX configuram `credentials: 'include'`. O backend autoriza explicitamente com `Access-Control-Allow-Origin` dinâmico e `Access-Control-Allow-Credentials: true`.
+- **Roteamento e Proxy na Edge (`vercel.json`)**: Em vez de expor URLs externas no cliente, a Vercel atua como proxy reverso, encaminhando `/api/*` transparentemente para a Render. Isso mantém a mesma origem lógica aos olhos do navegador, preservando e enviando cookies de sessão de forma nativa e segura.
 
 ---
 
@@ -210,10 +310,9 @@ For production environments, the platform transitions to a multi-cloud hybrid ar
    - Public assets inside `public/` are served and distributed globally via Vercel's Edge network under the domain `https://cyber-itsm-spn.vercel.app`.
 2. **Backend API Microservice (Render Web Service)**:
    - The Sinatra backend is deployed as a managed service on Render under the domain `https://cyber-itsm-spn.onrender.com`.
-   - Persistence is achieved through a SQLite3 database (`db/production.sqlite3`) mounted on a persistent block storage volume at `/opt/render/project/src/db`.
+   - Persistence is achieved through a SQLite3 database (`db/data/production.sqlite3`) mounted on a persistent block storage volume at `/opt/render/project/src/db/data` (preventing conflicts with standard migration directories).
 
 #### C. Connectivity & Cross-Origin Security
 - **CORS Preflight (OPTIONS)**: To resolve cross-origin calls between Vercel and Render domains, the Sinatra server validates requesting origins (echoing matching ones) and responds to HTTP `OPTIONS` preflight requests.
-- **Session Credentials**: Session cookies are transmitted across origins securely. Client requests invoke `credentials: 'include'` and the server returns `Access-Control-Allow-Credentials: true`.
-- **Dynamic Fetch Interceptor**: A global fetch wrapper in `app.js` intercepts client API requests and prepends the remote Render backend address when Vercel hostnames are detected.
-
+- **Session Credentials**: Session cookies are transmitted securely. Client requests invoke `credentials: 'include'` and the server returns `Access-Control-Allow-Credentials: true`.
+- **Edge Reverse Proxying (`vercel.json`)**: Vercel acts as a reverse proxy matching `/api/*` paths and proxying them to Render. This keeps requests same-domain in the browser, safeguarding session cookies and eliminating CORS issues.

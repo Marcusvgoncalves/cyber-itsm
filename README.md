@@ -88,14 +88,17 @@ Este script executa:
 
 ---
 
-## ☁️ Publicação na Vercel / Deploy on Vercel
+## ☁️ Publicação e Arquitetura de Deploy (Vercel + Render)
 
-O projeto está configurado para publicação serverless na Vercel utilizando o runtime de Ruby da comunidade (`vercel-ruby`).
+O projeto adota uma arquitetura de implantação híbrida para garantir alto desempenho e persistência de dados:
 
-1. Instale a CLI do Vercel: `npm install -g vercel`
-2. Efetue login: `vercel login`
-3. Execute o deploy a partir da pasta raiz:
-   ```powershell
-   vercel
-   ```
-4. O arquivo `vercel.json` e o `config.ru` irão orquestrar a compilação do microserviço Sinatra e o roteamento das páginas estáticas do Mistica automáticamente.
+1. **Frontend (Vercel)**: Os arquivos estáticos contidos na pasta `public/` (Mistica UI) são hospedados e distribuídos globalmente via CDN da Vercel.
+2. **Backend (Render)**: O microserviço Ruby Sinatra roda no contêiner Linux da Render e se conecta ao SQLite3 persistido sob um volume montado no diretório `db/data/`.
+3. **Proxy Reverso (`vercel.json`)**: A Vercel atua como proxy reverso, reescrevendo requisições de `/api/*` diretamente para a URL da Render. Isso resolve restrições de CORS no navegador e permite o tráfego automático de cookies de sessão de mesma origem.
+
+### Passos para Deploy:
+- **Deploy do Frontend (Vercel)**:
+  ```powershell
+  vercel --prod
+  ```
+- **Deploy do Backend (Render)**: Conecte o repositório GitHub ao painel da Render e crie um **Web Service** com o arquivo `render.yaml`. As migrações de banco de dados serão aplicadas automaticamente no deploy antes da inicialização.

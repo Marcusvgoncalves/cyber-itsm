@@ -718,7 +718,7 @@ function renderIamProviders() {
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="badge" style="background: rgba(0,0,0,0.2); color: ${activeBadgeColor}; border: 1px solid ${activeBadgeColor}; font-size: 9px; padding: 1px 6px;">${activeText}</span>
-          <input type="checkbox" ${provider.active ? 'checked' : ''} onchange="toggleProviderActive(${provider.id}, this.checked)" style="cursor: pointer;">
+          <input type="checkbox" ${provider.active ? 'checked' : ''} ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onchange="toggleProviderActive(${provider.id}, this.checked)" style="cursor: ${currentUser && currentUser.role === 'Auditor' ? 'not-allowed' : 'pointer'};">
         </div>
       </div>
       
@@ -731,7 +731,7 @@ function renderIamProviders() {
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; padding-top: 8px;">
-        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openConfigProviderModal(${provider.id})">Configurar</button>
+        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; ${currentUser && currentUser.role === 'Auditor' ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onclick="openConfigProviderModal(${provider.id})">Configurar</button>
       </div>
     `;
     
@@ -765,7 +765,7 @@ function renderIamUsers() {
       <td style="padding: 10px 8px; color: var(--text-secondary);">${escapeHTML(user.email)}</td>
       <td style="padding: 10px 8px; text-transform: uppercase; font-size: 11px; font-weight: 600; color: var(--color-accent);">${escapeHTML(user.provider_type)}</td>
       <td style="padding: 10px 8px;">
-        <select class="form-control" onchange="changeUserRole(${user.id}, this.value)" style="padding: 4px 8px; font-size: 12px; width: fit-content; background: var(--bg-tertiary);">
+        <select class="form-control" ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onchange="changeUserRole(${user.id}, this.value)" style="padding: 4px 8px; font-size: 12px; width: fit-content; background: var(--bg-tertiary); ${currentUser && currentUser.role === 'Auditor' ? 'cursor: not-allowed; opacity: 0.8;' : ''}">
           <option value="Admin" ${user.role === 'Admin' ? 'selected' : ''}>Admin</option>
           <option value="Analyst" ${user.role === 'Analyst' ? 'selected' : ''}>Analyst</option>
           <option value="Requester" ${user.role === 'Requester' ? 'selected' : ''}>Requester</option>
@@ -777,10 +777,10 @@ function renderIamUsers() {
       </td>
       <td style="padding: 10px 8px; text-align: right;">
         <div style="display: inline-flex; gap: 8px;">
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="toggleUserStatus(${user.id})">
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; ${currentUser && currentUser.role === 'Auditor' ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onclick="toggleUserStatus(${user.id})">
             ${statusText === 'Ativo' ? 'Bloquear' : 'Desbloquear'}
           </button>
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--color-critical);" onclick="deleteUser(${user.id})">
+          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--color-critical); ${currentUser && currentUser.role === 'Auditor' ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onclick="deleteUser(${user.id})">
             Desprovisionar
           </button>
         </div>
@@ -833,7 +833,7 @@ function renderIamGovernance() {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color);">
         <span style="font-size: 10px; color: var(--text-muted);">${dateStr}</span>
         ${isPending ? `
-          <button class="btn btn-primary" style="padding: 2px 10px; font-size: 11px;" onclick="approveGovernanceRequest(${req.id})">
+          <button class="btn btn-primary" style="padding: 2px 10px; font-size: 11px; ${currentUser && currentUser.role === 'Auditor' ? 'opacity: 0.5; cursor: not-allowed;' : ''}" ${currentUser && currentUser.role === 'Auditor' ? 'disabled' : ''} onclick="approveGovernanceRequest(${req.id})">
             Aprovar e Provisionar
           </button>
         ` : `
@@ -1130,6 +1130,45 @@ async function checkSession() {
         document.getElementById('menu-c4').style.display = 'inline-flex';
       } else {
         document.getElementById('menu-c4').style.display = 'none';
+      }
+
+      // Control IAM management access on sidebar (Admin and Auditor only)
+      if (currentUser.role === 'Admin' || currentUser.role === 'Auditor') {
+        document.getElementById('menu-iam').style.display = 'inline-flex';
+      } else {
+        document.getElementById('menu-iam').style.display = 'none';
+      }
+
+      // Control Status management access on sidebar (Admin and Analyst only)
+      if (currentUser.role === 'Admin' || currentUser.role === 'Analyst') {
+        document.getElementById('menu-status').style.display = 'inline-flex';
+      } else {
+        document.getElementById('menu-status').style.display = 'none';
+      }
+
+      // Apply Auditor controls on IAM interface
+      if (currentUser.role === 'Auditor') {
+        const syncBtn = document.getElementById('btn-iam-sync');
+        if (syncBtn) {
+          syncBtn.disabled = true;
+          syncBtn.style.opacity = '0.5';
+          syncBtn.style.cursor = 'not-allowed';
+          syncBtn.title = 'Acesso restrito a Administradores';
+        }
+        const createBtn = document.getElementById('btn-iam-create-user');
+        if (createBtn) {
+          createBtn.disabled = true;
+          createBtn.style.opacity = '0.5';
+          createBtn.style.cursor = 'not-allowed';
+          createBtn.title = 'Acesso restrito a Administradores';
+        }
+        const submitBtn = document.getElementById('btn-iam-submit-request');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.5';
+          submitBtn.style.cursor = 'not-allowed';
+          submitBtn.title = 'Acesso restrito a Administradores';
+        }
       }
 
       switchView('dashboard');
