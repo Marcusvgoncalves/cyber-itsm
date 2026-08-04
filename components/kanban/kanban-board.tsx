@@ -14,9 +14,10 @@ interface KanbanBoardProps {
   initialStatuses: Status[];
   initialTickets: Ticket[];
   currentUser: User;
+  onTicketSelect?: (ticket: Ticket) => void;
 }
 
-export function KanbanBoard({ initialStatuses, initialTickets, currentUser }: KanbanBoardProps) {
+export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTicketSelect }: KanbanBoardProps) {
   const [statuses, setStatuses] = useState<Status[]>(initialStatuses);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +45,8 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser }: Ka
   const handleTicketClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket);
     setModalMode('edit');
-  }, []);
+    onTicketSelect?.(ticket);
+  }, [onTicketSelect]);
 
   const handleCloseModal = useCallback(() => {
     setSelectedTicket(null);

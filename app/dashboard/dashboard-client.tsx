@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
-import { AiChat } from "@/components/ai-chat";
+import { SecurityAgent } from "@/components/SecurityAgent";
 import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
@@ -50,6 +50,10 @@ export function DashboardClient({
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(initialAuditLogs);
   const [statuses, setStatuses] = useState<Status[]>(initialStatuses);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
+
+  // Security Agent state
+  const [showAgent, setShowAgent] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   // Forms states
   const [newPassword, setNewPassword] = useState("");
@@ -342,6 +346,7 @@ export function DashboardClient({
               initialStatuses={statuses}
               initialTickets={tickets}
               currentUser={currentUser}
+              onTicketSelect={(ticket) => setSelectedTicket(ticket)}
             />
           </div>
         )}
@@ -943,8 +948,20 @@ export function DashboardClient({
             </div>
           </div>
         )}
-      </main>
-      <AiChat />
-    </div>
+</main>
+       <SecurityAgent
+         ticketData={{
+           id: selectedTicket?.id,
+           title: selectedTicket?.title,
+           description: selectedTicket?.description,
+           framework_origem: selectedTicket?.framework_origem,
+           dominio_framework: selectedTicket?.dominio_framework,
+           priority: selectedTicket?.priority,
+           tags: selectedTicket?.tags,
+         }}
+         isOpen={showAgent}
+         onClose={() => setShowAgent(false)}
+       />
+     </div>
   );
 }
