@@ -15,7 +15,7 @@ Abaixo está o mapeamento visual interativo dos limites do sistema, contêineres
 | **Frontend UI** | React 19 / Tailwind CSS v4 (Mistica) | Cores da marca, tipografia Outfit e responsividade premium com micro-animações. |
 | **Frontend Logic** | Next.js Client Components | Gerenciamento de estado local reativo e drag-and-drop nativo de cartões. |
 | **Backend API** | Next.js Server Actions & Middleware | Lógica do servidor executando sob Vercel Serverless. Proteção de rotas com cookies HTTP. |
-| **Agente de IA** | Vercel AI SDK Mock | Assistente Inteligente especializado em frameworks de segurança (NIST, CIS, ISO 27001, SABSA, LGPD, PCI-DSS). |
+| **Agente de IA** | Vercel AI SDK Mock (rule-based) | Assistente SecOps funcional em `app/api/chat/route.ts` baseado em regras/keywords. Sem LLM externo por padrão; pronto para integrar OpenAI/Gemini via Vercel AI SDK quando uma API Key for configurada. |
 | **Banco de Dados** | Supabase PostgreSQL | Persistência na nuvem com políticas estritas de Row Level Security (RLS) habilitadas. |
 | **Autenticação & MFA** | Supabase Auth & TOTP (SHA-1) | Autenticação com sessão segura e MFA configurável com onboarding via QR Code. |
 | **Integração IAM / IGA** | Adaptadores Simulados (Entra ID, Keycloak, OAM, Sailpoint) | Fluxo de governança de identidades e fila de aprovação de perfis (Identity Requests). |
@@ -36,9 +36,48 @@ Todas as credenciais locais do sistema devem cumprir a política estrita de comp
 - No primeiro login, caso o usuário não possua o MFA configurado no perfil (`mfa_setup_complete == false`), o sistema o redireciona automaticamente para um painel de Onboarding na tela de login.
 - Exibe o QR Code e chave secreta para sincronização em dispositivos móveis (ex: Google Authenticator). A sessão só é liberada e o cookie `mfa_verified` gravado após a validação inicial do código de 6 dígitos.
 - Master Code de Teste no Sandbox: `123456`
+- **MFA habilitado para todos os usuários**: as colunas `mfa_secret` e `mfa_setup_complete` são preenchidas para toda a base (`users_profiles`) pelo provisionamento (ver seção abaixo), tornando o segundo fator obrigatório para todas as contas.
 
-### 4. Controle de Acesso Baseado em Função (RBAC) para C4 e Logs
+### 4. Provisionamento de Usuário Administrador & MFA
+Para criar um usuário **super admin** com senha forte e habilitar o MFA para todos os usuários diretamente no Supabase (service role):
+1. Adicione a chave em `.env.local` (o arquivo é ignorado pelo Git):
+   ```env
+   SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxx   # Settings → API → service_role
+   ```
+2. Crie o usuário em `auth.users` (o trigger `on_auth_user_created` cria o perfil em `users_profiles` com a `role` vinda de `user_metadata.role`):
+   ```sql
+   select auth.admin_create_user(
+     email         => 'colaborador@telefonica.com',
+     password      => 'SenhaForte@2026!x',
+     email_confirm => true,
+     user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
+   );
+   ```
+3. Habilite o MFA para todos os perfis gerando uma chave Base32 válida e marcando `mfa_setup_complete`:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.gen_base32_secret()
+   RETURNS TEXT AS $$
+   DECLARE alphabet TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; out TEXT := ''; i INT;
+   BEGIN
+     FOR i IN 1..16 LOOP out := out || substr(alphabet, 1 + floor(random()*32)::int, 1); END LOOP;
+     RETURN out;
+   END $$ LANGUAGE plpgsql;
+
+   UPDATE public.users_profiles
+   SET mfa_secret = COALESCE(mfa_secret, public.gen_base32_secret()),
+       mfa_setup_complete = TRUE
+   WHERE mfa_setup_complete = FALSE OR mfa_secret IS NULL;
+   ```
+   Os usuários autenticam com o código TOTP do autenticador ou o código de homologação `123456` (sandbox).
+
+### 5. Controle de Acesso Baseado em Função (RBAC) para C4 e Logs
 - Apenas usuários com a função **Admin** podem visualizar o Desenho de Arquitetura C4 interativo e o histórico de Logs de Auditoria do sistema. Outros perfis são bloqueados pelo middleware e redirecionados.
+
+### 6. Estado da Feature de IA
+- A feature de IA está **habilitada e funcional como mock (rule-based)**.
+- UI: `components/ai-chat.tsx` (FAB) renderizada em todas as páginas do dashboard.
+- Endpoint: `app/api/chat/route.ts` responde por regras/keywords (sem chave de API externa).
+- Para IA generativa real: adicionar `ai`/`@ai-sdk/openai` ao `package.json` e substituir a resposta do endpoint pelo SDK + API Key (`OPENAI_API_KEY`/`GEMINI_API_KEY`). Nenhuma chave é necessária para o mock funcionar.
 
 ---
 
@@ -55,9 +94,14 @@ Todas as credenciais locais do sistema devem cumprir a política estrita de comp
    NEXT_PUBLIC_SUPABASE_URL=seu_projeto_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=seu_projeto_supabase_anon_key
    ```
+   > Chave opcional apenas para operações de provisionamento no servidor (criar usuário admin, habilitar MFA para todos):
+   > ```env
+   > SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key
+   > ```
 
 3. **Banco de Dados**:
    Copie o conteúdo de [supabase-schema.sql](supabase-schema.sql) e execute no SQL Editor do painel do seu projeto Supabase para criar as tabelas, RLS, triggers e dados sementes (Seeds) necessários.
+   > ⚠️ **Projetos com schema pré-existente/incompleto**: se o banco já possui apenas tabelas antigas (ex.: só `users_profiles` e `tickets`, sem colunas de MFA), não rode o script destrutivo. Adicione manualmente as colunas `mfa_secret`, `mfa_setup_complete`, `reset_token` e `reset_token_expires_at` em `users_profiles` e crie as tabelas/triggers/policies restantes (veja [docs/official_documentation.md](docs/official_documentation.md) para a migração aditiva).
 
 4. **Inicie o Servidor de Desenvolvimento**:
    ```bash

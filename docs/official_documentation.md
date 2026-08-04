@@ -19,6 +19,7 @@ graph TD
   subgraph Client [Frontend SPA]
     View("Componente: UI View Layer (React 19)")
     State("Componente: React Hooks (State Controller)")
+    AiChat("Componente: AiChat (FAB) - Agente SecOps IA")
   end
 
   Client -->|Server Actions| VercelServer("Contêiner: Vercel Edge / Serverless API")
@@ -27,10 +28,13 @@ graph TD
     Middleware("Componente: Middleware (RBAC / MFA Check)")
     Actions("Componente: Server Actions (Tickets & IAM)")
     TOTP("Componente: TOTP Validator (SHA-1)")
+    AiRoute("Componente: /api/chat (Mock rule-based)")
   end
 
+  Client -->|POST /api/chat| AiRoute
+
   VercelServer -->|SQL Connection| SupabaseDB[("Contêiner: Supabase PostgreSQL (RLS)")]
-  VercelServer -->|Auth REST API| SupabaseAuth["Contêiner: Supabase Auth (JWT)"]
+  VercelServer -->|Auth REST API| SupabaseAuth["Contêiner: Supabase Auth (JWT + MFA/TOTP)"]
   VercelServer -->|Simulated REST Calls| ExtIAM("Provedores IAM / IGA")
 
   subgraph ExtIAM [IAM / IGA Simulados]
@@ -39,12 +43,14 @@ graph TD
     OAM("Oracle Access Manager (Headers)")
     Sailpoint("Sailpoint IdentityNow (IGA)")
   end
+
+  AiRoute -. "futuro: Vercel AI SDK + OpenAI/Gemini" .-> LLM("LLM Externo (opcional)")
 ```
 
 #### A. Camada de Frontend (SPA)
 - **UI View Layer (React 19 / Tailwind CSS v4)**: Utiliza a marca oficial **Telefônica Mistica** (cores roxas `#660099`, laranja Vivo `#FF9900` e tipografia Outfit do Google Fonts) para renderizar a tela de login, o console do Kanban, logs de auditoria e os formulários de acesso.
 - **State Controller (React Hooks)**: Controla o estado em tempo de execução no cliente, gerencia a lógica de drag-and-drop de chamados SPN e manipula os estados de abas no painel de controle.
-- **Agente SecOps de Inteligência Artificial**: Uma interface de Chat nativa injetada como FAB (Floating Action Button), provendo interações de conformidade instantâneas com mapeamento de frameworks (NIST, CIS, ISO 27001, SABSA, LGPD e PCI-DSS).
+- **Agente SecOps de Inteligência Artificial**: Uma interface de Chat nativa injetada como FAB (Floating Action Button), provendo interações de conformidade instantâneas com mapeamento de frameworks (NIST, CIS, ISO 27001, SABSA, LGPD e PCI-DSS). **Estado atual**: habilitado e funcional como **mock rule-based** em `app/api/chat/route.ts` (sem API Key externa). Para IA generativa real, integrar o Vercel AI SDK (`ai`/`@ai-sdk/openai`) no mesmo endpoint com `OPENAI_API_KEY`/`GEMINI_API_KEY`.
 
 #### B. Camada de Backend (Vercel Serverless / Server Actions)
 - **Next.js Middleware**: Roda na Edge da Vercel. Intercepta requisições ao `/dashboard/*` para garantir que o usuário está logado, possui MFA verificado (através do cookie seguro `mfa_verified`) e se o perfil RBAC atende a rotas administrativas (`/architecture`).
@@ -60,7 +66,7 @@ graph TD
 ### 3. Autenticação, MFA & Jornada de Identidade
 O CyberITSM SPN possui uma jornada completa de autenticação local e segurança baseada na tabela `users_profiles`:
 - **Login & Credenciais**: Usuários autenticam-se com e-mail corporativo e senha criptografada gerenciados pelo Supabase Auth.
-- **Autenticação Multi-Fator (MFA/TOTP)**: O middleware e o painel de login validam se o MFA está configurado. No primeiro acesso, o usuário passa por onboarding (geração de chave Base32 e QR Code visual). O acesso ao dashboard exige a digitação correta do código de 6 dígitos. Código de homologação para testes: `123456`.
+- **Autenticação Multi-Fator (MFA/TOTP)**: O middleware e o painel de login validam se o MFA está configurado. No primeiro acesso, o usuário passa por onboarding (geração de chave Base32 e QR Code visual). O acesso ao dashboard exige a digitação correta do código de 6 dígitos. **O MFA é habilitado para todos os usuários**: as colunas `mfa_secret` e `mfa_setup_complete` da tabela `users_profiles` são populadas para toda a base via provisionamento (service role / SQL), tornando o segundo fator obrigatório para todas as contas. Código de homologação para testes: `123456`.
 - **Esqueci minha senha & Recuperação**: O fluxo gera um token único de redefinição de senha (`reset_token`) com expiração de 1 hora. O sistema exibe um banner com o link `/reset-password?token=XYZ` no ambiente sandbox.
 - **Alteração de Senha**: O painel de segurança valida o novo password contra políticas corporativas de complexidade (mínimo 12 caracteres, letras maiúsculas/minúsculas, números e caracteres especiais).
 
@@ -108,7 +114,9 @@ The application adopts a consolidated serverless architecture with Next.js App R
 
 ### 3. Authentication, MFA & Identity Journey
 - **Login & Credentials**: Users authenticate using their corporate email and secure password.
-- **Multi-Factor Authentication (MFA/TOTP)**: On first login, onboarding interface renders key setup and QR code. Subsequent logins demand a 6-digit OTP check. Master code for testing: `123456`.
+- **Multi-Factor Authentication (MFA/TOTP)**: On first login, onboarding interface renders key setup and QR code. Subsequent logins demand a 6-digit OTP check. Master code for testing: `123456`. **MFA is enabled for all accounts** via provisioning (`mfa_secret`/`mfa_setup_complete` in `users_profiles`).
+- **Admin & MFA Provisioning**: Create a super-administrator via the service role (`auth.admin_create_user` with `user_metadata.role = 'admin'`), then enable MFA for every profile by generating a Base32 secret and setting `mfa_setup_complete = true`.
+- **AI Agent status**: The **Agente SecOps IA** is enabled and functional as a **rule-based mock** (`app/api/chat/route.ts`). To use a real generative model, wire the Vercel AI SDK into the same endpoint with an `OPENAI_API_KEY`/`GEMINI_API_KEY`.
 - **Forgot Password Recovery**: Generates a secure `reset_token` valid for 1 hour, displaying a sandbox recovery link.
 - **Password Strength Policy**: Enforces strong credentials (12+ characters, upper/lowercase, number, special character) during resets.
 

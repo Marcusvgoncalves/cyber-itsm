@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Monitor, Server, Database, KeyRound, Shield, Zap, ChevronRight, CheckCircle2 } from "lucide-react";
+import { User, Monitor, Server, Database, KeyRound, Shield, Zap, Bot, ChevronRight, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function ArchitectureDiagram() {
@@ -22,15 +22,21 @@ export function ArchitectureDiagram() {
     },
     backend: {
       title: "Next.js Server API",
-      desc: "Serveless API e Server Actions rodando na Edge da Vercel. Processa validações de RBAC, sessão e integrações IAM.",
+      desc: "Serverless API e Server Actions rodando na Edge da Vercel. Processa validações de RBAC, sessão, integrações IAM e o endpoint mock do Agente SecOps IA (/api/chat).",
       tools: ["Vercel Edge", "Middleware", "Server Actions", "TypeScript"],
       color: "border-gray-800 bg-gray-100 text-gray-900"
     },
     database: {
       title: "Supabase BaaS",
-      desc: "Banco de dados PostgreSQL com RLS para isolamento de tenants. Gerencia usuários, senhas encriptadas e MFA.",
+      desc: "Banco de dados PostgreSQL com RLS para isolamento de tenants. Gerencia perfis (users_profiles), autenticação e MFA/TOTP habilitado para todos os usuários, além de chamados e logs de auditoria.",
       tools: ["PostgreSQL", "RLS", "Supabase Auth", "Triggers"],
       color: "border-green-600 bg-green-50 text-green-700"
+    },
+    ai: {
+      title: "Agente SecOps IA",
+      desc: "Assistente de IA funcional como mock rule-based (app/api/chat/route.ts). Sem LLM externo por padrão; pronto para integrar o Vercel AI SDK com OpenAI/Gemini.",
+      tools: ["Next.js Route Handler", "Mock (Regras)", "Vercel AI SDK (futuro)", "OpenAI/Gemini"],
+      color: "border-purple-500 bg-purple-50 text-purple-700"
     },
     iam: {
       title: "Integrações IAM / IGA",
@@ -95,9 +101,10 @@ export function ArchitectureDiagram() {
         </div>
 
         {/* Fork Arrows */}
-        <div className="hidden md:flex flex-col gap-12 z-10">
+        <div className="hidden md:flex flex-col gap-10 z-10">
            <ChevronRight className="w-6 h-6 text-gray-300 -mt-8" />
-           <ChevronRight className="w-6 h-6 text-gray-300 mt-2" />
+           <ChevronRight className="w-6 h-6 text-gray-300" />
+           <ChevronRight className="w-6 h-6 text-gray-300" />
         </div>
 
         <div className="flex flex-col gap-6 z-10">
@@ -111,6 +118,18 @@ export function ArchitectureDiagram() {
               <Database className={`w-8 h-8 ${activeNode === 'database' ? 'text-green-500' : 'text-gray-400'}`} />
             </div>
             <span className="mt-3 font-semibold text-sm text-gray-700">Supabase</span>
+          </div>
+
+          {/* Node: AI Agent */}
+          <div 
+            className="flex flex-col items-center cursor-pointer group"
+            onMouseEnter={() => setActiveNode('ai')}
+            onClick={() => setActiveNode('ai')}
+          >
+            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-white border-2 shadow-md transition-all duration-300 ${activeNode === 'ai' ? 'border-purple-500 scale-110 shadow-purple-200' : 'border-gray-200 group-hover:border-purple-300'}`}>
+              <Bot className={`w-8 h-8 ${activeNode === 'ai' ? 'text-purple-500' : 'text-gray-400'}`} />
+            </div>
+            <span className="mt-3 font-semibold text-sm text-gray-700">Agente IA</span>
           </div>
 
           {/* Node: IAM */}
