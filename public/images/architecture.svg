@@ -1,0 +1,274 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="100%" height="100%">
+  <!-- Definitions for gradients and markers -->
+  <defs>
+    <!-- Background styling -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fafafa" />
+      <stop offset="100%" stop-color="#f0f2f5" />
+    </linearGradient>
+    
+    <!-- Component Gradients -->
+    <linearGradient id="user-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d3748" />
+      <stop offset="100%" stop-color="#1a202c" />
+    </linearGradient>
+    
+    <linearGradient id="mistica-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#660099" />
+      <stop offset="100%" stop-color="#4c0073" />
+    </linearGradient>
+    
+    <linearGradient id="vercel-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3182ce" />
+      <stop offset="100%" stop-color="#2b6cb0" />
+    </linearGradient>
+    
+    <linearGradient id="supabase-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38a169" />
+      <stop offset="100%" stop-color="#276749" />
+    </linearGradient>
+    
+    <linearGradient id="iam-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dd6b20" />
+      <stop offset="100%" stop-color="#c05621" />
+    </linearGradient>
+
+    <!-- Arrow head markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4a5568" />
+    </marker>
+    
+    <marker id="arrow-primary" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#660099" />
+    </marker>
+  </defs>
+
+  <!-- Title & Canvas -->
+  <rect width="1000" height="680" fill="url(#bg-grad)" rx="15" />
+  
+  <text x="50" y="45" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="24" font-weight="bold" fill="#1a1a1a">
+    CyberITSM SPN - Desenho de Arquitetura C4
+  </text>
+  <text x="50" y="70" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="14" fill="#718096">
+    Nível de Contêineres e Integração da Nova Estrutura Next.js &amp; Supabase
+  </text>
+
+  <!-- ============================================ -->
+  <!-- 1. USER CONTEXT (Pessoa) -->
+  <!-- ============================================ -->
+  <g transform="translate(60, 230)">
+    <rect width="140" height="120" rx="10" fill="url(#user-grad)" shadow="0 4px 6px rgba(0,0,0,0.1)" />
+    <!-- User Icon -->
+    <circle cx="70" cy="45" r="15" fill="#e2e8f0" />
+    <path d="M 50 80 Q 70 60 90 80 Z" fill="#e2e8f0" />
+    <text x="70" y="100" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Analista SecOps
+    </text>
+    <text x="70" y="112" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#a0aec0" text-anchor="middle">
+      (Usuário SPN)
+    </text>
+  </g>
+
+  <!-- Interaction Flow User -> Browser -->
+  <path d="M 200 290 L 260 290" fill="none" stroke="#4a5568" stroke-width="2.5" marker-end="url(#arrow)" />
+  <text x="230" y="280" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#4a5568" text-anchor="middle" font-weight="semibold">
+    HTTPS
+  </text>
+
+  <!-- ============================================ -->
+  <!-- 2. FRONTEND SPA (Browser) -->
+  <!-- ============================================ -->
+  <g transform="translate(270, 160)">
+    <rect width="200" height="260" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+    <rect width="200" height="35" rx="10" fill="#f7fafc" />
+    <line x1="0" y1="35" x2="200" y2="35" stroke="#e2e8f0" stroke-width="1.5" />
+    
+    <!-- Browser window dots -->
+    <circle cx="15" cy="17" r="4" fill="#fc8181" />
+    <circle cx="27" cy="17" r="4" fill="#f6e05e" />
+    <circle cx="39" cy="17" r="4" fill="#68d391" />
+    
+    <text x="100" y="22" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#4a5568" text-anchor="middle">
+      Navegador (Cliente SPA)
+    </text>
+    
+    <!-- Inside SPA Component -->
+    <g transform="translate(15, 60)">
+      <rect width="170" height="175" rx="8" fill="url(#mistica-grad)" />
+      <text x="85" y="30" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">
+        Next.js Client (React 19)
+      </text>
+      
+      <rect x="15" y="55" width="140" height="35" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="85" y="77" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">
+        Vivo Mistica Light Theme
+      </text>
+      
+      <rect x="15" y="105" width="140" height="50" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="85" y="125" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="semibold">
+        Quadro Kanban &amp;
+      </text>
+      <text x="85" y="140" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle">
+        Onboarding de MFA
+      </text>
+    </g>
+  </g>
+
+  <!-- Flow Client -> Next.js Backend -->
+  <path d="M 470 270 L 530 270" fill="none" stroke="#660099" stroke-width="2.5" marker-end="url(#arrow-primary)" />
+  <text x="500" y="255" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#660099" text-anchor="middle" font-weight="bold">
+    Server Actions
+  </text>
+  <text x="500" y="285" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#718096" text-anchor="middle">
+    (RPC / API)
+  </text>
+
+  <!-- ============================================ -->
+  <!-- 3. BACKEND (Vercel Serverless) -->
+  <!-- ============================================ -->
+  <g transform="translate(540, 160)">
+    <rect width="200" height="260" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+    <rect width="200" height="35" rx="10" fill="#f7fafc" />
+    <line x1="0" y1="35" x2="200" y2="35" stroke="#e2e8f0" stroke-width="1.5" />
+    
+    <text x="100" y="22" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#4a5568" text-anchor="middle">
+      Next.js Server API
+    </text>
+    
+    <!-- Inside Backend Component -->
+    <g transform="translate(15, 60)">
+      <rect width="170" height="175" rx="8" fill="url(#vercel-grad)" />
+      <text x="85" y="25" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">
+        Vercel Edge / Server
+      </text>
+      
+      <rect x="15" y="45" width="140" height="35" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="85" y="60" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="semibold">
+        Middleware de Segurança
+      </text>
+      <text x="85" y="72" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#e2e8f0" text-anchor="middle">
+        (RBAC, MFA &amp; Token check)
+      </text>
+      
+      <rect x="15" y="90" width="140" height="30" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="85" y="109" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="semibold">
+        Validador TOTP (SHA1)
+      </text>
+      
+      <rect x="15" y="130" width="140" height="30" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="85" y="149" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="semibold">
+        Provedor Governança IGA
+      </text>
+    </g>
+  </g>
+
+  <!-- Flow Backend -> Supabase -->
+  <path d="M 740 290 L 800 290" fill="none" stroke="#38a169" stroke-width="2.5" marker-end="url(#arrow)" />
+  <text x="770" y="275" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#276749" text-anchor="middle" font-weight="bold">
+    PostgreSQL
+  </text>
+  <text x="770" y="305" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#718096" text-anchor="middle">
+    (SSL/Port 5432)
+  </text>
+
+  <!-- ============================================ -->
+  <!-- 4. SUPABASE (BaaS) -->
+  <!-- ============================================ -->
+  <g transform="translate(810, 160)">
+    <rect width="150" height="260" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+    <rect width="150" height="35" rx="10" fill="#f7fafc" />
+    <line x1="0" y1="35" x2="150" y2="35" stroke="#e2e8f0" stroke-width="1.5" />
+    
+    <text x="75" y="22" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#4a5568" text-anchor="middle">
+      Supabase BaaS
+    </text>
+    
+    <!-- Inside Supabase Component -->
+    <g transform="translate(15, 60)">
+      <rect width="120" height="175" rx="8" fill="url(#supabase-grad)" />
+      
+      <!-- DB Symbol -->
+      <path d="M 60 25 C 80 25 80 35 60 35 C 40 35 40 25 60 25 M 60 32 C 80 32 80 42 60 42 C 40 42 40 32 60 32 M 60 39 C 80 39 80 49 60 49 C 40 49 40 39 60 39" fill="none" stroke="#ffffff" stroke-width="2" />
+      
+      <text x="60" y="65" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">
+        Database
+      </text>
+      <text x="60" y="78" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#e2e8f0" text-anchor="middle">
+        (PostgreSQL + RLS)
+      </text>
+      
+      <rect x="10" y="95" width="100" height="65" rx="5" fill="#ffffff" fill-opacity="0.15" />
+      <text x="60" y="112" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="10" fill="#ffffff" text-anchor="middle" font-weight="semibold">
+        Supabase Auth
+      </text>
+      <text x="60" y="125" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#e2e8f0" text-anchor="middle">
+        Sessões &amp; JWT
+      </text>
+      <text x="60" y="148" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#ffffff" text-anchor="middle" font-weight="bold">
+        MFA Native APIs
+      </text>
+    </g>
+  </g>
+
+  <!-- ============================================ -->
+  <!-- 5. EXTERNAL SYSTEMS (IAM / IGA Providers) -->
+  <!-- ============================================ -->
+  <!-- Header for External Block -->
+  <rect x="120" y="470" width="760" height="170" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+  <text x="140" y="495" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="14" font-weight="bold" fill="#1a1a1a">
+    Microsserviços Externos de Identidade &amp; Governança (IAM / IGA Simulados)
+  </text>
+  <line x1="120" y1="505" x2="880" y2="505" stroke="#e2e8f0" stroke-width="1.5" />
+  
+  <!-- Flow Backend -> IAM -->
+  <path d="M 640 420 L 640 460" fill="none" stroke="#dd6b20" stroke-width="2" marker-end="url(#arrow)" />
+  
+  <!-- Microsoft Entra ID -->
+  <g transform="translate(150, 525)">
+    <rect width="140" height="90" rx="8" fill="url(#iam-grad)" />
+    <text x="70" y="35" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Microsoft Entra ID
+    </text>
+    <rect x="15" y="50" width="110" height="25" rx="4" fill="#ffffff" fill-opacity="0.2" />
+    <text x="70" y="66" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#ffffff" text-anchor="middle">
+      Claims OIDC Sync
+    </text>
+  </g>
+  
+  <!-- Keycloak Broker -->
+  <g transform="translate(330, 525)">
+    <rect width="140" height="90" rx="8" fill="url(#iam-grad)" />
+    <text x="70" y="35" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Keycloak Broker
+    </text>
+    <rect x="15" y="50" width="110" height="25" rx="4" fill="#ffffff" fill-opacity="0.2" />
+    <text x="70" y="66" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#ffffff" text-anchor="middle">
+      Realm/OAuth2 Sync
+    </text>
+  </g>
+  
+  <!-- Oracle Access Manager -->
+  <g transform="translate(510, 525)">
+    <rect width="140" height="90" rx="8" fill="url(#iam-grad)" />
+    <text x="70" y="35" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Oracle Access Manager
+    </text>
+    <rect x="15" y="50" width="110" height="25" rx="4" fill="#ffffff" fill-opacity="0.2" />
+    <text x="70" y="66" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#ffffff" text-anchor="middle">
+      OAM Header Injection
+    </text>
+  </g>
+  
+  <!-- Sailpoint IdentityNow -->
+  <g transform="translate(690, 525)">
+    <rect width="140" height="90" rx="8" fill="url(#iam-grad)" />
+    <text x="70" y="35" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">
+      Sailpoint IdentityNow
+    </text>
+    <rect x="15" y="50" width="110" height="25" rx="4" fill="#ffffff" fill-opacity="0.2" />
+    <text x="70" y="66" font-family="'Outfit', 'Segoe UI', sans-serif" font-size="9" fill="#ffffff" text-anchor="middle">
+      IGA Approval Workflow
+    </text>
+  </g>
+
+</svg>
