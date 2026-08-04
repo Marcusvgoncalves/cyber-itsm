@@ -63,10 +63,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const rawMessages: Array<{ role: 'system' | 'user' | 'assistant'; parts: unknown[] }> =
-      Array.isArray(body?.messages)
-        ? (body.messages as Array<{ role: 'system' | 'user' | 'assistant'; parts: unknown[] }>)
-        : [];
+    const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
     const ticketContext = sanitizeText(body?.ticketContext);
 
     if (rawMessages.length === 0) {
@@ -76,27 +73,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // Converte as mensagens do cliente (UIMessage) para ModelMessage do SDK.
-    const modelMessages = await convertToModelMessages(
-      rawMessages as never
-    );
-
     // Monta o histórico final: mantém todo o diálogo, mas injeta o contexto do
-// chamado na última mensagem do usuário em vez da pergunta em texto puro.
+    // chamado na última mensagem do usuário em vez da pergunta em texto puro.
     const history: ModelMessage[] = [];
-    for (let i = 0; i < modelMessages.length; i++) {
-      const m = modelMessages[i];
-      const isLast = i === modelMessages.length - 1;
+    for (let i = 0; i < rawMessages.length; i++) {
+      const m = rawMessages[i];
+      const isLast = i === rawMessages.length - 1;
+      
+      // Handle both formats (content as string or parts array)
+      let textContent = '';
+      if (typeof m.content === 'string') {
+        textContent = m.content;
+      } else if (m.parts && Array.isArray(m.parts)) {
+        const textPart = m.parts.find((p: any) => p.type === "text");
+        textContent = textPart?.text ?? "";
+      } else {
+        textContent = String(m.content || '');
+      }
+
       if (isLast && m.role === 'user') {
         history.push({
           role: 'user',
-          content: buildUserMessage(
-            typeof m.content === 'string' ? m.content : '',
-            ticketContext
-          ),
+          content: buildUserMessage(textContent, ticketContext),
         });
       } else {
-        history.push(m);
+        history.push({
+          role: m.role as 'user' | 'assistant' | 'system',
+          content: textContent,
+        });
       }
     }
 

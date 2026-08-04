@@ -13,7 +13,7 @@ import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
-  KeyRound, Lock, QrCode
+  KeyRound, Lock, QrCode, Bot
 } from "lucide-react";
 import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser } from "@/app/actions/iam";
@@ -946,22 +946,32 @@ export function DashboardClient({
                 </CardContent>
               </Card>
             </div>
-          </div>
         )}
-</main>
-       <SecurityAgent
-         ticketData={{
-           id: selectedTicket?.id,
-           title: selectedTicket?.title,
-           description: selectedTicket?.description,
-           framework_origem: selectedTicket?.framework_origem,
-           dominio_framework: selectedTicket?.dominio_framework,
-           priority: selectedTicket?.priority,
-           tags: selectedTicket?.tags,
-         }}
-         isOpen={showAgent}
-         onClose={() => setShowAgent(false)}
-       />
-     </div>
+      </main>
+
+      {/* Botão flutuante do Agente SecOps */}
+      {!showAgent && (
+        <Button
+          onClick={() => setShowAgent(true)}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg p-0 bg-primary hover:bg-primary-hover flex items-center justify-center z-40 transition-transform hover:scale-105"
+        >
+          <Bot className="h-6 w-6 text-white" />
+        </Button>
+      )}
+
+      <SecurityAgent
+        ticketData={{
+          id: selectedTicket?.id,
+          title: selectedTicket?.title,
+          description: selectedTicket?.description,
+          framework_origem: selectedTicket?.framework_origem,
+          dominio_framework: selectedTicket?.dominio_framework,
+          priority: selectedTicket?.priority,
+          tags: selectedTicket?.tags,
+        }}
+        isOpen={showAgent}
+        onClose={() => setShowAgent(false)}
+      />
+    </div>
   );
 }
