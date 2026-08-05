@@ -247,70 +247,86 @@ export async function createLocalUser(formData: {
     throw new Error('Permissão negada. Apenas administradores podem cadastrar usuários locais.');
   }
 
-  // 1. Cria o usuário real em auth.users via Admin API (bypass de RLS).
-  //    Gera uma senha temporária forte e força troca no primeiro login + MFA.
-  const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + 'Aa1!';
+  try {
+    // 1. Cria o usuário real em auth.users via Admin API (bypass de RLS).
+    //    Gera uma senha temporária forte e força troca no primeiro login + MFA.
+    const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + 'Aa1!';
 
-  const { data: authUser, error: createError } = await admin.auth.admin.createUser({
-    email: formData.email,
-    password: tempPassword,
-    email_confirm: true,
-    user_metadata: {
-      full_name: formData.full_name,
-      role: formData.role,
-      requires_password_change: true,
-    },
-    app_metadata: {
-      role: formData.role,
-    },
-  });
-
-  if (createError) {
-    if (createError.code === 'user_already_exists' || createError.message?.toLowerCase().includes('already')) {
-      throw new Error('E-mail já cadastrado.');
-    }
-    throw createError;
-  }
-
-  if (!authUser.user) {
-    throw new Error('Falha ao criar o usuário.');
-  }
-
-  // 2. O trigger on_auth_user_created cria o registro em users_profiles.
-  //    Força MFA obrigatório (mfa_setup_complete = false) e garante o perfil.
-  const userId = authUser.user.id;
-  const { data: upserted, error: upsertError } = await supabase
-    .from('users_profiles')
-    .upsert(
-      {
-        id: userId,
-        email: formData.email,
+    const { data: authUser, error: createError } = await admin.auth.admin.createUser({
+      email: formData.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
         full_name: formData.full_name,
         role: formData.role,
-        mfa_secret: null,
-        mfa_setup_complete: false,
+        requires_password_change: true,
       },
-      { ignoreDuplicates: true }
-    )
-    .select('*')
-    .single();
+      app_metadata: {
+        role: formData.role,
+      },
+    });
 
-  if (upsertError) {
-    throw upsertError;
+    if (createError) {
+      const msg = (createError && (createError as any).message) ? (createError as any).message : JSON.stringify(createError);
+      if ((createError as any).code === 'user_already_exists' || msg.toLowerCase().includes('already')) {
+        throw new Error('E-mail já cadastrado.');
+      }
+      throw new Error(msg);
+    }
+
+    if (!authUser || !authUser.user) {
+      throw new Error('Falha ao criar o usuário.');
+    }
+
+    // 2. O trigger on_auth_user_created cria o registro em users_profiles.
+    //    Força MFA obrigatório (mfa_setup_complete = false) e garante o perfil.
+    const userId = authUser.user.id;
+    const { data: upserted, error: upsertError } = await supabase
+      .from('users_profiles')
+      .upsert(
+        {
+          id: userId,
+          email: formData.email,
+          full_name: formData.full_name,
+          role: formData.role,
+          mfa_secret: null,
+          mfa_setup_complete: false,
+        },
+        { ignoreDuplicates: true }
+      )
+      .select('*')
+      .single();
+
+    if (upsertError) {
+      const msg = (upsertError && (upsertError as any).message) ? (upsertError as any).message : JSON.stringify(upsertError);
+      throw new Error(msg);
+    }
+
+    await createAuditLog(
+      'local_user_create',
+      'users_profiles',
+      userId,
+      null,
+      { email: formData.email, role: formData.role }
+    );
+
+    revalidatePath('/dashboard');
+    const baseUser = (upserted as User) || { id: userId, email: formData.email, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
+    console.warn(`[IAM] Usuário local criado: ${formData.email} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
+    return { ...baseUser, temp_password: tempPassword };
+  } catch (err) {
+    // Log full error server-side and rethrow a sanitized Error (plain string) to avoid
+    // Next/React serialization issues that produce minified errors in production.
+    console.error('[IAM] createLocalUser error:', err);
+    if (err instanceof Error) {
+      throw new Error(err.message);
+    }
+    try {
+      throw new Error(JSON.stringify(err));
+    } catch {
+      throw new Error('Erro desconhecido ao criar usuário.');
+    }
   }
-
-  await createAuditLog(
-    'local_user_create',
-    'users_profiles',
-    userId,
-    null,
-    { email: formData.email, role: formData.role }
-  );
-
-  revalidatePath('/dashboard');
-  const baseUser = (upserted as User) || { id: userId, email: formData.email, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
-  console.warn(`[IAM] Usuário local criado: ${formData.email} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
-  return { ...baseUser, temp_password: tempPassword };
 }
 
 /**
