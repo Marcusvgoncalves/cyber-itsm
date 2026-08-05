@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getAuthService } from "@/lib/auth/authService";
 import { cookies } from "next/headers";
 import { verifyTOTP, generateSecret } from "@/lib/totp";
 import { revalidatePath } from "next/cache";
@@ -30,11 +31,11 @@ export async function createAuditLog(
 ) {
   try {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const context = await getAuthService().getUser();
+    if (!context) return;
 
     await supabase.from('audit_logs').insert({
-      user_id: user.id,
+      user_id: context.session.id,
       action,
       entity_type: entityType,
       entity_id: entityId || null,
@@ -52,22 +53,20 @@ export async function createAuditLog(
  * Get the current logged-in user profile, including MFA configuration.
  */
 export async function getCurrentUserProfile(): Promise<ProfileData | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const context = await getAuthService().getUser();
+  if (!context) return null;
+  return context.user as ProfileData;
+}
 
-  const { data, error } = await supabase
-    .from('users_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (error) {
-    console.error('Erro ao buscar perfil do usuário:', error.message);
-    return null;
-  }
-
-  return data as ProfileData;
+/**
+ * Autentica o usuário via o serviço de autenticação (Adapter).
+ * A página não conhece o provedor concreto.
+ */
+export async function signInWithCredentials(
+  email: string,
+  password: string
+): Promise<{ error?: string }> {
+  return getAuthService().signIn({ email, password });
 }
 
 /**
@@ -87,8 +86,9 @@ export async function initiateMfa(): Promise<{ secret: string; qrCodeUri: string
  */
 export async function confirmMfaSetup(secret: string, code: string): Promise<boolean> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Não autenticado');
+  const context = await getAuthService().getUser();
+  if (!context) throw new Error('Não autenticado');
+  const userId = context.session.id;
 
   const isValid = await verifyTOTP(code, secret);
   if (!isValid) return false;
@@ -99,7 +99,7 @@ export async function confirmMfaSetup(secret: string, code: string): Promise<boo
       mfa_secret: secret,
       mfa_setup_complete: true
     })
-    .eq('id', user.id);
+    .eq('id', userId);
 
   if (error) throw new Error(error.message);
 
@@ -113,7 +113,7 @@ export async function confirmMfaSetup(secret: string, code: string): Promise<boo
     path: '/'
   });
 
-  await createAuditLog('mfa_setup_confirm', 'users_profiles', user.id, null, { mfa_setup_complete: true });
+  await createAuditLog('mfa_setup_confirm', 'users_profiles', userId, null, { mfa_setup_complete: true });
   
   revalidatePath('/dashboard');
   return true;
@@ -123,7 +123,6 @@ export async function confirmMfaSetup(secret: string, code: string): Promise<boo
  * Verify MFA code during login.
  */
 export async function verifyMfa(code: string): Promise<boolean> {
-  const supabase = await createClient();
   const userProfile = await getCurrentUserProfile();
   if (!userProfile || !userProfile.mfa_secret) return false;
 
@@ -149,8 +148,9 @@ export async function verifyMfa(code: string): Promise<boolean> {
  */
 export async function disableMfa(): Promise<void> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Não autenticado');
+  const context = await getAuthService().getUser();
+  if (!context) throw new Error('Não autenticado');
+  const userId = context.session.id;
 
   const { error } = await supabase
     .from('users_profiles')
@@ -158,14 +158,14 @@ export async function disableMfa(): Promise<void> {
       mfa_secret: null,
       mfa_setup_complete: false
     })
-    .eq('id', user.id);
+    .eq('id', userId);
 
   if (error) throw new Error(error.message);
 
   const cookieStore = await cookies();
   cookieStore.delete('mfa_verified');
 
-  await createAuditLog('mfa_disabled', 'users_profiles', user.id);
+  await createAuditLog('mfa_disabled', 'users_profiles', userId);
   revalidatePath('/dashboard');
 }
 
@@ -297,8 +297,7 @@ export async function changeUserPassword(password: string): Promise<boolean> {
  * Logs out the user and clears MFA validation.
  */
 export async function logoutUser(): Promise<void> {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await getAuthService().signOut();
   
   const cookieStore = await cookies();
   cookieStore.delete('mfa_verified');

@@ -53,13 +53,21 @@ CREATE TABLE public.users_profiles (
   mfa_setup_complete BOOLEAN NOT NULL DEFAULT FALSE,
   reset_token TEXT,
   reset_token_expires_at TIMESTAMPTZ,
+  -- Federated Identity (Identity Providers): OAuth / SAML 2.0 / SCIM
+  idp_provider TEXT,
+  idp_external_id TEXT,
+  idp_issued_at TIMESTAMPTZ,
+  idp_last_sync TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  -- Um usuário externo só pode ser vinculado uma única vez por IdP.
+  UNIQUE (idp_provider, idp_external_id)
 );
 
 -- Index for faster lookups
 CREATE INDEX idx_users_profiles_email ON public.users_profiles(email);
 CREATE INDEX idx_users_profiles_role ON public.users_profiles(role);
+CREATE INDEX idx_users_profiles_idp ON public.users_profiles(idp_provider, idp_external_id);
 
 CREATE TRIGGER trigger_users_profiles_updated_at
   BEFORE UPDATE ON public.users_profiles

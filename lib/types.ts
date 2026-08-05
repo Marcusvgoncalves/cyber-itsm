@@ -10,6 +10,12 @@ export interface User {
   mfa_setup_complete?: boolean;
   reset_token?: string | null;
   reset_token_expires_at?: string | null;
+  /** Provedor de identidade federado de origem (OAuth/SAML). */
+  idp_provider?: string | null;
+  /** Identificador do usuário no IdP externo (SCIM/mapping). */
+  idp_external_id?: string | null;
+  idp_issued_at?: string | null;
+  idp_last_sync?: string | null;
   created_at: string;
   updated_at: string;
 }

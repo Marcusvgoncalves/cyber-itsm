@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { getAuthService } from '@/lib/auth/authService';
 import type { Ticket, Status, Comment, User, AuditLog, TicketStatus, TicketPriority } from '@/lib/types';
 
 export async function getStatuses(): Promise<Status[]> {
@@ -135,19 +136,8 @@ export async function createComment(comment: Omit<Comment, 'id' | 'created_at' |
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-  
-  const { data, error } = await supabase
-    .from('users_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-  
-  if (error) return null;
-  return data;
+  const context = await getAuthService().getUser();
+  return context?.user ?? null;
 }
 
 export async function getUsers(): Promise<User[]> {

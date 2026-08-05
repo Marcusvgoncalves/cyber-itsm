@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -13,11 +13,12 @@ import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
-  KeyRound, Lock, QrCode, Bot
+  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers
 } from "lucide-react";
 import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
+import securityRequirements from "../../requisitos-sd.json";
 
 interface DashboardClientProps {
   currentUser: User;
@@ -41,8 +42,12 @@ export function DashboardClient({
   systemUsers,
 }: DashboardClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'kanban' | 'iam' | 'audit' | 'architecture' | 'settings'>('kanban');
+  const [activeTab, setActiveTab] = useState<'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge'>('kanban');
   const [isPending, startTransition] = useTransition();
+
+  // Knowledge base search state
+  const [searchReq, setSearchReq] = useState("");
+  const [expandedReq, setExpandedReq] = useState<string | null>(null);
 
   // Local state for reloading lists after actions
   const [iamUsers, setIamUsers] = useState<IamUser[]>(initialIamUsers);
@@ -319,6 +324,16 @@ export function DashboardClient({
                   }`}
                 >
                   Portal IAM / IGA
+                </button>
+                <button
+                  onClick={() => setActiveTab('knowledge')}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === 'knowledge' 
+                      ? 'bg-primary-light text-primary' 
+                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
+                  }`}
+                >
+                  Base de Conhecimento
                 </button>
                 {isAdmin && (
                   <>
@@ -1081,6 +1096,292 @@ export function DashboardClient({
                       Atualizar Senha
                     </Button>
                   </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'knowledge' && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="flex flex-col">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <BookOpen className="h-6 w-6 text-primary" />
+                Base de Conhecimento de Cibersegurança
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                Explore a matriz completa de requisitos de segurança e as principais diretrizes de frameworks de mercado de forma didática.
+              </p>
+            </div>
+
+            {/* Seção 1: Frameworks de Mercado */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Layers className="h-5 w-5 text-vivo" />
+                1. Frameworks de Mercado de Segurança da Informação
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* NIST CSF */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-blue-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-blue-900 flex items-center gap-1.5">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      NIST Cybersecurity Framework
+                    </CardTitle>
+                    <CardDescription className="text-xs text-blue-700">Modelo de Maturidade e Gestão de Risco</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Estrutura flexível baseada em cinco funções contínuas para gerenciar riscos cibernéticos:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>Identificar:</strong> Compreensão do contexto organizacional e ativos.</li>
+                      <li><strong>Proteger:</strong> Salvaguardas para garantir a entrega de serviços.</li>
+                      <li><strong>Detectar:</strong> Identificação de eventos de segurança.</li>
+                      <li><strong>Responder:</strong> Ações diante de incidentes detectados.</li>
+                      <li><strong>Recuperar:</strong> Planos de resiliência e restauração.</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* CIS Controls */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-green-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-green-900 flex items-center gap-1.5">
+                      <TicketCheck className="h-4 w-4 text-green-600" />
+                      CIS Controls (Center for Internet Security)
+                    </CardTitle>
+                    <CardDescription className="text-xs text-green-700">Controles Priorizados de Defesa Cibernética</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Conjunto prático de 18 ações de defesa imediata, divididos em três grupos de implementação (IG):</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>Básico (IG1):</strong> Higiene cibernética essencial para qualquer empresa.</li>
+                      <li><strong>Intermediário (IG2):</strong> Foco em ambientes mais complexos e controle de dados.</li>
+                      <li><strong>Avançado (IG3):</strong> Proteção contra adversários com táticas persistentes e avançadas.</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* OWASP Top 10 */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-red-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-red-900 flex items-center gap-1.5">
+                      <ShieldAlert className="h-4 w-4 text-red-600" />
+                      OWASP Top 10
+                    </CardTitle>
+                    <CardDescription className="text-xs text-red-700">Padrão de Segurança de Aplicações Web</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Consenso global sobre os dez maiores riscos de segurança em aplicações web:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>A01:</strong> Broken Access Control (Controle de acesso quebrado).</li>
+                      <li><strong>A02:</strong> Cryptographic Failures (Falhas criptográficas).</li>
+                      <li><strong>A03:</strong> Injection (Injeção de código/SQL).</li>
+                      <li><strong>A04:</strong> Insecure Design (Design inseguro).</li>
+                      <li><strong>A07:</strong> Identification & Auth Failures (Falhas de autenticação).</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* STRIDE Threat Modeling */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-purple-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-purple-900 flex items-center gap-1.5">
+                      <Bot className="h-4 w-4 text-purple-600" />
+                      Modelo de Ameaças STRIDE
+                    </CardTitle>
+                    <CardDescription className="text-xs text-purple-700">Mapeamento de Vetores de Ataque</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Metodologia desenvolvida pela Microsoft para identificar e mitigar ameaças em sistemas:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>S (Spoofing):</strong> Fingir ser outra identidade.</li>
+                      <li><strong>T (Tampering):</strong> Modificação não autorizada de dados.</li>
+                      <li><strong>R (Repudiation):</strong> Negar a realização de uma transação.</li>
+                      <li><strong>I (Information Disclosure):</strong> Vazamento de informações.</li>
+                      <li><strong>D (Denial of Service):</strong> Indisponibilidade de serviços.</li>
+                      <li><strong>E (Elevation of Privilege):</strong> Acesso não autorizado a privilégios.</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* ISO 27001 & SABSA */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-amber-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                      <Settings className="h-4 w-4 text-amber-600" />
+                      ISO 27001 & SABSA
+                    </CardTitle>
+                    <CardDescription className="text-xs text-amber-700">Governança e Arquitetura Empresarial</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Padrões de governança estratégica e arquitetura orientada ao negócio:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>ISO 27001:</strong> Norma global para Sistemas de Gestão de Segurança da Informação (SGSI), cobrindo políticas, processos e tecnologia.</li>
+                      <li><strong>SABSA:</strong> Framework focado na rastreabilidade, conectando objetivos comerciais aos controles técnicos de segurança.</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                {/* LGPD */}
+                <Card className="hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-indigo-50/50 pb-3">
+                    <CardTitle className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                      <Database className="h-4 w-4 text-indigo-600" />
+                      LGPD (Lei Geral de Proteção de Dados)
+                    </CardTitle>
+                    <CardDescription className="text-xs text-indigo-700">Privacidade e Direitos do Titular</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-3 text-xs text-gray-600 space-y-2">
+                    <p>Legislação brasileira para regular o tratamento de dados pessoais no Brasil:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      <li><strong>Bases Legais:</strong> Consentimento, legítimo interesse, execução de contrato, etc.</li>
+                      <li><strong>Princípios:</strong> Finalidade, adequação, necessidade, livre acesso e segurança.</li>
+                      <li><strong>Segurança:</strong> Exige salvaguardas técnicas e administrativas para proteger PII contra acessos não autorizados.</li>
+                    </ul>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* Seção 2: Matriz de Requisitos SD v4.1 */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Database className="h-5 w-5 text-vivo" />
+                2. Matriz Interativa de Requisitos (Base SD v4.1)
+              </h3>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                    <div>
+                      <CardTitle className="text-base font-bold">Matriz de Requisitos ({securityRequirements.length} controles)</CardTitle>
+                      <CardDescription>Consulte os critérios de arquitetura segura exigidos na corporação</CardDescription>
+                    </div>
+                    {/* Campo de Busca */}
+                    <div className="relative w-full sm:w-80">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="text"
+                        placeholder="Buscar requisito, ID ou tag..."
+                        value={searchReq}
+                        onChange={(e) => setSearchReq(e.target.value)}
+                        className="pl-9 text-xs h-9"
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto border border-gray-150 rounded-lg max-h-[500px] overflow-y-auto">
+                    <table className="w-full text-sm text-left text-gray-500 font-sans">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold sticky top-0 bg-white border-b border-gray-250 z-10">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 w-1/6">ID</th>
+                          <th scope="col" className="px-4 py-3 w-1/4">Controle</th>
+                          <th scope="col" className="px-4 py-3 w-1/4">Componente</th>
+                          <th scope="col" className="px-4 py-3 w-1/6">Criticidade</th>
+                          <th scope="col" className="px-4 py-3 text-right w-1/12">Detalhes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {securityRequirements
+                          .filter((req: any) => {
+                            const query = searchReq.toLowerCase();
+                            return (
+                              (req.id || "").toLowerCase().includes(query) ||
+                              (req.controle || "").toLowerCase().includes(query) ||
+                              (req.componente || "").toLowerCase().includes(query) ||
+                              (req.detalhamento || "").toLowerCase().includes(query) ||
+                              (req.riscos || "").toLowerCase().includes(query) ||
+                              (req.strideLM || "").toLowerCase().includes(query) ||
+                              (req.owasp || "").toLowerCase().includes(query)
+                            );
+                          })
+                          .map((req: any) => {
+                            const isExpanded = expandedReq === req.id;
+                            const crit = (req.criticidade || "").toLowerCase();
+                            const badgeColor =
+                              crit.includes("crítico") || crit.includes("critico")
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : crit.includes("alto")
+                                ? "bg-orange-50 text-orange-700 border-orange-200"
+                                : crit.includes("moderado")
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200";
+
+                            return (
+                              <Fragment key={req.id}>
+                                <tr className="bg-white hover:bg-gray-50 transition-colors">
+                                  <td className="px-4 py-3.5 font-mono text-xs font-bold text-gray-900">{req.id}</td>
+                                  <td className="px-4 py-3.5 text-xs text-gray-800 font-semibold">{req.controle}</td>
+                                  <td className="px-4 py-3.5 text-xs text-gray-600">{req.componente}</td>
+                                  <td className="px-4 py-3.5">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}`}>
+                                      {req.criticidade}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3.5 text-right">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => setExpandedReq(isExpanded ? null : req.id)}
+                                    >
+                                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    </Button>
+                                  </td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr className="bg-gray-50/50">
+                                    <td colSpan={5} className="px-6 py-4 border-t border-gray-150">
+                                      <div className="space-y-3.5 text-xs">
+                                        <div>
+                                          <span className="font-bold text-gray-800 block">Detalhamento Técnico</span>
+                                          <p className="text-gray-600 mt-1 leading-relaxed">{req.detalhamento}</p>
+                                        </div>
+                                        {req.riscos && (
+                                          <div>
+                                            <span className="font-bold text-gray-800 block">Riscos Associados</span>
+                                            <p className="text-gray-600 mt-0.5">{req.riscos}</p>
+                                          </div>
+                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                          <div>
+                                            <span className="font-bold text-gray-800 block">Como Testar (Validação)</span>
+                                            <p className="text-gray-600 mt-0.5 leading-relaxed">{req.comoTestar || "Não disponível"}</p>
+                                          </div>
+                                          <div>
+                                            <span className="font-bold text-gray-800 block">Evidência Esperada</span>
+                                            <p className="text-gray-600 mt-0.5 leading-relaxed">{req.evidencia || "Não disponível"}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 pt-2">
+                                          {req.strideLM && (
+                                            <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-semibold">
+                                              STRIDE: {req.strideLM}
+                                            </span>
+                                          )}
+                                          {req.owasp && (
+                                            <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 text-[10px] font-semibold">
+                                              OWASP: {req.owasp}
+                                            </span>
+                                          )}
+                                          {req.categoria && (
+                                            <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-semibold">
+                                              Categoria: {req.categoria}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
                 </CardContent>
               </Card>
             </div>

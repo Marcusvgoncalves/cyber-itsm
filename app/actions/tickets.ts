@@ -1,27 +1,20 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getAuthService } from "@/lib/auth/authService";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { notifyTicketCreated, notifyTicketUpdated } from "@/lib/email/notifications";
+import { normalizePriority, isAllowedPriority, buildTicketChanges } from "@/lib/domain/ticketRules";
 import type { Ticket, TicketStatus, User, AuditLog } from "@/lib/types";
-
-const VALID_PRIORITIES = ['baixa', 'media', 'alta', 'critica'];
 
 export async function getTickets(): Promise<Ticket[]> {
   const supabase = await createClient();
   
-  // Get current user to filter by permissions
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  // Valida a sessão pelo serviço de autenticação (Adapter).
+  if (!(await getAuthService().verifySession())) return [];
 
-  // Get user profile for role
-  const { data: profile } = await supabase
-    .from('users_profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  const isAdminOrAnalyst = profile?.role === 'admin' || profile?.role === 'analista';
+  const isAdminOrAnalyst = await getAuthService().checkRole(['admin', 'analista']);
 
   let query = supabase
     .from('tickets')
@@ -32,9 +25,12 @@ export async function getTickets(): Promise<Ticket[]> {
     `)
     .order('created_at', { ascending: false });
 
-  // If not admin/analyst, only show tickets they created or are assigned to
+  // Se não for admin/analista, exibe apenas chamados criados ou atribuídos ao usuário.
   if (!isAdminOrAnalyst) {
-    query = query.or(`reporter_id.eq.${user.id},assignee_id.eq.${user.id}`);
+    const context = await getAuthService().getUser();
+    if (!context) return [];
+    const currentUserId = context.session.id;
+    query = query.or(`reporter_id.eq.${currentUserId},assignee_id.eq.${currentUserId}`);
   }
 
   const { data, error } = await query;
@@ -74,7 +70,7 @@ export async function createTicket(formData: Omit<Ticket, 'id' | 'created_at' | 
       title: formData.title,
       description: formData.description,
       status: formData.status,
-      priority: VALID_PRIORITIES.includes(formData.priority) ? formData.priority : 'media',
+      priority: normalizePriority(formData.priority),
       framework_origem: formData.framework_origem,
       dominio_framework: formData.dominio_framework,
       assignee_id: formData.assignee_id,
@@ -91,6 +87,9 @@ export async function createTicket(formData: Omit<Ticket, 'id' | 'created_at' | 
   
   if (error) throw new Error(error.message);
   
+  // Notificação assíncrona (fire-and-forget) — não bloqueia a resposta.
+  notifyTicketCreated(data);
+
   revalidatePath('/dashboard/kanban');
   return data;
 }
@@ -99,9 +98,16 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   const supabase = await createClient();
 
   const sanitized: Record<string, unknown> = { ...updates };
-  if (updates.priority !== undefined && !VALID_PRIORITIES.includes(updates.priority)) {
+  if (updates.priority !== undefined && !isAllowedPriority(updates.priority)) {
     delete sanitized.priority;
   }
+
+  // Captura o estado anterior para compor a lista de alterações da notificação.
+  const { data: previous } = await supabase
+    .from('tickets')
+    .select('title, status, priority, assignee_id')
+    .eq('id', id)
+    .single();
 
   const { data, error } = await supabase
     .from('tickets')
@@ -116,6 +122,27 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   
   if (error) throw new Error(error.message);
   
+  // Notificação assíncrona (fire-and-forget) — não bloqueia a resposta.
+  if (previous) {
+    const changes = buildTicketChanges(
+      {
+        status: previous.status,
+        priority: previous.priority,
+        assigneeId: previous.assignee_id,
+      },
+      {
+        status: data.status,
+        priority: data.priority,
+        assigneeId: data.assignee_id,
+        assigneeName: data.assignee?.full_name ?? data.assignee?.email ?? null,
+      }
+    );
+
+    if (changes.length > 0) {
+      notifyTicketUpdated(data, changes);
+    }
+  }
+
   revalidatePath('/dashboard/kanban');
   return data;
 }
@@ -169,19 +196,8 @@ export async function getUsers() {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-  
-  const { data, error } = await supabase
-    .from('users_profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-  
-  if (error) return null;
-  return data;
+  const context = await getAuthService().getUser();
+  return context?.user ?? null;
 }
 
 export async function getAuditLogs(limit = 100): Promise<AuditLog[]> {

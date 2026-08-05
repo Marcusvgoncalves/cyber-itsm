@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { createClient } from "@/utils/supabase/client"
 import { Loader2, AlertCircle, Mail, Lock, Eye, EyeOff, ShieldCheck, KeyRound, ArrowLeft } from "lucide-react"
-import { initiateMfa, confirmMfaSetup, verifyMfa, requestPasswordReset } from "@/app/actions/auth"
+import { signInWithCredentials, initiateMfa, confirmMfaSetup, verifyMfa, requestPasswordReset, getCurrentUserProfile } from "@/app/actions/auth"
 
 type LoginStep = 'CREDENTIALS' | 'MFA_ONBOARDING' | 'MFA_VERIFICATION';
 
@@ -45,36 +44,19 @@ export function LoginForm() {
       ? rawInput.replace(/@(telefonica\.com|vivo\.com\.br|.*)$/, '@cyberitsm.local')
       : `${rawInput}@cyberitsm.local`
 
-    // 1. Authenticate with Supabase Auth
-    const supabase = createClient()
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: formattedEmail,
-      password,
-    })
+    // 1. Authenticate via the auth service (Adapter — supabase hoje, IdP amanhã)
+    const { error: signInError } = await signInWithCredentials(formattedEmail, password)
 
     if (signInError) {
-      setError(signInError.message === 'Invalid login credentials' 
-        ? 'Credenciais inválidas. Verifique seu e-mail e senha.' 
-        : signInError.message)
+      setError(signInError)
       setIsLoading(false)
       return
     }
 
-    const user = signInData.user
-    if (!user) {
-      setError("Usuário não encontrado.")
-      setIsLoading(false)
-      return
-    }
+    // 2. Load the security profile (MFA state) via the auth service
+    const profile = await getCurrentUserProfile()
 
-    // 2. Fetch User Profile
-    const { data: profile, error: profileError } = await supabase
-      .from('users_profiles')
-      .select('mfa_setup_complete, mfa_secret')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile) {
+    if (!profile) {
       setError("Erro ao carregar perfil de segurança.")
       setIsLoading(false)
       return
