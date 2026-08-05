@@ -1,0 +1,113 @@
+# =============================================================================
+#  Gitleaks Custom Config — CyberITSM SPN
+# =============================================================================
+#  Configuração de detecção de segredos para o Gitleaks.
+#  Complementa a base de regras padrão (que já detecta AWS, GitHub PATs,
+#  chaves privadas etc.) com regras específicas para o stack deste projeto:
+#   - Supabase: chaves publicáveis (sb_publishable_*) e service role (sb_secret_*)
+#   - Google Gemini: chaves de API do estilo AQ.* (Google Cloud API keys)
+#  Arquivo referenciado no workflow via GITLEAKS_CONFIG.
+# =============================================================================
+
+title = "CyberITSM SPN gitleaks config"
+
+# Define os algoritmos para permitir o Gitleaks ler arquivos criptografados.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Supabase — anon / publishable key
+# Novas chaves do Supabase usam o prefixo `sb_publishable_` seguido de base64url.
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "supabase-publishable-key"
+description = "Supabase publishable (anon) key"
+regex = '''sb_publishable_[A-Za-z0-9_\-]{20,}'''
+secretGroup = 0
+entropy = 3.0
+keywords = ["sb_publishable_"]
+tags = ["supabase", "api-key", "security"]
+
+# ---------------------------------------------------------------------------
+# Supabase — service role / secret key (CRÍTICO: dá acesso administrativo total)
+# Antigas chaves começavam com `eyJhbGciOi` (JWT com role service_role).
+# Novas chaves usam `sb_secret_` seguido de base64url.
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "supabase-service-role-key"
+description = "Supabase service role secret key"
+regex = '''sb_secret_[A-Za-z0-9_\-]{20,}'''
+secretGroup = 0
+entropy = 3.0
+keywords = ["sb_secret_"]
+tags = ["supabase", "service-role", "secret", "critical"]
+
+[[rules]]
+id = "supabase-jwt-service-role"
+description = "Supabase JWT with service_role claim"
+regex = '''eyJhbGciOi[A-Za-z0-9_\-]+\.eyJ[A-Za-z0-9_\-]*service_role[A-Za-z0-9_\-\.]*'''
+secretGroup = 0
+keywords = ["service_role", "supabase"]
+tags = ["supabase", "jwt", "service-role", "critical"]
+
+# ---------------------------------------------------------------------------
+# Google Gemini / Google Cloud API Key
+# Novas chaves de API do Gemini são geradas com prefixo `AQ` (URL-safe base64).
+# Também cobre o formato antigo `AIza...` (39 caracteres).
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "google-gemini-api-key"
+description = "Google Gemini / Google Cloud API key (new format)"
+regex = '''AQ[A-Za-z0-9_\-]{35,}'''
+secretGroup = 0
+entropy = 3.5
+keywords = ["AQ"]
+tags = ["gemini", "google", "api-key", "ai", "security"]
+
+[[rules]]
+id = "google-api-key-legacy"
+description = "Google Cloud API key (legacy AIza format)"
+regex = '''AIza[0-9A-Za-z_\-]{35}'''
+secretGroup = 0
+keywords = ["AIza"]
+tags = ["google", "api-key", "gcp"]
+
+# ---------------------------------------------------------------------------
+# Variáveis de ambiente com valores REAIS (não placeholders)
+# Ex.: NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co (domínio real de projeto)
+# ---------------------------------------------------------------------------
+[[rules]]
+id = "supabase-project-url"
+description = "Supabase project URL (real hostname)"
+regex = '''https://[a-z0-9]{20,}\.supabase\.co'''
+secretGroup = 0
+keywords = ["supabase.co"]
+tags = ["supabase", "url", "project"]
+
+# ---------------------------------------------------------------------------
+# Arquivos que devem ser IGNORADOS (não são segredos)
+# ---------------------------------------------------------------------------
+[[allowlist]]
+description = "Arquivos de exemplo e documentação"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)README\.md$''',
+  '''(^|/)docs/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)\.git/''',
+]
+
+# URLs de exemplo/documentação que podem conter substrings parecidas com segredos
+[[allowlist]]
+description = "Valores placeholders e exemplos em documentação/código"
+regexes = [
+  '''your_supabase_project_url''',
+  '''your_supabase_anon_key''',
+  '''your_service_role_key''',
+  '''your_gemini_key''',
+  '''sb_secret_xxx''',
+  '''placeholder-''',
+  '''<your.*>''',
+  '''example\.com''',
+]

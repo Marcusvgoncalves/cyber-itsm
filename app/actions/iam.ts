@@ -254,12 +254,12 @@ export async function createLocalUser(formData: {
       : `${rawEmail}@cyberitsm.local`;
 
     // 1. Cria o usuário real em auth.users via Admin API (bypass de RLS).
-    //    Gera uma senha temporária forte e força troca no primeiro login + MFA.
-    const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + 'Aa1!';
+    //    Define a senha padrão de primeiro acesso.
+    const defaultPassword = 'CyberITSM@2026!Password';
 
     const { data: authUser, error: createError } = await admin.auth.admin.createUser({
       email: targetEmail,
-      password: tempPassword,
+      password: defaultPassword,
       email_confirm: true,
       user_metadata: {
         full_name: formData.full_name,
@@ -313,8 +313,8 @@ export async function createLocalUser(formData: {
 
     revalidatePath('/dashboard');
     const baseUser = (upserted as User) || { id: userId, email: targetEmail, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
-    console.warn(`[IAM] Usuário local criado: ${targetEmail} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
-    return { ...baseUser, temp_password: tempPassword };
+    console.warn(`[IAM] Usuário local criado: ${targetEmail} (id=${userId}). Senha padrão definida.`);
+    return { ...baseUser, temp_password: defaultPassword };
   } catch (err) {
     // Log full error server-side and rethrow a sanitized Error (plain string) to avoid
     // Next/React serialization issues that produce minified errors in production.

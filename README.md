@@ -171,6 +171,10 @@ O projeto está pronto para deploy na Vercel (funcionamento online).
 
 > Detalhes técnicos completos (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
 
+### 🚦 Segurança no CI/CD (Deploy Gate)
+
+Todo commit/PR na `main` dispara o pipeline de segurança [`Enterprise Security Scan`](.github/workflows/enterprise-security.yml), que **bloqueia o deploy na Vercel** se encontrar vulnerabilidades (segredos, CVEs High/Critical, falhas OWASP/SAST/DAST). Veja as regras customizadas de vazamento em [`.gitleaks.toml`](.gitleaks.toml) e o passo a passo de configuração do gate em [`docs/deploy-gate.md`](docs/deploy-gate.md).
+
 ---
 
 ## 🇺🇸 English
