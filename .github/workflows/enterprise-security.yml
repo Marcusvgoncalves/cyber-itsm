@@ -1,0 +1,248 @@
+# =============================================================================
+#  ENTERPRISE SECURITY PIPELINE — CyberITSM SPN (Next.js + Supabase)
+# =============================================================================
+#  Pipeline de segurança "definitivo" que roda em TODO push/PR para `main`
+#  antes do deploy na Vercel, cobrindo as principais classes de risco da
+#  OWASP Top 10, CWEs e vazamento de segredos.
+#
+#  Estrutura (4 jobs totalmente PARALELOS, sem `needs` — velocidade máxima):
+#    1. secrets  -> Gitleaks   (vazamento de tokens/chaves no histórico git)
+#    2. sast     -> CodeQL + Semgrep (análise estática profunda + regras OWASP)
+#    3. sca      -> Trivy      (vulnerabilidades de dependências + IaC)
+#    4. dast     -> OWASP ZAP Baseline (varredura dinâmica do app em execução)
+#
+#  Modelo de segurança aplicado: "shift-left" + múltiplas camadas em paralelo,
+#  garantindo que um vazamento, uma falha de código ou uma CVE de dependência
+#  sejam detectados ANTES de qualquer deploy.
+# =============================================================================
+
+name: Enterprise Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Permissões mínimas do token GITHUB_TOKEN. `security-events: write` é
+# obrigatório para publicar SARIF (CodeQL/Trivy). `issues: write` é usado
+# pelo Gitleaks para abrir issues de segredos encontrados.
+permissions:
+  contents: read
+  security-events: write
+  issues: write
+  pull-requests: write
+
+# Cancela execuções obsoletas do mesmo branch (economiza minutos e evita
+# corrida entre pushes consecutivos).
+concurrency:
+  group: enterprise-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # =========================================================================
+  # 1. SECRET SCANNING — Gitleaks
+  # =========================================================================
+  #  Varre TODO o histórico de commits (não apenas o último push) em busca de
+  #  credenciais expostas: senhas, tokens do Supabase (sb_publishable_/sb_secret_),
+  #  API Keys do Gemini (AQ.*), AWS, GitHub PATs, chaves privadas, etc.
+  #  Mitigação OWASP: A07 Identification & Authentication Failures + CWE-798.
+  # =========================================================================
+  secrets:
+    name: Secret Scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (completo, incluindo histórico)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # histórico completo para o Gitleaks varrer todos os commits
+
+      # Detecta segredos em todo o histórico do repositório.
+      # Por padrão gera falha (exit-code 1) ao encontrar segredos e publica o
+      # relatório SARIF + abre issues automaticamente (exige issues: write).
+      - name: Run Gitleaks (full history scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # opcional: licença enterprise
+          # GITLEAKS_CONFIG: .gitleaks.toml   # (opcional) configuração customizada
+
+      # Falha explícita do job se qualquer segredo for encontrado.
+      # (o gitleaks-action já falha por padrão; esta checagem é uma garantia extra)
+      - name: Fail if secrets were leaked
+        if: ${{ failure() }}
+        run: echo "::error::SEGREDO DETECTADO NO REPOSITÓRIO! Revogue a credencial imediatamente e remova o histórico." && exit 1
+
+  # =========================================================================
+  # 2. ADVANCED SAST — CodeQL + Semgrep
+  # =========================================================================
+  #  CodeQL: análise profunda de fluxo de dados / taint do GitHub. Detecta XSS,
+  #          SQL Injection, path traversal, SSRF, code injection (CWE-79/89/22/918).
+  #  Semgrep: regras de engine da Semgrep (p/owasp-top-ten + p/typescript),
+  #          excelente para lógica de negócio e padrões anti-seguros em React/Next.js.
+  #  Mitigação OWASP: A01/A03/A02/A05 (injecão, logging, falhas de autenticação).
+  # =========================================================================
+  sast:
+    name: Advanced SAST (CodeQL + Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ------------------------- CodeQL (parte A) -------------------------
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # queries: security-and-quality    # (opcional) conjunto ampliado de queries
+          # config-file: ./.github/codeql.yml # (opcional) config customizada
+
+      # Autobuild detecta a build do projeto automaticamente.
+      # Para Next.js/TypeScript, faz a extração da árvore de dados para análise.
+      - name: Autobuild (CodeQL)
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Analyze (CodeQL)
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+      # ------------------------- Semgrep (parte B) -------------------------
+      # Executa a engine da Semgrep com as regras OWASP Top 10 + específicas de
+      # TypeScript/React. `severity: WARNING` garante que também sejam reportados
+      # achados de severidade média (não apenas errors).
+      - name: Run Semgrep (OWASP Top 10 + TypeScript)
+        uses: returntocorp/semgrep-action@v3
+        with:
+          config: >-
+            p/owasp-top-ten
+            p/typescript
+          severity: WARNING
+          # publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}  # (opcional) métricas no Semgrep Cloud
+          auditOn: push
+
+  # =========================================================================
+  # 3. SCA & IaC — Trivy
+  # =========================================================================
+  #  Varre o sistema de arquivos do repositório inteiro (scan-type: fs):
+  #   - Dependency vulnerabilities (CVEs) em package-lock.json / package.json
+  #   - Falhas de configuração de IaC/segredos/misconfigurações
+  #  Filtra por severidade HIGH,CRITICAL e BLOQUEIA o build (exit-code 1) se
+  #  qualquer uma for encontrada. Publica o resultado em SARIF.
+  #  Mitigação OWASP: A06 (Vulnerable and Outdated Components) + CWE-937/1035.
+  # =========================================================================
+  sca:
+    name: SCA & IaC (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trivy scan (filesystem + dependencies)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: 'fs'                 # scan no filesystem do repositório
+          scan-ref: '.'                    # todo o repositório
+          severity: 'HIGH,CRITICAL'        # somente severidades críticas/high bloqueiam
+          format: 'sarif'                  # gera relatório SARIF p/ upload no GitHub
+          output: 'trivy-results.sarif'
+          exit-code: '1'                   # BLOQUEIA o job se achar HIGH/CRITICAL
+          ignore-unfixed: true             # ignora CVEs sem correção disponível (reduz ruído)
+          # hide-progress: false           # (opcional) mostra progresso do scan
+
+      # Publica o SARIF no GitHub Security tab (requer security-events: write).
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()                       # roda mesmo se o scan falhar (exit 1)
+
+  # =========================================================================
+  # 4. DAST — OWASP ZAP Baseline (teste dinâmico de "fora para dentro")
+  # =========================================================================
+  #  Compila e sobe o Next.js real em um servidor local e dispara a varredura
+  #  dinâmica do OWASP ZAP contra ele, detectando ausência de headers de
+  #  segurança, cookies inseguros, XSS refletido e outras falhas observáveis
+  #  no runtime. Mitigação OWASP: A05/A03/A04 (misconfiguration, XSS, design).
+  # =========================================================================
+  dast:
+    name: DAST (OWASP ZAP Baseline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Envs mínimas para o app subir em CI (valores de placeholder NÃO são
+      # secretos reais — servem apenas para o servidor responder na varredura).
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role
+      GOOGLE_GENERATIVE_AI_API_KEY: placeholder-gemini-key
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------- Step A: build -------------------------
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js (production)
+        run: npm run build
+
+      # ------------------------- Step B: servidor em background -------------------------
+      - name: Start Next.js server (background)
+        run: |
+          npm run start &
+          # Aguarda até o servidor responder em localhost:3000 (máx. 120s)
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Servidor online na tentativa $i"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Servidor Next.js não respondeu a tempo."
+          exit 1
+
+      # ------------------------- Step C: varredura dinâmica ZAP -------------------------
+      # ZAP Baseline: varredura rápida e automatizada (sem fuzzing profundo),
+      # ideal para pipeline CI. Alvo: http://localhost:3000 (app em execução).
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:3000'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          rules_file_name: '.zap/rules.tsv'   # (opcional) tolera falsos positivos conhecidos
+          # cmd_options: '-J report.json'      # (opcional) flags extras do ZAP CLI
+          # allow_issue_writing: false         # (opcional) não abre issues automáticas
+          # fail_action: true                  # falha o job quando há achados (default)
+
+      # Publica os artefatos (relatórios HTML/JSON/MD) do ZAP para inspeção.
+      - name: Upload ZAP reports as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-reports
+          path: |
+            report.html
+            report.json
+            report.md
+          if-no-files-found: ignore
