@@ -423,3 +423,11 @@ npx tsc --noEmit  # strict type check
 2. Connect the repository in Vercel (deploy on `main` push) or `vercel --prod`.
 3. Set the 4 environment variables in **Settings → Environment Variables**.
 4. Security: never expose `SUPABASE_SERVICE_ROLE_KEY` on the client; `proxy.ts` enforces MFA before the dashboard.
+
+---
+
+### 8. Mitigação de Vulnerabilidades / Vulnerability Remediation
+
+#### 8.1 Remoção do Pacote `xlsx` (Agosto 2026)
+- **Motivo**: O pacote `xlsx` continha falhas de segurança de alta gravidade (ReDoS e poluição de protótipo) detectadas em scans SCA.
+- **Resolução**: Removido por obsolescência, uma vez que a leitura do Excel foi substituída pela base local estável em JSON (`requisitos-sd.json`). A base de dependências do repositório foi zerada de vulnerabilidades.

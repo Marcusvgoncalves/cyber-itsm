@@ -175,3 +175,13 @@ gitleaks detect --config .gitleaks.toml --source .
 # Scan the full commit history
 gitleaks detect --config .gitleaks.toml --source . --log-opts="--all"
 ```
+
+---
+
+## 🇧🇷 Resolução de Incidentes / 🇺🇸 Vulnerability Mitigation
+
+### [2026-08-05] Remoção do Pacote `xlsx` (High Severity CVE-2024)
+- **Vulnerabilidade**: O pacote `xlsx` (SheetJS) apresentava vulnerabilidades críticas e altas de poluição de protótipo (Prototype Pollution - GHSA-4r6h-8v6p-xvw6) e negação de serviço por expressões regulares (ReDoS - GHSA-5pgg-2g8v-p4x9), bloqueando a esteira SCA (Trivy/npm audit).
+- **Ação**: Como o arquivo `BaseRequisitosSD_v4.1.xlsx` e o script de carga `parse_excel.js` foram excluídos da plataforma em favor da base estática imutável JSON, a dependência `xlsx` tornou-se obsoleta.
+- **Resultado**: O pacote foi totalmente removido (`npm uninstall xlsx`), reduzindo a zero o número de vulnerabilidades de dependências no pipeline SecOps.
+

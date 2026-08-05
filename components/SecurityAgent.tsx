@@ -91,6 +91,12 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
     await sendMessage({ text });
   };
 
+  const handleQuickGuide = async () => {
+    if (isLoading) return;
+    setInputValue("");
+    await sendMessage({ text: "Como usar o ITSM?" });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -190,6 +196,17 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
 
       {/* Entrada */}
       <form onSubmit={handleSubmit} className="border-t border-gray-200 bg-white p-3">
+        {/* Atalho rápido de guia de uso */}
+        <button
+          type="button"
+          onClick={handleQuickGuide}
+          disabled={isLoading}
+          className="mb-2 flex w-full items-center gap-2 rounded-full border border-primary/20 bg-primary-light px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+        >
+          <span className="text-sm leading-none">💡</span>
+          Como usar o ITSM?
+        </button>
+
         <div className="flex items-center gap-2">
           <Input
             ref={inputRef}
