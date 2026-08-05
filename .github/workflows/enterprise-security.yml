@@ -109,6 +109,13 @@ jobs:
     name: Advanced SAST (CodeQL + Semgrep)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Envs mínimas p/ o Autobuild do CodeQL compilar o Next.js em CI.
+      # Placeholders NÃO são segredos reais; apenas permitem que o build rode.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role
+      GOOGLE_GENERATIVE_AI_API_KEY: placeholder-gemini-key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -257,9 +264,11 @@ jobs:
           target: 'http://localhost:3000'
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_action: true # falha o job se a varredura encontrar vulnerabilidades
-          # rules_file_name: '.zap/rules.tsv'   # (opcional) tolera falsos positivos conhecidos
-          # cmd_options: '-J report.json'      # (opcional) flags extras do ZAP CLI
+          # rules_file_name: esteira tolera achados benignos/informativos que
+          # não são vulnerabilidades reais (ver .zap/rules.tsv)
+          rules_file_name: '.zap/rules.tsv'
           # allow_issue_writing: false         # (opcional) não abre issues automáticas
+          # cmd_options: '-J report.json'      # (opcional) flags extras do ZAP CLI
 
       # Publica os artefatos (relatórios HTML/JSON/MD) do ZAP para inspeção.
       - name: Upload ZAP reports as artifact

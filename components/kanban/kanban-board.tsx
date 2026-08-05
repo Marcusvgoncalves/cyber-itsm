@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Status, Ticket, User } from "@/lib/types";
 import { KanbanColumn } from "./kanban-column";
@@ -15,9 +15,11 @@ interface KanbanBoardProps {
   initialTickets: Ticket[];
   currentUser: User;
   onTicketSelect?: (ticket: Ticket) => void;
+  /** Sinal externo (monótono) que abre o modal "Novo Chamado" quando muda. */
+  openCreateSignal?: number;
 }
 
-export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTicketSelect }: KanbanBoardProps) {
+export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTicketSelect, openCreateSignal = 0 }: KanbanBoardProps) {
   const [statuses, setStatuses] = useState<Status[]>(initialStatuses);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +61,16 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     setSelectedTicket(null);
     setModalMode('create');
   }, []);
+
+  // Abre o modal de criação quando o sinal externo (ex.: botão "Novo Chamado"
+  // do Copiloto) é incrementado.
+  const lastHandledSignal = useRef(0);
+  useEffect(() => {
+    if (openCreateSignal > lastHandledSignal.current && statuses.length > 0) {
+      lastHandledSignal.current = openCreateSignal;
+      handleAddTicket(statuses[0].id);
+    }
+  }, [openCreateSignal, statuses, handleAddTicket]);
 
   const handleTicketCreated = useCallback(async (ticketData: Omit<Ticket, 'id' | 'created_at' | 'updated_at' | 'closed_at' | 'assignee' | 'reporter' | 'comments'>) => {
     startTransition(async () => {

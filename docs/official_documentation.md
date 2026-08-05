@@ -431,3 +431,5 @@ npx tsc --noEmit  # strict type check
 #### 8.1 Remoção do Pacote `xlsx` (Agosto 2026)
 - **Motivo**: O pacote `xlsx` continha falhas de segurança de alta gravidade (ReDoS e poluição de protótipo) detectadas em scans SCA.
 - **Resolução**: Removido por obsolescência, uma vez que a leitura do Excel foi substituída pela base local estável em JSON (`requisitos-sd.json`). A base de dependências do repositório foi zerada de vulnerabilidades.
+
+- **Relatório Completo**: Os achados e mitigações detalhados estão disponíveis no [Relatório de Varredura Profunda (SecOps)](security-scan-results.md).

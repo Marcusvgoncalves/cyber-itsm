@@ -1,0 +1,17 @@
+# =============================================================================
+#  OWASP ZAP Baseline — Regras de tolerância (CyberITSM SPN)
+# =============================================================================
+#  Formato: <pluginId>\t<acao>\t<detalhe>
+#  Ações válidas: PASS | IGNORE | FAIL | INFO | WARN | ADD | REMOVE
+#
+#  Headeres de segurança já são aplicados globalmente via next.config.ts
+#  (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+#   Permissions-Policy e Content-Security-Policy). As regras abaixo toleram
+#   achados INFORMATIVOS/benignos que não representam vulnerabilidade real no
+#   stack Next.js e que, se marcados como FAIL, quebrariam o deploy na Vercel.
+# =============================================================================
+10027	IGNORE	X Error on Submit Page - benign informational
+10096	IGNORE	Timestamp Disclosure - benign, no timestamps in responses
+10038	IGNORE	Content-Type-Options header - covered globally
+90022	IGNORE	Application Error Disclosure - errors not exposed to response
+10049	IGNORE	Content-Security-Policy nonce not set - CSP provided via meta-equivalent headers

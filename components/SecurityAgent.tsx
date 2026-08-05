@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useRef, useEffect, useMemo, useState } from "react";
-import { Bot, X, Send, User as UserIcon, ShieldAlert, Loader2 } from "lucide-react";
+import { Bot, X, Send, User as UserIcon, ShieldAlert, Loader2, ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,72 @@ export interface TicketData {
   tags?: string[];
 }
 
+/** Ação de navegação disparada pelos botões do chat. */
+export type AgentAction = "dashboard" | "new-ticket";
+
 interface SecurityAgentProps {
   ticketData: TicketData;
   isOpen: boolean;
   onClose: () => void;
+  /** Callback para o botão de ação navegar para outra área do painel. */
+  onAction?: (action: AgentAction) => void;
 }
 
 const WELCOME_MESSAGE =
-  "Sou o Agente de Arquitetura de Cibersegurança. Faça perguntas estritamente sobre o contexto deste chamado.";
+  "Sou o Agente de Arquitetura de Cibersegurança. Faça perguntas estritamente sobre o contexto deste chamado. Também posso ser seu guia: pergunte 'como abro um chamado?'.";
+
+const GUIDE_KEYWORDS = [
+  "passo a passo",
+  "como usar",
+  "como abro",
+  "como crio",
+  "como faço",
+  "como acesso",
+  "novo chamado",
+  "dashboard",
+  "dashboards",
+  "abrir um chamado",
+  "guia",
+  "sugest",
+  "onde vejo",
+  "como utilizo",
+];
+
+/** Detecta se a resposta do assistente é um guia de uso da plataforma. */
+function isGuideReply(text: string): boolean {
+  const lower = text.toLowerCase();
+  return GUIDE_KEYWORDS.some((k) => lower.includes(k));
+}
+
+/**
+ * Extrai a seção "Sugestões:" de uma resposta no modo guia.
+ * Formato esperado (instruído no system prompt):
+ *   Sugestões:
+ *   # Pergunta de acompanhamento 1
+ *   # Pergunta de acompanhamento 2
+ */
+function extractFollowUps(text: string): string[] {
+  const lines = text.split("\n");
+  const followUps: string[] = [];
+  let inSuggestions = false;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (/^Sugest[oõ]es:/i.test(line)) {
+      inSuggestions = true;
+      continue;
+    }
+    if (inSuggestions) {
+      if (line.startsWith("#") && line.length > 1) {
+        followUps.push(line.replace(/^#\s*/, "").trim());
+      } else if (line !== "") {
+        break;
+      }
+    }
+  }
+
+  return followUps;
+}
 
 /**
  * Extrai o texto de uma UIMessage (parts[0] type='text').
@@ -35,7 +93,7 @@ function getMessageText(message: { parts: Array<{ type: string; text?: string }>
   return textPart?.text ?? "";
 }
 
-export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProps) {
+export function SecurityAgent({ ticketData, isOpen, onClose, onAction }: SecurityAgentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -97,6 +155,16 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
     await sendMessage({ text: "Como usar o ITSM?" });
   };
 
+  const handleFollowUp = async (text: string) => {
+    if (isLoading) return;
+    await sendMessage({ text });
+  };
+
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastAssistantText = lastAssistant ? getMessageText(lastAssistant) : "";
+  const isGuideMode = lastAssistant ? isGuideReply(lastAssistantText) : false;
+  const followUps = lastAssistant ? extractFollowUps(lastAssistantText) : [];
+
   if (!isOpen) return null;
 
   return (
@@ -109,7 +177,7 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
           </div>
           <div>
             <h2 className="text-sm font-bold text-white">Agente de Cibersegurança</h2>
-            <p className="text-[10px] text-white/80">Extração estrita · Contexto do chamado</p>
+            <p className="text-[10px] text-white/80">Guia interativo · Contexto do chamado</p>
           </div>
         </div>
         <Button
@@ -141,41 +209,93 @@ export function SecurityAgent({ ticketData, isOpen, onClose }: SecurityAgentProp
             <p>{WELCOME_MESSAGE}</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
-            >
-              <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow-sm ${
-                  msg.role === "user"
-                    ? "bg-gray-200 text-gray-700"
-                    : "bg-primary text-white"
-                }`}
-              >
-                {msg.role === "user" ? (
-                  <UserIcon className="h-4 w-4" />
-                ) : (
-                  <Bot className="h-4 w-4" />
+          messages.map((msg, idx) => {
+            const isLastAssistant = idx === messages.length - 1 && msg.role === "assistant";
+            return (
+              <div key={msg.id}>
+                <div
+                  className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+                >
+                  <div
+                    className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full shadow-sm ${
+                      msg.role === "user"
+                        ? "bg-gray-200 text-gray-700"
+                        : "bg-primary text-white"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <UserIcon className="h-4 w-4" />
+                    ) : (
+                      <Bot className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div
+                    className={`flex max-w-[78%] flex-col ${
+                      msg.role === "user" ? "items-end" : "items-start"
+                    }`}
+                  >
+                    <div
+                      className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                        msg.role === "user"
+                          ? "rounded-tr-sm bg-primary text-white"
+                          : "rounded-tl-sm border border-gray-100 bg-white text-gray-800"
+                      }`}
+                    >
+                      {getMessageText(msg)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botões de ação + follow-ups do modo guia */}
+                {isLastAssistant && (isGuideMode || followUps.length > 0) && !isLoading && (
+                  <div className="ml-10 mt-3 space-y-2.5">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        onClick={() => onAction?.("new-ticket")}
+                        className="gap-1.5 rounded-full text-xs"
+                      >
+                        <PlusCircle className="h-3.5 w-3.5" />
+                        Novo Chamado
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAction?.("dashboard")}
+                        className="gap-1.5 rounded-full border-gray-300 text-xs"
+                      >
+                        <LayoutDashboard className="h-3.5 w-3.5" />
+                        Ir para Dashboards
+                      </Button>
+                    </div>
+
+                    {followUps.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                          Próximos passos:
+                        </p>
+                        {followUps.map((followUp) => (
+                          <button
+                            key={followUp}
+                            type="button"
+                            onClick={() => handleFollowUp(followUp)}
+                            disabled={isLoading}
+                            className="flex w-full items-center justify-between gap-2 rounded-full border border-primary/20 bg-primary-light px-3 py-1.5 text-left text-xs text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                          >
+                            <span className="line-clamp-2">{followUp}</span>
+                            <ArrowRight className="h-3.5 w-3.5 flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              <div
-                className={`flex max-w-[78%] flex-col ${
-                  msg.role === "user" ? "items-end" : "items-start"
-                }`}
-              >
-                <div
-                  className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
-                    msg.role === "user"
-                      ? "rounded-tr-sm bg-primary text-white"
-                      : "rounded-tl-sm border border-gray-100 bg-white text-gray-800"
-                  }`}
-                >
-                  {getMessageText(msg)}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
 
         {isLoading && (

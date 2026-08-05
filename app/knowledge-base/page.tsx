@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
+  Download,
   Layers,
   Play,
   Rocket,
@@ -26,6 +28,8 @@ import {
 interface FaqEntry {
   question: string;
   answer: string[];
+  /** Links internos reais (next/link) para as funcionalidades citadas. */
+  links?: { label: string; href: string }[];
 }
 
 interface FaqCategory {
@@ -52,6 +56,7 @@ const FAQ: FaqCategory[] = [
           "Informe o Framework de origem (ex.: NIST, CIS, ISO 27001) e o domínio aplicável.",
           "Clique em 'Criar' — o chamado aparece na coluna inicial do Kanban.",
         ],
+        links: [{ label: "Abrir Quadro Kanban", href: "/dashboard" }],
       },
       {
         question: "Como navego entre as principais áreas do painel?",
@@ -61,6 +66,7 @@ const FAQ: FaqCategory[] = [
           "Portal IAM/IGA: aprovações, provisionamento e gestão de identidade.",
           "Audit Logs: rastreabilidade das ações (somente administradores).",
         ],
+        links: [{ label: "Acessar o Painel", href: "/dashboard" }],
       },
     ],
   },
@@ -78,6 +84,7 @@ const FAQ: FaqCategory[] = [
           "Falhas críticas são reportadas e bloqueiam o deploy na Vercel.",
           "Somente após passar nas validações o código é publicado em produção.",
         ],
+        links: [{ label: "Ir para o Quadro Kanban", href: "/dashboard" }],
       },
       {
         question: "Como acompanho o status dos meus chamados?",
@@ -86,6 +93,7 @@ const FAQ: FaqCategory[] = [
           "Arraste o card do chamado entre as colunas para atualizar o status.",
           "Abert por equipe, os usuários veem apenas seus chamados; administradores/analistas veem todos.",
         ],
+        links: [{ label: "Acompanhar meus chamados", href: "/dashboard" }],
       },
     ],
   },
@@ -103,6 +111,7 @@ const FAQ: FaqCategory[] = [
           "Faça perguntas sobre o chamado e ele responde com base na base de requisitos.",
           "Também funciona como guia: pergunte 'como abro um chamado?' para ver o passo a passo.",
         ],
+        links: [{ label: "Abrir o Painel e conversar com o Copiloto", href: "/dashboard" }],
       },
       {
         question: "Sobre o que o Copiloto pode responder?",
@@ -163,6 +172,34 @@ export default function KnowledgeBasePage() {
         </div>
       </section>
 
+      {/* Destaque: Guia de Uso (PDF) */}
+      <section className="mx-auto -mt-6 max-w-5xl px-6">
+        <Card className="overflow-hidden border-0 bg-white shadow-lg ring-1 ring-primary/10">
+          <CardContent className="flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary-light text-primary">
+                <Download className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Guia de Uso da Plataforma</h3>
+                <p className="mt-0.5 max-w-md text-sm text-gray-500">
+                  Manual completo em PDF com todas as funcionalidades do CyberITSM
+                  SPN: chamados, identidade e esteira DevSecOps.
+                </p>
+              </div>
+            </div>
+            <a
+              href="/docs/guia-uso.pdf"
+              download
+              className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Download className="h-4 w-4" />
+              Baixar Guia de Uso (PDF)
+            </a>
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Categorias de FAQ */}
       <section className="mx-auto max-w-5xl px-6 py-12">
         <div className="mb-8 flex items-center gap-2">
@@ -199,6 +236,18 @@ export default function KnowledgeBasePage() {
                             </li>
                           ))}
                         </ul>
+                        {item.links && item.links.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {item.links.map((link) => (
+                              <Button asChild key={link.href} variant="outline" size="sm" className="gap-1.5 border-primary/30 text-primary hover:bg-primary-light">
+                                <Link href={link.href}>
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                  {link.label}
+                                </Link>
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}

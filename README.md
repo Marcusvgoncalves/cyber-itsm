@@ -374,4 +374,6 @@ The project is ready for Vercel deployment (online operation).
 
 - **Remoção de dependências inseguras (`xlsx` / SheetJS)**: O pacote `xlsx` apresentava vulnerabilidades graves de **Prototype Pollution** (GHSA-4r6h-8v6p-xvw6) e **ReDoS** (GHSA-5pgg-2g8v-p4x9), bloqueando scans de segurança (Trivy/npm audit). O pacote foi desinstalado e excluído do repositório por obsolescência, uma vez que a leitura do Excel foi inteiramente substituída pela base local estável em JSON (`requisitos-sd.json`).
 
-> Full technical details (components, RLS, RAG, integrations) in [`docs/official_documentation.md`](docs/official_documentation.md).
+> Detalhes técnicos da solução (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
+>
+> Resultados da última análise profunda de vulnerabilidades (SAST, SCA, Secrets) em [`docs/security-scan-results.md`](docs/security-scan-results.md).

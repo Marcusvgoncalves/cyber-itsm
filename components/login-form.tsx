@@ -207,7 +207,11 @@ export function LoginForm() {
                   className="pl-10 h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
                   required
                   disabled={isLoading}
-                  autoComplete="username"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
                 />
               </div>
             </div>
@@ -234,7 +238,11 @@ export function LoginForm() {
                   className="pl-10 pr-10 h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
                   required
                   disabled={isLoading}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
                 />
                 <button
                   type="button"
@@ -289,6 +297,12 @@ export function LoginForm() {
                 className="h-11 border-gray-300 focus:border-primary focus:ring-primary text-center font-bold tracking-widest text-lg"
                 required
                 disabled={isLoading}
+                inputMode="numeric"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
               />
             </div>
 
@@ -326,6 +340,12 @@ export function LoginForm() {
                 className="h-11 border-gray-300 focus:border-primary focus:ring-primary text-center font-bold tracking-widest text-lg"
                 required
                 disabled={isLoading}
+                inputMode="numeric"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
               />
             </div>
 
@@ -359,7 +379,11 @@ export function LoginForm() {
                   className="pl-10 h-10 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
                   required
                   disabled={isLoading}
-                  autoComplete="username"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
                 />
               </div>
               <Button type="submit" variant="outline" className="w-full border-gray-300 hover:bg-gray-50 text-gray-700" disabled={isLoading}>

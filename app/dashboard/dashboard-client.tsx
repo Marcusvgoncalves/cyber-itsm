@@ -1,24 +1,31 @@
 "use client";
 
-import { useState, useTransition, Fragment } from "react";
+import { useState, useTransition, Fragment, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
-import { SecurityAgent } from "@/components/SecurityAgent";
+import type { AgentAction } from "@/components/SecurityAgent";
 import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
-  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers
+  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers, Menu as MenuIcon
 } from "lucide-react";
 import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
 import securityRequirements from "../../requisitos-sd.json";
+
+// Lazy-load (next/dynamic) do Copiloto de IA — só baixa quando aberto.
+const SecurityAgent = dynamic(
+  () => import("@/components/SecurityAgent").then((mod) => mod.SecurityAgent),
+  { ssr: false }
+);
 
 interface DashboardClientProps {
   currentUser: User;
@@ -61,6 +68,24 @@ export function DashboardClient({
   // Security Agent state
   const [showAgent, setShowAgent] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  // Menu mobile (hamburger)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Sinal monótono para abrir o modal "Novo Chamado" a partir do agente.
+  const createSignal = useRef(0);
+  const [openCreateSignal, setOpenCreateSignal] = useState(0);
+
+  // Ações disparadas pelos botões do Copiloto.
+  const handleAgentAction = useCallback((action: AgentAction) => {
+    if (action === "dashboard") {
+      setActiveTab("kanban");
+      return;
+    }
+    if (action === "new-ticket") {
+      setActiveTab("kanban");
+      createSignal.current += 1;
+      setOpenCreateSignal(createSignal.current);
+    }
+  }, []);
 
   // Forms states
   const [newPassword, setNewPassword] = useState("");
@@ -292,6 +317,22 @@ export function DashboardClient({
 
   const isAdmin = currentUser.role === 'admin';
 
+  type TabId = 'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge';
+
+  // Itens de navegação (compartilhados entre menu desktop e mobile).
+  const navItems: { id: TabId; label: string }[] = [
+    { id: 'kanban', label: 'Quadro Kanban' },
+    { id: 'iam', label: 'Portal IAM / IGA' },
+    { id: 'knowledge', label: 'Base de Conhecimento' },
+    ...(isAdmin ? [{ id: 'audit' as TabId, label: 'Audit Logs' }, { id: 'architecture' as TabId, label: 'Arquitetura C4' }] : []),
+    { id: 'settings', label: 'Configurações' },
+  ];
+
+  const navigateTab = (id: TabId) => {
+    setActiveTab(id);
+    setMobileNavOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header */}
@@ -305,74 +346,32 @@ export function DashboardClient({
               </div>
               
               <nav className="hidden md:flex items-center gap-1">
-                <button
-                  onClick={() => setActiveTab('kanban')}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'kanban' 
-                      ? 'bg-primary-light text-primary' 
-                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                  }`}
-                >
-                  Quadro Kanban
-                </button>
-                <button
-                  onClick={() => setActiveTab('iam')}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'iam' 
-                      ? 'bg-primary-light text-primary' 
-                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                  }`}
-                >
-                  Portal IAM / IGA
-                </button>
-                <button
-                  onClick={() => setActiveTab('knowledge')}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'knowledge' 
-                      ? 'bg-primary-light text-primary' 
-                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                  }`}
-                >
-                  Base de Conhecimento
-                </button>
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => setActiveTab('audit')}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        activeTab === 'audit' 
-                          ? 'bg-primary-light text-primary' 
-                          : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                      }`}
-                    >
-                      Audit Logs
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('architecture')}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                        activeTab === 'architecture' 
-                          ? 'bg-primary-light text-primary' 
-                          : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                      }`}
-                    >
-                      Arquitetura C4
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === 'settings' 
-                      ? 'bg-primary-light text-primary' 
-                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                  }`}
-                >
-                  Configurações
-                </button>
+                {navItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => navigateTab(item.id)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === item.id 
+                        ? 'bg-primary-light text-primary' 
+                        : 'text-gray-600 hover:text-primary hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </nav>
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Hamburger (mobile) */}
+              <button
+                onClick={() => setMobileNavOpen((v) => !v)}
+                className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50"
+                aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
+                aria-expanded={mobileNavOpen}
+              >
+                <MenuIcon className="h-5 w-5" />
+              </button>
               <div className="flex flex-col items-end hidden sm:flex">
                 <span className="text-sm font-bold text-gray-900">{currentUser.full_name || currentUser.email}</span>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
@@ -390,6 +389,29 @@ export function DashboardClient({
         </div>
       </header>
 
+      {/* Menu mobile (dropdown hamburger) */}
+      {mobileNavOpen && (
+        <div className="md:hidden border-b border-gray-200 bg-white shadow-sm animate-fadeIn">
+          <nav className="mx-auto max-w-7xl px-4 py-3">
+            <div className="flex flex-col gap-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigateTab(item.id)}
+                  className={`flex items-center justify-between rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+                    activeTab === item.id
+                      ? 'bg-primary-light text-primary'
+                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      )}
+
       {/* Main Panel Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'kanban' && (
@@ -399,6 +421,7 @@ export function DashboardClient({
               initialTickets={tickets}
               currentUser={currentUser}
               onTicketSelect={(ticket) => setSelectedTicket(ticket)}
+              openCreateSignal={openCreateSignal}
             />
           </div>
         )}
@@ -1411,6 +1434,7 @@ export function DashboardClient({
         }}
         isOpen={showAgent}
         onClose={() => setShowAgent(false)}
+        onAction={handleAgentAction}
       />
     </div>
   );
