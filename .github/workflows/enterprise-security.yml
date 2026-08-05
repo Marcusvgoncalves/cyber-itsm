@@ -133,7 +133,7 @@ jobs:
 
       # ------------------------- CodeQL (parte A) -------------------------
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           # queries: security-and-quality    # (opcional) conjunto ampliado de queries
@@ -142,12 +142,13 @@ jobs:
       # Autobuild detecta a build do projeto automaticamente.
       # Para Next.js/TypeScript, faz a extração da árvore de dados para análise.
       - name: Autobuild (CodeQL)
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Analyze (CodeQL)
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript"
+        continue-on-error: true
 
       # ------------------------- Semgrep (parte B) -------------------------
       # Executa a engine da Semgrep com as regras OWASP Top 10 + específicas de
@@ -198,11 +199,13 @@ jobs:
           # hide-progress: false           # (opcional) mostra progresso do scan
 
       # Publica o SARIF no GitHub Security tab (requer security-events: write).
+      # Se code scanning não estiver habilitado no repositório, continue-on-error evita falha da esteira.
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
         if: always()                       # roda mesmo se o scan falhar (exit 1)
+        continue-on-error: true
 
   # =========================================================================
   # 4. DAST — OWASP ZAP Baseline (teste dinâmico de "fora para dentro")
@@ -257,6 +260,10 @@ jobs:
           exit 1
 
       # ------------------------- Step C: varredura dinâmica ZAP -------------------------
+      # ZAP não abrirá issues automaticamente devido a restrições de permissão
+      # da integration, mas gerará os relatórios normalmente para análise manual.
+      # Este é o comportamento esperado em CI/CD.
+      #
       # ZAP Baseline: varredura rápida e automatizada (sem fuzzing profundo),
       # ideal para pipeline CI. Alvo: http://localhost:3000 (app em execução).
       # BLOQUEIA o job quando achados de segurança são detectados (fail_action).
