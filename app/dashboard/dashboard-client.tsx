@@ -14,10 +14,11 @@ import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   LogOut, Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
-  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers, Menu as MenuIcon
+  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers, Menu as MenuIcon,
+  Trash2, Key
 } from "lucide-react";
 import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
-import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration } from "@/app/actions/iam";
+import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
 import securityRequirements from "../../requisitos-sd.json";
 
@@ -269,12 +270,34 @@ export function DashboardClient({
     runUserAction(() => updateUserRole(userId, role), 'Perfil RBAC atualizado.');
   };
 
-  const handleToggleActive = (userId: string, active: boolean) => {
-    runUserAction(() => setUserActive(userId, active), active ? 'Acesso reativado.' : 'Acesso desativado.');
+  const handleToggleActive = (userId: string, currentActive: boolean) => {
+    runUserAction(() => setUserActive(userId, !currentActive), !currentActive ? 'Acesso reativado (desbloqueado).' : 'Acesso desativado (bloqueado).');
   };
 
   const handleForceMfa = (userId: string) => {
-    runUserAction(() => forceMfaReconfiguration(userId), 'MFA reconfigurado. O usuário deverá configurar o 2º fator no próximo login.');
+    runUserAction(() => forceMfaReconfiguration(userId), 'MFA revogado. O usuário deverá configurar o 2º fator no próximo login.');
+  };
+
+  const handleDeprovision = (userId: string) => {
+    if (confirm("Tem certeza que deseja desprovisionar (excluir permanentemente) este usuário do sistema? Esta ação é irreversível.")) {
+      runUserAction(() => deprovisionUser(userId), 'Usuário desprovisionado e removido do sistema.');
+    }
+  };
+
+  const handleResetPassword = async (userId: string) => {
+    setUserMgmtMsg(null);
+    try {
+      const tempPass = await resetUserPasswordToDefault(userId);
+      const updated = await listSystemUsers();
+      setSystemUsersState(updated);
+      setUserMgmtMsg({ 
+        type: 'success', 
+        text: `Senha liberada/redefinida com sucesso. Repasse a senha temporária para o usuário: ${tempPass}` 
+      });
+    } catch (err) {
+      setUserMgmtMsg({ type: 'error', text: err instanceof Error ? err.message : 'Erro ao redefinir a senha.' });
+      console.error(err);
+    }
   };
 
   // MFA Controls inside Settings
@@ -674,13 +697,14 @@ export function DashboardClient({
                               <th scope="col" className="px-4 py-3">Usuário</th>
                               <th scope="col" className="px-4 py-3">Perfil</th>
                               <th scope="col" className="px-4 py-3">MFA</th>
+                              <th scope="col" className="px-4 py-3">Status</th>
                               <th scope="col" className="px-4 py-3 text-right">Ações</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                             {systemUsersState.length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="text-center py-6 text-gray-400">
+                                <td colSpan={5} className="text-center py-6 text-gray-400">
                                   Nenhum usuário cadastrado.
                                 </td>
                               </tr>
@@ -716,15 +740,41 @@ export function DashboardClient({
                                     </span>
                                   </td>
                                   <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <Button size="sm" variant="outline" className="h-8 text-xs"
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                      user.is_active !== false
+                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                        : 'bg-red-50 text-red-700 border-red-200'
+                                    }`}>
+                                      {user.is_active !== false ? 'Ativo' : 'Bloqueado'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
                                         onClick={() => handleForceMfa(user.id)} disabled={!user.mfa_setup_complete}>
-                                        <RefreshCw className="h-3 w-3 mr-1" /> Reset MFA
+                                        <RefreshCw className="h-3 w-3 mr-1" /> Revogar MFA
                                       </Button>
-                                      <Button size="sm" variant="outline" className="h-8 text-xs"
-                                        onClick={() => handleToggleActive(user.id, false)}
+                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
+                                        onClick={() => handleResetPassword(user.id)}>
+                                        <Key className="h-3 w-3 mr-1 text-amber-600" /> Liberar Senha
+                                      </Button>
+                                      <Button size="sm" variant="outline" className={`h-8 text-[11px] px-2 ${user.is_active !== false ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
+                                        onClick={() => handleToggleActive(user.id, user.is_active !== false)}
                                         disabled={user.id === currentUser.id}>
-                                        <XCircle className="h-3 w-3 mr-1 text-red-500" /> Desativar
+                                        {user.is_active !== false ? (
+                                          <>
+                                            <XCircle className="h-3 w-3 mr-1 text-red-500" /> Bloquear
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="h-3 w-3 mr-1 text-green-500" /> Desbloquear
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2 text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleDeprovision(user.id)}
+                                        disabled={user.id === currentUser.id}>
+                                        <Trash2 className="h-3 w-3 mr-1" /> Desprovisionar
                                       </Button>
                                     </div>
                                   </td>

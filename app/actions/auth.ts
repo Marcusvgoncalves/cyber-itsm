@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { getAuthService } from "@/lib/auth/authService";
 import { cookies } from "next/headers";
 import { verifyTOTP, generateSecret } from "@/lib/totp";
@@ -243,16 +244,18 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     return { success: false, error: 'Token de recuperação expirou.' };
   }
 
-  // In a real system, we'd update auth.users password using admin API or auth client.
-  // For sandbox with Supabase, we can update the user using the supabase admin client, 
-  // or we can sign in the user or do auth.updateUser if they are logged in.
-  // Since they aren't logged in, we can update it if we have service role, OR for the sandbox UI demonstration, 
-  // we can update a flag or use supabase.auth.updateUser.
-  // Wait, Supabase client has `supabase.auth.updateUser({ password: newPassword })` which works if the user is authenticated 
-  // or if they are in the password reset flow.
-  // In our sandbox, we can call auth.updateUser (if they reset it in a logged in state) or we can log them in.
-  // Let's perform a mock password reset success and clear the token!
-  // In the real Next.js auth context, we will also clear the reset_token.
+  // Atualiza a senha real no Supabase Auth usando o Admin Client
+  const adminClient = createAdminClient();
+  const { error: authUpdateError } = await adminClient.auth.admin.updateUserById(
+    profile.id,
+    { password: newPassword }
+  );
+
+  if (authUpdateError) {
+    return { success: false, error: 'Falha ao atualizar a credencial de login: ' + authUpdateError.message };
+  }
+
+  // Limpa o token de redefinição na tabela users_profiles
   const { error: updateError } = await supabase
     .from('users_profiles')
     .update({
@@ -265,8 +268,6 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     return { success: false, error: 'Falha ao salvar a nova senha.' };
   }
 
-  // Note: To actually update the password in Supabase auth, we'd need to use auth.admin.updateUserById if we have service role.
-  // Since we are in development, we'll log it.
   await supabase.from('audit_logs').insert({
     user_id: profile.id,
     action: 'password_reset_success',

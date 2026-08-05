@@ -252,7 +252,6 @@ export function LoginForm() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-500 italic">Dica padrão: joao.secops / CyberITSM@2026!Password</p>
             </div>
 
             <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary-hover text-white font-medium shadow-md transition-all duration-200" disabled={isLoading}>
@@ -363,7 +362,11 @@ export function LoginForm() {
 
         {step === 'CREDENTIALS' && (
           <>
-            <Separator>Ou</Separator>
+            <div className="relative flex py-2 items-center justify-center">
+              <div className="flex-grow border-t border-gray-200"></div>
+              <span className="flex-shrink mx-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ou</span>
+              <div className="flex-grow border-t border-gray-200"></div>
+            </div>
 
             <form onSubmit={handleForgotPassword} className="space-y-2">
               <p className="text-xs text-muted-foreground text-center">

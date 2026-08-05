@@ -333,20 +333,39 @@ export async function createLocalUser(formData: {
 /**
  * Lista todos os usuários do sistema (perfis). Útil para a gestão de acessos.
  */
-export async function listSystemUsers(): Promise<User[]> {
+export async function listSystemUsers(): Promise<(User & { is_active?: boolean })[]> {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const profile = await getCurrentUserProfile();
   if (!profile || profile.role !== 'admin') {
     throw new Error('Permissão negada. Apenas administradores podem listar usuários.');
   }
 
-  const { data, error } = await supabase
+  const { data: profiles, error } = await supabase
     .from('users_profiles')
     .select('*')
     .order('full_name', { ascending: true });
 
   if (error) throw error;
-  return (data || []) as User[];
+
+  try {
+    const { data: authUsersData, error: authError } = await admin.auth.admin.listUsers();
+    if (!authError && authUsersData) {
+      const authUsersMap = new Map(authUsersData.users.map(u => [u.id, u]));
+      return (profiles || []).map(p => {
+        const authUser = authUsersMap.get(p.id);
+        const isBanned = authUser && authUser.banned_until && new Date(authUser.banned_until) > new Date();
+        return {
+          ...p,
+          is_active: !isBanned
+        };
+      });
+    }
+  } catch (err) {
+    console.error('Erro ao buscar status dos usuários no auth:', err);
+  }
+
+  return (profiles || []).map(p => ({ ...p, is_active: true })) as (User & { is_active?: boolean })[];
 }
 
 /**
@@ -415,4 +434,56 @@ export async function forceMfaReconfiguration(userId: string): Promise<void> {
 
   await createAuditLog('mfa_force_reset', 'users_profiles', userId, null, { mfa_setup_complete: false });
   revalidatePath('/dashboard');
+}
+
+/**
+ * Desprovisiona (exclui permanentemente) um usuário do sistema.
+ */
+export async function deprovisionUser(userId: string): Promise<void> {
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem desprovisionar usuários.');
+  }
+  if (userId === profile.id) {
+    throw new Error('Você não pode desprovisionar a própria conta.');
+  }
+
+  // 1. Exclui da tabela users_profiles
+  const { error: profileError } = await supabase
+    .from('users_profiles')
+    .delete()
+    .eq('id', userId);
+  if (profileError) throw profileError;
+
+  // 2. Exclui da autenticação do Supabase
+  const { error: authError } = await admin.auth.admin.deleteUser(userId);
+  if (authError) throw authError;
+
+  await createAuditLog('user_deprovision', 'users_profiles', userId);
+  revalidatePath('/dashboard');
+}
+
+/**
+ * Libera/reseta a senha do usuário para a senha padrão temporária.
+ */
+export async function resetUserPasswordToDefault(userId: string): Promise<string> {
+  const admin = createAdminClient();
+  const profile = await getCurrentUserProfile();
+  if (!profile || profile.role !== 'admin') {
+    throw new Error('Permissão negada. Apenas administradores podem redefinir senhas.');
+  }
+
+  const defaultPassword = 'CyberITSM@2026!Password';
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password: defaultPassword,
+    user_metadata: { requires_password_change: true }
+  });
+
+  if (error) throw error;
+
+  await createAuditLog('user_password_reset_by_admin', 'users_profiles', userId);
+  revalidatePath('/dashboard');
+  return defaultPassword;
 }

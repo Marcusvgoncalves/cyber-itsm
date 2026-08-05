@@ -16,6 +16,7 @@ export interface User {
   idp_external_id?: string | null;
   idp_issued_at?: string | null;
   idp_last_sync?: string | null;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
