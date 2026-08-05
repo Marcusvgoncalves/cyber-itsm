@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bot, X, Send, User as UserIcon, ShieldAlert, Sparkles } from "lucide-react";
@@ -77,13 +77,44 @@ export function AiChat() {
     }
   };
 
-  // Helper function to render simple markdown (bold and line breaks)
+  // Helper function to render simple markdown (bold and line breaks) securely in React
   const renderMarkdown = (text: string) => {
-    const formatted = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br/>');
-    return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
+    const lines = text.split('\n');
+    return (
+      <span>
+        {lines.map((line, lineIndex) => {
+          const boldParts = line.split(/\*\*(.*?)\*\*/g);
+          const renderedLine = boldParts.map((part, partIndex) => {
+            if (partIndex % 2 === 1) {
+              const italicParts = part.split(/\*(.*?)\*/g);
+              return (
+                <strong key={partIndex}>
+                  {italicParts.map((subPart, subPartIndex) => 
+                    subPartIndex % 2 === 1 ? <em key={subPartIndex}>{subPart}</em> : subPart
+                  )}
+                </strong>
+              );
+            } else {
+              const italicParts = part.split(/\*(.*?)\*/g);
+              return (
+                <Fragment key={partIndex}>
+                  {italicParts.map((subPart, subPartIndex) => 
+                    subPartIndex % 2 === 1 ? <em key={subPartIndex}>{subPart}</em> : subPart
+                  )}
+                </Fragment>
+              );
+            }
+          });
+          
+          return (
+            <Fragment key={lineIndex}>
+              {renderedLine}
+              {lineIndex < lines.length - 1 && <br />}
+            </Fragment>
+          );
+        })}
+      </span>
+    );
   };
 
   return (

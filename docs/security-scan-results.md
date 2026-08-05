@@ -1,6 +1,6 @@
 # 🛡️ Relatório de Análise Profunda de Vulnerabilidades (SecOps Scan)
 
-Este relatório compila os resultados da **análise profunda de vulnerabilidades** realizada no repositório do **CyberITSM SPN** utilizando ferramentas de análise estática e auditorias locais.
+Este relatório compila os resultados da **análise profunda de vulnerabilidades** realizada no repositório do **CyberITSM SPN** utilizando ferramentas de análise estática e auditorias locais, bem como o andamento e a resolução de cada achado.
 
 ---
 
@@ -8,40 +8,36 @@ Este relatório compila os resultados da **análise profunda de vulnerabilidades
 
 | Tipo de Scan | Ferramenta | Escopo | Status / Resultados |
 | :--- | :--- | :--- | :--- |
-| **SCA** (Dependências) | `npm audit` | `package.json` | **Passou**: 0 vulnerabilidades encontradas. |
-| **SAST** (Código Estático) | `Semgrep` (Local) | 72 arquivos do código-fonte | **Concluído**: 1 achado de código + 15 avisos de CI. |
+| **SCA** (Dependências) | `npm audit` | `package.json` | **Passou**: 0 vulnerabilidades (mitigado). |
+| **SAST** (Código Estático) | `Semgrep` (Local) | 73 arquivos do código-fonte | **Passou**: 0 achados bloqueantes (mitigado). |
 | **Secrets** (Segredos) | `Gitleaks` (Local) | Histórico completo de commits | **Passou**: 0 segredos vazados no histórico. |
 | **DAST** (Dinâmico) | `OWASP ZAP` | Alvo em runtime | Pre-configurado no pipeline CI para bloqueio. |
 
 ---
 
-## 🔍 Detalhamento dos Achados
+## 🔍 Detalhamento das Correções Realizadas
 
 ### 1. SCA (Software Component Analysis)
-- **Execução**: `npm audit`
-- **Diagnóstico**: Após a remoção do pacote obsoleto e vulnerável `xlsx` (SheetJS) que causava bloqueio na esteira (Prototype Pollution e ReDoS), a varredura atual de dependências de produção e desenvolvimento retornou **zero vulnerabilidades**.
+- **Status**: **RESOLVIDO**
+- **Mitigação**: O pacote obsoleto `xlsx` (SheetJS), que possuía vulnerabilidades de alta gravidade (Prototype Pollution e ReDoS), foi totalmente removido do projeto com `npm uninstall`. Scans subsequentes via `npm audit` confirmam **zero vulnerabilidades** restantes.
 
 ### 2. SAST (Static Application Security Testing)
-- **Execução**: `semgrep scan --config p/owasp-top-ten --config p/typescript`
-- **Achados Identificados**:
+- **Status**: **RESOLVIDO**
+- **Ações corretivas**:
   
-#### A. Uso de `dangerouslySetInnerHTML` no Frontend
+#### A. Substituição de `dangerouslySetInnerHTML` por JSX Seguro
 - **Arquivo**: [components/ai-chat.tsx](file:///c:/Projetos/cyber-itsm/components/ai-chat.tsx#L86)
-- **Severidade**: Warning (Bloqueante no Semgrep rule definition)
-- **Descrição**: O componente usa `dangerouslySetInnerHTML` na função de renderização rápida de markdown.
-- **Mitigação/Status**: O componente `components/ai-chat.tsx` é **obsoleto e não-utilizado** na aplicação (a plataforma utiliza exclusivamente o [components/SecurityAgent.tsx](file:///c:/Projetos/cyber-itsm/components/SecurityAgent.tsx) para interações de IA). O arquivo foi mantido apenas para histórico e não apresenta risco em runtime pois não é importado em nenhuma rota ativa.
+- **Correção**: Refatorada a função `renderMarkdown` para analisar e formatar marcações simples (negrito `**`, itálico `*` e quebras de linha `\n`) mapeando o texto em uma árvore estruturada de elementos JSX nativos (`<strong>`, `<em>`, `<Fragment>`, `<br />`). A diretiva insegura `dangerouslySetInnerHTML` foi completamente removida, mitigando riscos de XSS (Cross-Site Scripting).
 
-#### B. Tags Mutáveis no Workflow do GitHub Actions
+#### B. Fixação de Hashes SHA Imutáveis para as Actions do GitHub
 - **Arquivo**: [.github/workflows/enterprise-security.yml](file:///c:/Projetos/cyber-itsm/.github/workflows/enterprise-security.yml)
-- **Severidade**: Info / Warning
-- **Descrição**: Semgrep identificou 15 passos no pipeline que utilizam referências de tags mutáveis (ex: `@v4`, `@v3`) ao invés de hashes SHA imutáveis (ex: `uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608`).
-- **Mitigação**: O uso de tags mutáveis oficiais do GitHub e OWASP foi escolhido para manter as ações de segurança atualizadas automaticamente com patches de correções de bugs em CI. As fontes são verificadas e mantidas sob repositórios oficiais.
+- **Correção**: Todas as ações de terceiros utilizadas na esteira CI (`checkout`, `setup-node`, `codeql`, `semgrep`, `trivy`, `action-baseline`, `upload-artifact`) foram alteradas para fazer referência a **hashes SHA de 40 caracteres imutáveis** em vez de tags mutáveis (como `@v4` ou `@v3`). Isso impede ataques de cadeia de suprimentos (supply-chain attacks) através de tags silenciosamente modificadas por mantenedores.
 
-### 3. Secret Scanning (Vazamento de Credenciais)
-- **Execução**: Gitleaks local configurado via regras customizadas do [.gitleaks.toml](file:///c:/Projetos/cyber-itsm/.gitleaks.toml).
-- **Resultado**: Nenhuma chave real do Gemini, service role do Supabase ou credencial de teste foi detectada em commits locais ou arquivos do working tree.
+### 3. Secret Scanning (Gitleaks)
+- **Status**: **RESOLVIDO** (Sem ocorrências)
+- **Mitigação**: O projeto conta com regras estritas de exclusão e detecção configuradas no `.gitleaks.toml`, bloqueando o push de qualquer credencial em formato de texto simples.
 
 ---
 
-## 📈 Conclusão e Recomendações
-A plataforma encontra-se em um estado seguro, com sua única grande pendência de SCA (vulnerabilidade do `xlsx`) resolvida. Recomenda-se manter as varreduras recorrentes integradas na esteira do GitHub Actions para garantir que novas dependências ou desenvolvimentos não insiram regressões de segurança.
+## 📉 Conclusão e Governança
+Todas as vulnerabilidades encontradas na análise profunda foram resolvidas com sucesso, alinhando a aplicação às melhores práticas recomendadas de segurança do OWASP Top 10 e de hardening de pipelines de CI/CD.

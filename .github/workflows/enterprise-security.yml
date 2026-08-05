@@ -73,7 +73,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout (completo, incluindo histórico)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0 # histórico completo para o Gitleaks varrer todos os commits
 
@@ -81,7 +81,7 @@ jobs:
       # BLOQUEIA o pipeline: a action retorna exit-code 1 quando encontra
       # segredos e publica o relatório SARIF + abre issues (exige issues: write).
       - name: Run Gitleaks (full history scan) — bloqueia em segredos
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@e23a45c03a948e47bf9b79c09c253d86550731eb # v2.3.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # opcional: licença enterprise
@@ -118,10 +118,10 @@ jobs:
       GOOGLE_GENERATIVE_AI_API_KEY: placeholder-gemini-key
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39225d34a36a0190570ad3a4086b856158239f67 # v4.2.0
         with:
           node-version: 20
           cache: npm
@@ -131,7 +131,7 @@ jobs:
 
       # ------------------------- CodeQL (parte A) -------------------------
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@9e3edb532ac13bcbb4d13b2903dbb4d047b85131 # v3.28.10
         with:
           languages: javascript-typescript
           # queries: security-and-quality    # (opcional) conjunto ampliado de queries
@@ -140,10 +140,10 @@ jobs:
       # Autobuild detecta a build do projeto automaticamente.
       # Para Next.js/TypeScript, faz a extração da árvore de dados para análise.
       - name: Autobuild (CodeQL)
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@9e3edb532ac13bcbb4d13b2903dbb4d047b85131 # v3.28.10
 
       - name: Analyze (CodeQL)
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@9e3edb532ac13bcbb4d13b2903dbb4d047b85131 # v3.28.10
         with:
           category: "/language:javascript-typescript"
 
@@ -157,7 +157,7 @@ jobs:
       # tanto em push quanto em PR. Isso é o que impede o deploy com falhas
       # lógicas/seguras em React/Next.js.
       - name: Run Semgrep (OWASP Top 10 + TypeScript) — bloqueia em achados
-        uses: returntocorp/semgrep-action@v3
+        uses: returntocorp/semgrep-action@72adaf6305a415a7cfca979ef182a32194602f6f # v3
         with:
           config: >-
             p/owasp-top-ten
@@ -181,10 +181,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Trivy scan (filesystem + dependencies)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@18f28d8812dfd626f1c7207609792c1fed409747 # v0.24.0
         with:
           scan-type: 'fs'                 # scan no filesystem do repositório
           scan-ref: '.'                    # todo o repositório
@@ -197,7 +197,7 @@ jobs:
 
       # Publica o SARIF no GitHub Security tab (requer security-events: write).
       - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@9e3edb532ac13bcbb4d13b2903dbb4d047b85131 # v3.28.10
         with:
           sarif_file: 'trivy-results.sarif'
         if: always()                       # roda mesmo se o scan falhar (exit 1)
@@ -224,11 +224,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       # ------------------------- Step A: build -------------------------
       - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39225d34a36a0190570ad3a4086b856158239f67 # v4.2.0
         with:
           node-version: 20
           cache: npm
@@ -259,7 +259,7 @@ jobs:
       # ideal para pipeline CI. Alvo: http://localhost:3000 (app em execução).
       # BLOQUEIA o job quando achados de segurança são detectados (fail_action).
       - name: OWASP ZAP Baseline Scan — bloqueia em achados
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@15fce680d463d1ab244bb4f60bc91669431bf6eb # v0.12.0
         with:
           target: 'http://localhost:3000'
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -272,7 +272,7 @@ jobs:
 
       # Publica os artefatos (relatórios HTML/JSON/MD) do ZAP para inspeção.
       - name: Upload ZAP reports as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         if: always()
         with:
           name: zap-baseline-reports
