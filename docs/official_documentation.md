@@ -87,7 +87,7 @@ graph TD
 
 Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.ts`:
 
-1. **Credenciais** — `signInWithPassword` (Supabase Auth). As senhas seguem política forte (≥12 caracteres, maiúsc./minúsc., números e símbolos).
+1. **Credenciais** — `signInWithPassword` (Supabase Auth). O identificador do usuário segue o padrão `nome.sobrenome` (sem exigir formato de e-mail na entrada da interface). Internamente, o sistema mapeia para `@cyberitsm.local` para compatibilidade com o provedor Supabase. As senhas seguem política forte (≥12 caracteres, contendo maiúsculas, minúsculas, números e símbolos).
 2. **Verificação de perfil** — consulta `users_profiles.mfa_setup_complete`.
 3. **Sem MFA (primeiro acesso)** → onboarding: `initiateMfa` gera um secret Base32 e o URI `otpauth://`; a UI exibe um QR Code (simulado) e a chave secreta; o usuário informa o código de 6 dígitos (Google Authenticator) e `confirmMfaSetup` valida e grava o cookie `mfa_verified`.
 4. **Com MFA** → `verifyMfa` valida o código na janela temporária **±1 intervalo (30 s)** e grava o cookie `mfa_verified` (24 h, `httpOnly`, `SameSite=Strict`).
@@ -116,6 +116,28 @@ Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.
 
 ---
 
+#### 4.1 Base de Conhecimento e Frameworks (Apresentação Didática)
+- **Tabela de Requisitos**: Integrada diretamente no frontend na nova aba "Base de Conhecimento", mapeia os 314 controles técnicos com filtros inteligentes em tempo real (busca textual rápida por ID, componente, riscos ou categorias). Cada linha da tabela é expansível e revela o detalhamento do controle, riscos associados, instruções de teste/validação e a evidência esperada.
+- **Enciclopédia de Frameworks**: Espaço conceitual didático para capacitar equipes sobre as bases metodológicas de governança e modelagem de ameaças:
+  - **NIST CSF**: 5 funções contínuas (Identificar, Proteger, Detectar, Responder, Recuperar).
+  - **CIS Controls**: Higiene cibernética priorizada (18 controles e grupos de implementação).
+  - **OWASP Top 10**: Padrão de segurança contra as 10 principais fraquezas de aplicações web.
+  - **STRIDE Threat Modeling**: Classificação sistemática de ameaças (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
+  - **ISO 27001 & SABSA**: Governança baseada em SGSI e arquitetura de segurança integrada aos objetivos de negócio.
+  - **LGPD**: Regras e salvaguardas necessárias para tratamento e privacidade de dados pessoais.
+
+---
+
+#### 4.2 Serviço de E-mail Transacional (Resend)
+- **Engine de E-mail**: Implementado sob a biblioteca oficial `@react-email/render` e o SDK da **Resend** em [resendClient.ts](file:///c:/Projetos/cyber-itsm/lib/email/resendClient.ts) e [notifications.tsx](file:///c:/Projetos/cyber-itsm/lib/email/notifications.tsx).
+- **Disparo de Eventos**: Disparado de forma assíncrona (fire-and-forget) após a criação ou atualização de chamados, assegurando que gargalos ou indisponibilidade de e-mail não impactem o tempo de resposta das APIs do sistema.
+- **Modos de Operação**:
+  - **Sandbox**: Modo padrão de homologação. O remetente é fixado em `onboarding@resend.dev` e o envio de destino é forçado para o e-mail de teste verificado (`TEST_EMAIL_RECIPIENT`), prevenindo spam para destinatários não cadastrados no painel da Resend.
+  - **Production**: Ativado ao setar `EMAIL_MODE=production`. Dispara para todos os e-mails associados ao chamado utilizando o remetente oficial do domínio verificado (`EMAIL_FROM`).
+- **Resiliência**: Caso a chave `RESEND_API_KEY` esteja ausente ou configurada com marcas placeholder, o sistema loga o incidente e degrada silenciosamente, mantendo a estabilidade operacional da plataforma.
+
+---
+
 ### 5. Governança de Identidade (IAM / IGA)
 
 - **Provedores simulados** (`iam_providers`): Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (header `OAM_REMOTE_USER`), Sailpoint IdentityNow (IGA) e `local`.
@@ -123,15 +145,15 @@ Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.
 - **Fila Sailpoint** (`identity_requests`): criação (`createIdentityRequest`) com status `pendente`; aprovação (`approveIdentityRequest`) atualiza o papel do perfil-alvo em `users_profiles` e o status para `provisionado`; rejeição (`rejectIdentityRequest`) seta `rejeitado`.
 - **Criação manual de usuário** (`createLocalUser`):
   - Verifica **admin**.
-  - Cria usuário **real** em `auth.users` via **Admin API** (`admin.auth.admin.createUser`) com senha temporária forte, `email_confirm: true`, `user_metadata.role`/`full_name` e `requires_password_change`.
+  - Cria usuário **real** em `auth.users` via **Admin API** (`admin.auth.admin.createUser`) com a senha padrão inicial configurada como **`CyberITSM@2026!Password`**, `email_confirm: true`, `user_metadata.role`/`full_name` e `requires_password_change`.
   - O trigger `on_auth_user_created` cria o perfil em `users_profiles`; um `upsert` garante `mfa_setup_complete = false` (MFA obrigatório).
-  - Registra em `audit_logs` e retorna a **senha temporária** para o admin repassar ao usuário (que trocará a senha e configurará o MFA no primeiro login).
+  - Registra em `audit_logs` e retorna a **senha padrão** configurada (`CyberITSM@2026!Password`) para o admin repassar ao usuário (que trocará a senha e configurará o MFA no primeiro login).
 - **Gestão de usuários (admin)**:
   - `listSystemUsers` — lista perfis.
   - `updateUserRole(userId, role)` — muda papel RBAC (e sincroniza `app_metadata` via `admin.auth.admin.updateUserById`); protege contra auto-rebaixamento.
   - `setUserActive(userId, active)` — ban (`ban_duration`) ou reativa; protege contra auto-desativação.
   - `forceMfaReconfiguration(userId)` — limpa `mfa_secret`/`mfa_setup_complete`, obrigando nova configuração no próximo login.
-- **UI**: aba "Portal IAM/IGA" do dashboard — provedores, "Cadastrar Usuário Local" (exibe senha temporária), "Gestão de Usuários do Sistema" (papel, status MFA, reset MFA, desativar) e a fila de aprovação Sailpoint.
+- **UI**: aba "Portal IAM/IGA" do dashboard — provedores, "Cadastrar Usuário Local" (exibe a indicação da senha padrão), "Gestão de Usuários do Sistema" (papel, status MFA, reset MFA, desativar) e a fila de aprovação Sailpoint.
 
 ---
 
@@ -275,7 +297,7 @@ graph TD
 
 Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.ts`:
 
-1. **Credentials** — `signInWithPassword` (Supabase Auth). Passwords follow a strong policy (≥12 chars, upper/lower, numbers, symbols).
+1. **Credentials** — `signInWithPassword` (Supabase Auth). The username follows the `nome.sobrenome` pattern (without requiring email format validation on interface inputs). Internally, the backend maps it to `@cyberitsm.local` for Supabase compatibility. Passwords follow a strong complexity policy (≥12 chars, containing uppercase, lowercase, numbers, and symbols).
 2. **Profile check** — reads `users_profiles.mfa_setup_complete`.
 3. **No MFA (first access)** → onboarding: `initiateMfa` generates a Base32 secret and an `otpauth://` URI; the UI renders a (simulated) QR Code and the secret key; the user enters the 6-digit code (Google Authenticator) and `confirmMfaSetup` validates and stores the `mfa_verified` cookie.
 4. **MFA present** → `verifyMfa` validates the code within the **±1 interval (30 s)** time window and stores the `mfa_verified` cookie (24 h, `httpOnly`, `SameSite=Strict`).
@@ -304,6 +326,28 @@ Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.
 
 ---
 
+#### 4.1 Knowledge Base & Frameworks (Didactic Presentation)
+- **Requirements Matrix**: Integrated directly in the frontend inside the new "Base de Conhecimento" tab, mapping the 314 technical controls with smart real-time filtering (fast text search by ID, component, risks, or categories). Each row in the table is expandable to reveal control details, associated risks, validation instructions, and expected evidence.
+- **Frameworks Encyclopedia**: Concepts section to enable teams to learn the methodological foundations of security governance and threat modeling:
+  - **NIST CSF**: 5 continuous functions (Identify, Protect, Detect, Respond, Recover).
+  - **CIS Controls**: Prioritized cyber hygiene (18 controls and implementation groups).
+  - **OWASP Top 10**: Standard security index against the 10 most common web application weaknesses.
+  - **STRIDE Threat Modeling**: Systematic threat categorization (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege).
+  - **ISO 27001 & SABSA**: Information Security Management System (ISMS) governance and business-driven security architecture.
+  - **LGPD**: Data privacy compliance requirements for handling personal data (PII).
+
+---
+
+#### 4.2 Transactional Email Service (Resend)
+- **Email Engine**: Built on the official `@react-email/render` engine and the **Resend** SDK in [resendClient.ts](file:///c:/Projetos/cyber-itsm/lib/email/resendClient.ts) and [notifications.tsx](file:///c:/Projetos/cyber-itsm/lib/email/notifications.tsx).
+- **Asynchronous Triggers**: Fired in a fire-and-forget manner on ticket creation or status update events, preventing any network latency or Resend service downtime from blocking application responses.
+- **Operational Modes**:
+  - **Sandbox**: Default testing environment. The sender is fixed to `onboarding@resend.dev` and target delivery is forced to the verified test email address (`TEST_EMAIL_RECIPIENT`) to avoid spamming unverified users.
+  - **Production**: Enabled with `EMAIL_MODE=production`. Sends notifications directly to all ticket-involved emails from the verified organization domain (`EMAIL_FROM`).
+- **Resilience**: If the API key is not configured or left as a placeholder, the module logs the omission and degrades gracefully, ensuring application flows continue normally.
+
+---
+
 ### 5. Identity Governance (IAM / IGA)
 
 - **Simulated providers** (`iam_providers`): Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (`OAM_REMOTE_USER` header), Sailpoint IdentityNow (IGA), and `local`.
@@ -311,15 +355,15 @@ Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.
 - **Sailpoint queue** (`identity_requests`): creation (`createIdentityRequest`) with `pendente` status; approval (`approveIdentityRequest`) updates the target profile role in `users_profiles` and the status to `provisionado`; rejection (`rejectIdentityRequest`) sets `rejeitado`.
 - **Manual user creation** (`createLocalUser`):
   - Verifies **admin**.
-  - Creates a **real** user in `auth.users` via the **Admin API** (`admin.auth.admin.createUser`) with a strong temporary password, `email_confirm: true`, `user_metadata.role`/`full_name`, and `requires_password_change`.
+  - Creates a **real** user in `auth.users` via the **Admin API** (`admin.auth.admin.createUser`) with the default password configured as **`CyberITSM@2026!Password`**, `email_confirm: true`, `user_metadata.role`/`full_name`, and `requires_password_change`.
   - The `on_auth_user_created` trigger creates the profile in `users_profiles`; an `upsert` guarantees `mfa_setup_complete = false` (mandatory MFA).
-  - Records to `audit_logs` and returns the **temporary password** for the admin to hand over (the user changes it and sets up MFA on first login).
+  - Records to `audit_logs` and returns the **default password** (`CyberITSM@2026!Password`) for the admin to distribute (the user changes it and configures MFA on first login).
 - **User management (admin)**:
   - `listSystemUsers` — lists profiles.
   - `updateUserRole(userId, role)` — changes the RBAC role (also syncs `app_metadata` via `admin.auth.admin.updateUserById`); protects against self-demotion.
   - `setUserActive(userId, active)` — ban (`ban_duration`) or reactivate; protects against self-disable.
   - `forceMfaReconfiguration(userId)` — clears `mfa_secret`/`mfa_setup_complete`, forcing reconfiguration on next login.
-- **UI**: "Portal IAM/IGA" dashboard tab — providers, "Cadastrar Usuário Local" (shows the temporary password), "Gestão de Usuários do Sistema" (role, MFA status, MFA reset, deactivate), and the Sailpoint approval queue.
+- **UI**: "Portal IAM/IGA" dashboard tab — providers, "Cadastrar Usuário Local" (shows indication of the default password), "Gestão de Usuários do Sistema" (role, MFA status, MFA reset, deactivate), and the Sailpoint approval queue.
 
 ---
 

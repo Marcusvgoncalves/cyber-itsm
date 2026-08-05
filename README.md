@@ -73,15 +73,16 @@ cyber-itsm/
 
 ### 🔒 Jornada de Segurança & Políticas
 
-1. **Complexidade de senhas obrigatória** — mín. 12 caracteres com maiúsculas, minúsculas, números e símbolos. Ex.: `CyberITSM@2026!Password`.
-2. **Sessão segura** — Supabase Auth com cookies; `proxy.ts` (substitui o `middleware.ts` no Next.js 16) garante autenticação antes do `/dashboard`.
-3. **MFA obrigatório para todas as contas** — fluxo no `login-form.tsx`:
+1. **Modelo de Login por Nome de Usuário** — O formulário de login foi simplificado para aceitar o formato corporativo `nome.sobrenome` (sem formatação ou validação de e-mail na interface).
+2. **Complexidade de senhas obrigatória** — mín. 12 caracteres com maiúsculas, minúsculas, números e símbolos. Ex.: `CyberITSM@2026!Password`.
+3. **Sessão segura** — Supabase Auth com cookies; `proxy.ts` (substitui o `middleware.ts` no Next.js 16) garante autenticação antes do `/dashboard`.
+4. **MFA obrigatório para todas as contas** — fluxo no `login-form.tsx`:
    - **Sem MFA configurado** → onboarding: gera secret + QR Code, valida o código de 6 dígitos (`confirmMfaSetup`) e grava o cookie `mfa_verified`.
    - **Com MFA configurado** → verificação de código (`verifyMfa`) na janela temporária ±1 intervalo.
    - O `proxy.ts` bloqueia acesso ao dashboard sem o cookie — ninguém acessa sem 2º fator.
    - Código de homologação (sandbox): `123456`.
-4. **RBAC** — perfis `admin`, `analista`, `solicitante`. Rotas administrativas (Audit Logs, Arquitetura) bloqueadas para não-admins.
-5. **Auditoria** — todo evento relevante gravado em `audit_logs` (login, MFA, criação de chamados, sincronizações IAM, alterações de perfil).
+5. **RBAC** — perfis `admin`, `analista`, `solicitante`. Rotas administrativas (Audit Logs, Arquitetura) bloqueadas para não-admins.
+6. **Auditoria** — todo evento relevante gravado em `audit_logs` (login, MFA, criação de chamados, sincronizações IAM, alterações de perfil).
 
 ### 🧠 Agente de IA SecOps (RAG)
 
@@ -93,12 +94,25 @@ cyber-itsm/
 - Diretrizes do system prompt: respostas assertivas, completas e exaustivas, em bullets curtos, citando o ID e os campos do requisito, ou `'Informação não encontrada no contexto atual.'`.
 - UI: `components/SecurityAgent.tsx` (FAB) via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
 
+### 📚 Base de Conhecimento de Segurança
+
+- **Aba de Consulta Didática** — Nova página integrada no painel, visível a todos os usuários, agregando:
+  - **Matriz Interativa**: Tabela completa com os 314 controles de arquitetura segura. Oferece filtragem dinâmica em tempo real (busca textual rápida por ID, componente, riscos ou categorias) e visualização expansível de cada controle (detalhamento técnico, riscos, validação/teste e evidência).
+  - **Enciclopédia de Frameworks**: Explicação didática de frameworks corporativos como **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling**, **ISO 27001 & SABSA** e **LGPD**.
+
+### ✉️ Serviço de E-mail Transacional (Resend)
+
+- **Notificações Automáticas**: Envio de e-mails transacionais assíncronos (fire-and-forget) após a criação ou edição de chamados no Kanban.
+- **Modos de Operação**:
+  - **Sandbox**: Modo de teste em que o remetente é fixo (`onboarding@resend.dev`) e o destinatário é forçado para o e-mail de teste verificado (`TEST_EMAIL_RECIPIENT`), prevenindo spans em homologação.
+  - **Production**: Envio para os envolvidos utilizando o domínio próprio e remetente verificado (`EMAIL_FROM`).
+
 ### 🆔 Portal de Governança de Identidades (IAM / IGA)
 
 - **Provedores simulados**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
 - **Sincronização** (`syncIamProvider`): importa usuários mock de Entra/Keycloak.
 - **Fila de aprovação Sailpoint**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisiona o perfil em `users_profiles`.
-- **Criação manual de usuários** (`createLocalUser`): cria um usuário **real** em `auth.users` via **Admin API** (service role), gera senha temporária de primeiro acesso, força troca de senha e **MFA obrigatório** (`mfa_setup_complete = false`). O trigger `on_auth_user_created` cria o perfil.
+- **Criação manual de usuários** (`createLocalUser`): cria um usuário **real** em `auth.users` via **Admin API** (service role), define a senha padrão inicial como **`CyberITSM@2026!Password`**, força troca de senha e **MFA obrigatório** (`mfa_setup_complete = false`). O trigger `on_auth_user_created` cria o perfil.
 - **Gestão de usuários (só admin)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reativação) e `forceMfaReconfiguration` (reset forçado do MFA). UI no card "Gestão de Usuários do Sistema" do dashboard.
 
 ### 🗃️ Banco de Dados (Supabase)
@@ -242,19 +256,18 @@ cyber-itsm/
 └── public/images/architecture.svg # Solution architecture diagram
 ```
 
----
-
 ### 🔒 Security Journey & Policies
 
-1. **Mandatory password strength** — min. 12 characters with uppercase, lowercase, numbers and symbols. E.g. `CyberITSM@2026!Password`.
-2. **Secure session** — Supabase Auth with cookies; `proxy.ts` (replaces `middleware.ts` in Next.js 16) enforces authentication before `/dashboard`.
-3. **MFA mandatory for all accounts** — flow in `login-form.tsx`:
+1. **Username Login Model** — The login form is simplified to accept the corporate `nome.sobrenome` pattern (without formatting or email validation on frontend input fields).
+2. **Mandatory password strength** — min. 12 characters with uppercase, lowercase, numbers and symbols. E.g. `CyberITSM@2026!Password`.
+3. **Secure session** — Supabase Auth with cookies; `proxy.ts` (replaces `middleware.ts` in Next.js 16) enforces authentication before `/dashboard`.
+4. **MFA mandatory for all accounts** — flow in `login-form.tsx`:
    - **MFA not configured** → onboarding: generates secret + QR Code, validates the 6-digit code (`confirmMfaSetup`) and stores the `mfa_verified` cookie.
    - **MFA configured** → code verification (`verifyMfa`) within the ±1 interval window.
    - `proxy.ts` blocks dashboard access without the cookie — nobody enters without the second factor.
    - Sandbox test code: `123456`.
-4. **RBAC** — roles `admin`, `analista`, `solicitante`. Admin routes (Audit Logs, Architecture) are blocked for non-admins.
-5. **Auditing** — every relevant event is recorded in `audit_logs` (login, MFA, ticket creation, IAM sync, profile changes).
+5. **RBAC** — roles `admin`, `analista`, `solicitante`. Admin routes (Audit Logs, Architecture) are blocked for non-admins.
+6. **Auditing** — every relevant event is recorded in `audit_logs` (login, MFA, ticket creation, IAM sync, profile changes).
 
 ### 🧠 SecOps AI Agent (RAG)
 
@@ -266,12 +279,25 @@ cyber-itsm/
 - System-prompt directives: assertive, complete and exhaustive answers in short bullets, citing the requirement ID and fields, or `'Informação não encontrada no contexto atual.'`.
 - UI: `components/SecurityAgent.tsx` (FAB) via `useChat` from `@ai-sdk/react` with `DefaultChatTransport`, sending `ticketContext`.
 
+### 📚 Security Knowledge Base
+
+- **Didactic Search Tab** — Integrated view on the dashboard accessible to all users, combining:
+  - **Interactive Matrix**: Table with all 314 secure architecture requirements. Offers dynamic real-time filtering (by ID, component, risks, or threat model categories) and an expandable view showing validation steps and expected evidence.
+  - **Frameworks Encyclopedia**: Educational descriptions detailing the principles of **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling**, **ISO 27001 & SABSA**, and **LGPD**.
+
+### ✉️ Transactional Email Service (Resend)
+
+- **Automatic Notifications**: Asynchronous (fire-and-forget) transactional emails sent on ticket creation or update.
+- **Operational Modes**:
+  - **Sandbox**: Testing mode where the sender is fixed (`onboarding@resend.dev`) and delivery is forced to the verified test email address (`TEST_EMAIL_RECIPIENT`) to prevent spamming unverified users.
+  - **Production**: Live delivery utilizing custom verified domains (`EMAIL_FROM`).
+
 ### 🆔 Identity Governance Portal (IAM / IGA)
 
 - **Simulated providers**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
 - **Sync** (`syncIamProvider`): imports mock users from Entra/Keycloak.
 - **Sailpoint approval queue**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisions the role in `users_profiles`.
-- **Manual user creation** (`createLocalUser`): creates a **real** user in `auth.users` via the **Admin API** (service role), generates a first-access temporary password, forces a password change and **mandatory MFA** (`mfa_setup_complete = false`). The `on_auth_user_created` trigger creates the profile.
+- **Manual user creation** (`createLocalUser`): creates a **real** user in `auth.users` via the **Admin API** (service role), defines the initial default password as **`CyberITSM@2026!Password`**, forces password changes, and **mandatory MFA** (`mfa_setup_complete = false`). The `on_auth_user_created` trigger creates the profile.
 - **User management (admin only)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reactivation) and `forceMfaReconfiguration`. UI in the "Gestão de Usuários do Sistema" dashboard card.
 
 ### 🗃️ Database (Supabase)
