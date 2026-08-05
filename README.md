@@ -20,11 +20,11 @@ O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco,
 
 | Camada | Tecnologia | Descrição |
 | :--- | :--- | :--- |
-| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA com tema Mistica da Vivo. |
+| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA com tema Mistica. |
 | **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Componentes acessíveis e primitivas de UI. |
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
 | **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | Agente SecOps com RAG sobre 314 requisitos. `streamText`, temperatura 0.2. |
-| **RAG / Conhecimento** | `requisitos-sd.json` (origem: `BaseRequisitosSD_v4.1.xlsx`) | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
+| **RAG / Conhecimento** | `requisitos-sd.json` | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
 | **Banco de Dados** | Supabase PostgreSQL 15 | 8 tabelas com Row Level Security (RLS) ativa, triggers e seeds. |
 | **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
 | **IAM / IGA** | Adaptadores simulados (Entra ID, Keycloak, OAM, Sailpoint) + criação local | Governança de identidade, fila de aprovação e gestão de usuários. |
@@ -66,7 +66,6 @@ cyber-itsm/
 ├── proxy.ts                      # Middleware Next.js 16: sessão + RBAC + check MFA
 ├── supabase-schema.sql           # Schema completo (tabelas, RLS, triggers, seeds)
 ├── requisitos-sd.json            # Base de conhecimento RAG (314 requisitos)
-├── BaseRequisitosSD_v4.1.xlsx    # Fonte dos requisitos (excel)
 └── public/images/architecture.svg # Desenho de arquitetura da solução
 ```
 
@@ -130,17 +129,17 @@ cyber-itsm/
 
 > **Usuário admin inicial**: crie via SQL no SQL Editor, pois contas criadas pela UI já exigem MFA. Veja a seção "Provisionamento de Administrador".
 >
-> **Credenciais de teste**: `joao.secops@telefonica.com` / `CyberITSM@2026!Password`.
+> **Credenciais de teste**: `marcus.goncalves` ou `joao.secops` / `CyberITSM@2026!Password`.
 
 ### 👤 Provisionamento de Usuário Administrador & MFA
 
 Crie o super admin (o trigger cria o perfil com a `role` vinda de `user_metadata.role`):
 ```sql
 select auth.admin_create_user(
-  email         => 'colaborador@telefonica.com',
+  email         => 'marcus.goncalves@cyberitsm.local',
   password      => 'SenhaForte@2026!x',
   email_confirm => true,
-  user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
+  user_metadata => '{"role":"admin","full_name":"Marcus Gonçalves"}'::jsonb
 );
 ```
 O primeiro acesso exigirá a configuração do MFA (2º fator).
@@ -194,7 +193,7 @@ The diagram details **every container, component, database table, authentication
 | **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Accessible components and UI primitives. |
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
 | **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | SecOps agent with RAG over 314 requirements. `streamText`, temperature 0.2. |
-| **RAG / Knowledge** | `requisitos-sd.json` (source: `BaseRequisitosSD_v4.1.xlsx`) | Weighted keyword retrieval (core×3, detail×2, light×1). |
+| **RAG / Knowledge** | `requisitos-sd.json` | Weighted keyword retrieval (core×3, detail×2, light×1). |
 | **Database** | Supabase PostgreSQL 15 | 8 tables with Row Level Security (RLS), triggers and seeds. |
 | **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
 | **IAM / IGA** | Simulated adapters (Entra ID, Keycloak, OAM, Sailpoint) + local creation | Identity governance, approval queue and user management. |
@@ -236,7 +235,6 @@ cyber-itsm/
 ├── proxy.ts                      # Next.js 16 middleware: session + RBAC + MFA check
 ├── supabase-schema.sql           # Full schema (tables, RLS, triggers, seeds)
 ├── requisitos-sd.json            # RAG knowledge base (314 requirements)
-├── BaseRequisitosSD_v4.1.xlsx    # Requirements source (excel)
 └── public/images/architecture.svg # Solution architecture diagram
 ```
 
@@ -300,17 +298,17 @@ cyber-itsm/
 
 > **Initial admin user**: create it via SQL in the SQL Editor, since accounts created through the UI already require MFA. See "Admin Provisioning".
 >
-> **Test credentials**: `joao.secops@telefonica.com` / `CyberITSM@2026!Password`.
+> **Test credentials**: `marcus.goncalves` or `joao.secops` / `CyberITSM@2026!Password`.
 
 ### 👤 Admin & MFA Provisioning
 
 Create the super admin (the trigger creates the profile with `role` from `user_metadata.role`):
 ```sql
 select auth.admin_create_user(
-  email         => 'colaborador@telefonica.com',
+  email         => 'marcus.goncalves@cyberitsm.local',
   password      => 'SenhaForte@2026!x',
   email_confirm => true,
-  user_metadata => '{"role":"admin","full_name":"Colaborador"}'::jsonb
+  user_metadata => '{"role":"admin","full_name":"Marcus Gonçalves"}'::jsonb
 );
 ```
 The first login will require MFA setup.

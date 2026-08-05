@@ -385,7 +385,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Seed default IAM providers
 INSERT INTO public.iam_providers (id, name, type, config, is_active) VALUES
   ('entra_id', 'Microsoft Entra ID', 'entra_id', '{"sync_interval": "daily"}'::jsonb, true),
-  ('keycloak', 'Keycloak Broker', 'keycloak', '{"realm": "telefonicavivo"}'::jsonb, true),
+  ('keycloak', 'Keycloak Broker', 'keycloak', '{"realm": "cyberitsm"}'::jsonb, true),
   ('oam', 'Oracle Access Manager', 'oam', '{"sso_header": "OAM_REMOTE_USER"}'::jsonb, true),
   ('sailpoint', 'Sailpoint IdentityNow', 'sailpoint', '{"governance_enabled": true}'::jsonb, true)
 ON CONFLICT (id) DO NOTHING;

@@ -182,7 +182,7 @@ export async function syncIamProvider(providerId: string): Promise<void> {
       {
         provider_id: 'entra_id',
         external_id: 'entra-usr-001',
-        email: 'maria.cyber@telefonica.com',
+        email: 'maria.cyber@cyberitsm.local',
         full_name: 'Maria SecOps',
         department: 'CyberSecurity Architecture',
         role: 'analista',
@@ -192,7 +192,7 @@ export async function syncIamProvider(providerId: string): Promise<void> {
       {
         provider_id: 'entra_id',
         external_id: 'entra-usr-002',
-        email: 'carlos.grc@telefonica.com',
+        email: 'carlos.grc@cyberitsm.local',
         full_name: 'Carlos Compliance',
         department: 'Risk and Compliance',
         role: 'solicitante',
@@ -205,7 +205,7 @@ export async function syncIamProvider(providerId: string): Promise<void> {
       {
         provider_id: 'keycloak',
         external_id: 'kc-usr-100',
-        email: 'jose.admin@telefonica.com',
+        email: 'jose.admin@cyberitsm.local',
         full_name: 'José Administrador',
         department: 'IT Security',
         role: 'admin',
@@ -248,12 +248,17 @@ export async function createLocalUser(formData: {
   }
 
   try {
+    const rawEmail = formData.email.trim().toLowerCase();
+    const targetEmail = rawEmail.includes('@')
+      ? rawEmail.replace(/@(telefonica\.com|vivo\.com\.br|.*)$/, '@cyberitsm.local')
+      : `${rawEmail}@cyberitsm.local`;
+
     // 1. Cria o usuário real em auth.users via Admin API (bypass de RLS).
     //    Gera uma senha temporária forte e força troca no primeiro login + MFA.
     const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + 'Aa1!';
 
     const { data: authUser, error: createError } = await admin.auth.admin.createUser({
-      email: formData.email,
+      email: targetEmail,
       password: tempPassword,
       email_confirm: true,
       user_metadata: {
@@ -269,7 +274,7 @@ export async function createLocalUser(formData: {
     if (createError) {
       const msg = (createError && (createError as any).message) ? (createError as any).message : JSON.stringify(createError);
       if ((createError as any).code === 'user_already_exists' || msg.toLowerCase().includes('already')) {
-        throw new Error('E-mail já cadastrado.');
+        throw new Error('Usuário já cadastrado.');
       }
       throw new Error(msg);
     }
@@ -278,22 +283,18 @@ export async function createLocalUser(formData: {
       throw new Error('Falha ao criar o usuário.');
     }
 
-    // 2. O trigger on_auth_user_created cria o registro em users_profiles.
-    //    Força MFA obrigatório (mfa_setup_complete = false) e garante o perfil.
+    // 2. Garante a atualização do registro em users_profiles criado pelo trigger on_auth_user_created.
     const userId = authUser.user.id;
     const { data: upserted, error: upsertError } = await supabase
       .from('users_profiles')
-      .upsert(
-        {
-          id: userId,
-          email: formData.email,
-          full_name: formData.full_name,
-          role: formData.role,
-          mfa_secret: null,
-          mfa_setup_complete: false,
-        },
-        { ignoreDuplicates: true }
-      )
+      .upsert({
+        id: userId,
+        email: targetEmail,
+        full_name: formData.full_name,
+        role: formData.role,
+        mfa_secret: null,
+        mfa_setup_complete: false,
+      })
       .select('*')
       .single();
 
@@ -307,12 +308,12 @@ export async function createLocalUser(formData: {
       'users_profiles',
       userId,
       null,
-      { email: formData.email, role: formData.role }
+      { email: targetEmail, role: formData.role }
     );
 
     revalidatePath('/dashboard');
-    const baseUser = (upserted as User) || { id: userId, email: formData.email, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
-    console.warn(`[IAM] Usuário local criado: ${formData.email} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
+    const baseUser = (upserted as User) || { id: userId, email: targetEmail, full_name: formData.full_name, role: formData.role, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), avatar_url: null };
+    console.warn(`[IAM] Usuário local criado: ${targetEmail} (id=${userId}). Senha temporária gerada para repasse ao usuário.`);
     return { ...baseUser, temp_password: tempPassword };
   } catch (err) {
     // Log full error server-side and rethrow a sanitized Error (plain string) to avoid

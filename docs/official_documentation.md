@@ -104,7 +104,7 @@ Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.
 
 - **Endpoint**: `app/api/chat/route.ts`.
 - **Modelo**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, modelo `gemini-flash-latest` (alias rolling). Um fallback local Ollama (`createOpenAI` → `http://localhost:11434/v1`) fica comentado/desabilitado.
-- **Conhecimento**: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura SD v4.1, extraídos de `BaseRequisitosSD_v4.1.xlsx`. Cada requisito possui: `id` (ex.: `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
+- **Conhecimento**: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura. Cada requisito possui: `id` (ex.: `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
 - **Recuperação** (`retrieveRelevantRequisitos`, limite padrão 6):
   - Tokenização com normalização **NFD** (remove acentos), lowercase, split por não-alfanumérico, remoção de tokens ≤2 e de uma lista de stopwords em português.
   - Score ponderado por campo: `core` (id/controle/componente/owasp/strideLM) ×3, `detail` (detalhamento/riscos/categoria/propriedade) ×2, `light` (criticidade) ×1.
@@ -292,7 +292,7 @@ Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.
 
 - **Endpoint**: `app/api/chat/route.ts`.
 - **Model**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, model `gemini-flash-latest` (rolling alias). A local Ollama fallback (`createOpenAI` → `http://localhost:11434/v1`) is commented out/disabled.
-- **Knowledge**: `requisitos-sd.json` — **314 requirements** of Secure Architecture SD v4.1, extracted from `BaseRequisitosSD_v4.1.xlsx`. Each requirement has: `id` (e.g. `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
+- **Knowledge**: `requisitos-sd.json` — **314 requirements** of Secure Architecture. Each requirement has: `id` (e.g. `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
 - **Retrieval** (`retrieveRelevantRequisitos`, default limit 6):
   - Tokenization with **NFD** normalization (strips accents), lowercase, split on non-alphanumerics, removal of tokens ≤2 and a Portuguese stopword list.
   - Weighted field scoring: `core` (id/controle/componente/owasp/strideLM) ×3, `detail` (detalhamento/riscos/categoria/propriedade) ×2, `light` (criticidade) ×1.

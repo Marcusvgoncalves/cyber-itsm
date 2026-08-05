@@ -500,11 +500,11 @@ export function DashboardClient({
                     )}
                     <form onSubmit={handleRequestRole} className="space-y-3">
                       <div>
-                        <Label htmlFor="reqEmail" className="text-xs font-semibold">E-mail do Colaborador</Label>
+                        <Label htmlFor="reqEmail" className="text-xs font-semibold">Usuário do Colaborador (nome.sobrenome)</Label>
                         <Input
                           id="reqEmail"
-                          type="email"
-                          placeholder="email@telefonica.com"
+                          type="text"
+                          placeholder="marcus.goncalves"
                           value={reqEmail}
                           onChange={(e) => setReqEmail(e.target.value)}
                           required
@@ -569,7 +569,7 @@ export function DashboardClient({
                           <Input
                             id="localName"
                             type="text"
-                            placeholder="João SecOps"
+                            placeholder="Marcus Gonçalves"
                             value={localFullName}
                             onChange={(e) => setLocalFullName(e.target.value)}
                             required
@@ -577,11 +577,11 @@ export function DashboardClient({
                           />
                         </div>
                         <div>
-                          <Label htmlFor="localEmail" className="text-xs font-semibold">E-mail</Label>
+                          <Label htmlFor="localEmail" className="text-xs font-semibold">Usuário (nome.sobrenome)</Label>
                           <Input
                             id="localEmail"
-                            type="email"
-                            placeholder="email@telefonica.com"
+                            type="text"
+                            placeholder="marcus.goncalves"
                             value={localEmail}
                             onChange={(e) => setLocalEmail(e.target.value)}
                             required

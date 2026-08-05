@@ -172,18 +172,22 @@ export async function disableMfa(): Promise<void> {
 /**
  * Request a password reset link (simulated token).
  */
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; link?: string; error?: string }> {
+export async function requestPasswordReset(usernameOrEmail: string): Promise<{ success: boolean; link?: string; error?: string }> {
   const supabase = await createClient();
-  
+  const rawInput = usernameOrEmail.trim().toLowerCase();
+  const targetEmail = rawInput.includes('@')
+    ? rawInput.replace(/@(telefonica\.com|vivo\.com\.br|.*)$/, '@cyberitsm.local')
+    : `${rawInput}@cyberitsm.local`;
+
   // Find user profile by email
   const { data: profile, error: findError } = await supabase
     .from('users_profiles')
     .select('id')
-    .eq('email', email)
+    .eq('email', targetEmail)
     .single();
 
   if (findError || !profile) {
-    return { success: false, error: 'E-mail não cadastrado no sistema.' };
+    return { success: false, error: 'Usuário não cadastrado no sistema.' };
   }
 
   // Generate a random token

@@ -40,10 +40,15 @@ export function LoginForm() {
     setError(null)
     setSuccess(null)
 
+    const rawInput = email.trim().toLowerCase()
+    const formattedEmail = rawInput.includes('@')
+      ? rawInput.replace(/@(telefonica\.com|vivo\.com\.br|.*)$/, '@cyberitsm.local')
+      : `${rawInput}@cyberitsm.local`
+
     // 1. Authenticate with Supabase Auth
     const supabase = createClient()
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: formattedEmail,
       password,
     })
 
@@ -208,19 +213,19 @@ export function LoginForm() {
         {step === 'CREDENTIALS' && (
           <form onSubmit={handleCredentialsSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">E-mail Corporativo</Label>
+              <Label htmlFor="email" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Usuário (nome.sobrenome)</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="exemplo.colaborador@telefonica.com"
+                  type="text"
+                  placeholder="marcus.goncalves"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
                   required
                   disabled={isLoading}
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -257,7 +262,7 @@ export function LoginForm() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-500 italic">Dica padrão: joao.secops@telefonica.com / CyberITSM@2026!Password</p>
+              <p className="text-[10px] text-gray-500 italic">Dica padrão: joao.secops / CyberITSM@2026!Password</p>
             </div>
 
             <Button type="submit" className="w-full h-11 bg-primary hover:bg-primary-hover text-white font-medium shadow-md transition-all duration-200" disabled={isLoading}>
@@ -365,14 +370,14 @@ export function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="email"
-                  placeholder="digite-seu-email@telefonica.com"
+                  type="text"
+                  placeholder="digite-seu-usuario (ex.: marcus.goncalves)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-10 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
                   required
                   disabled={isLoading}
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
               <Button type="submit" variant="outline" className="w-full border-gray-300 hover:bg-gray-50 text-gray-700" disabled={isLoading}>
@@ -384,7 +389,7 @@ export function LoginForm() {
       </CardContent>
       <CardFooter className="pb-8 pt-4 flex flex-col gap-2">
         <p className="text-xs text-center text-muted-foreground">
-          CyberITSM SPN &copy; 2026 - Vivo Telefônica
+          CyberITSM SPN &copy; 2026 - Cyber Security Platform
         </p>
       </CardFooter>
     </Card>
