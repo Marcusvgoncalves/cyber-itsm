@@ -78,7 +78,7 @@ export async function initiateMfa(): Promise<{ secret: string; qrCodeUri: string
   if (!user) throw new Error('Não autenticado');
 
   const secret = generateSecret();
-  const qrCodeUri = `otpauth://totp/CyberITSM:${user.email}?secret=${secret}&issuer=CyberITSM`;
+  const qrCodeUri = `otpauth://totp/CyberITSM:${encodeURIComponent(user.email)}?secret=${secret}&issuer=CyberITSM`;
   return { secret, qrCodeUri };
 }
 

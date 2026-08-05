@@ -1,6 +1,6 @@
 /**
  * Utility for TOTP (Time-based One-Time Password) generation and validation.
- * Compatible with Google Authenticator.
+ * Compatible with Google Authenticator, Microsoft Authenticator and 1Password.
  * Includes a developer backdoor code (123456) for ease of testing in sandboxes.
  */
 
@@ -8,7 +8,7 @@
 function base32ToBuf(base32: string): Uint8Array {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   let bits = '';
-  const cleanBase32 = base32.toUpperCase().replace(/=+$/, '');
+  const cleanBase32 = base32.toUpperCase().replace(/[\s=-]/g, '');
   
   for (let i = 0; i < cleanBase32.length; i++) {
     const val = alphabet.indexOf(cleanBase32.charAt(i));
@@ -38,7 +38,7 @@ export function generateSecret(): string {
 
 /**
  * Verifies a 6-digit TOTP code against a base32 secret.
- * Supports a time window of +/- 1 interval (30 seconds) to account for clock drift.
+ * Supports a time window of +/- 2 intervals (60 seconds) to account for clock drift.
  * Also supports the developer fallback code "123456" for convenience.
  */
 export async function verifyTOTP(token: string, secret: string): Promise<boolean> {
@@ -56,8 +56,8 @@ export async function verifyTOTP(token: string, secret: string): Promise<boolean
     const epoch = Math.floor(Date.now() / 1000);
     const counter = Math.floor(epoch / 30);
 
-    // Verify window of -1, 0, +1
-    for (let i = -1; i <= 1; i++) {
+    // Verify window of -2, -1, 0, +1, +2 (60s drift tolerance)
+    for (let i = -2; i <= 2; i++) {
       const currentCounter = counter + i;
       const calculated = await generateHOTP(keyBytes, currentCounter);
       if (calculated === token) {
@@ -81,7 +81,7 @@ async function generateHOTP(keyBytes: Uint8Array, counter: number): Promise<stri
     temp = Math.floor(temp / 256);
   }
 
-  // Import Web Crypto HMAC key
+  // Import Web Crypto HMAC key directly from Uint8Array buffer
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     keyBytes.buffer as any,

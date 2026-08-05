@@ -28,6 +28,7 @@ export function LoginForm() {
   
   // MFA States
   const [mfaSecret, setMfaSecret] = useState("")
+  const [qrCodeUri, setQrCodeUri] = useState("")
   const [mfaCode, setMfaCode] = useState("")
   
   // Password Reset sandbox helper
@@ -39,23 +40,29 @@ export function LoginForm() {
     setError(null)
     setSuccess(null)
 
+    // 1. Authenticate with Supabase Auth
     const supabase = createClient()
-
-    // 1. Sign in with Supabase
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (signInError) {
-      setError(signInError.message)
+      setError(signInError.message === 'Invalid login credentials' 
+        ? 'Credenciais inválidas. Verifique seu e-mail e senha.' 
+        : signInError.message)
       setIsLoading(false)
       return
     }
 
-    const user = signInData.user;
+    const user = signInData.user
+    if (!user) {
+      setError("Usuário não encontrado.")
+      setIsLoading(false)
+      return
+    }
 
-    // 2. Fetch profile to check MFA status
+    // 2. Fetch User Profile
     const { data: profile, error: profileError } = await supabase
       .from('users_profiles')
       .select('mfa_setup_complete, mfa_secret')
@@ -72,8 +79,9 @@ export function LoginForm() {
     if (!profile.mfa_setup_complete) {
       // User must configure MFA (First access / Onboarding)
       try {
-        const { secret } = await initiateMfa()
+        const { secret, qrCodeUri: uri } = await initiateMfa()
         setMfaSecret(secret)
+        setQrCodeUri(uri)
         setStep('MFA_ONBOARDING')
       } catch (err: any) {
         setError(err.message || "Erro ao inicializar MFA.")
@@ -269,36 +277,13 @@ export function LoginForm() {
               </p>
             </div>
 
-            {/* Simulated QR Code rendering */}
+            {/* Real Dynamic QR Code Rendering */}
             <div className="flex flex-col items-center justify-center p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <svg viewBox="0 0 100 100" className="w-36 h-36 bg-white p-2 border border-gray-300 rounded shadow-sm">
-                <rect x="0" y="0" width="22" height="22" fill="black" />
-                <rect x="4" y="4" width="14" height="14" fill="white" />
-                <rect x="7" y="7" width="8" height="8" fill="black" />
-                
-                <rect x="78" y="0" width="22" height="22" fill="black" />
-                <rect x="82" y="4" width="14" height="14" fill="white" />
-                <rect x="85" y="7" width="8" height="8" fill="black" />
-                
-                <rect x="0" y="78" width="22" height="22" fill="black" />
-                <rect x="4" y="82" width="14" height="14" fill="white" />
-                <rect x="7" y="85" width="8" height="8" fill="black" />
-
-                <rect x="38" y="38" width="24" height="24" fill="black" />
-                <rect x="42" y="42" width="16" height="16" fill="white" />
-                <rect x="46" y="46" width="8" height="8" fill="black" />
-
-                <rect x="28" y="6" width="6" height="12" fill="black" />
-                <rect x="36" y="16" width="12" height="6" fill="black" />
-                <rect x="62" y="10" width="6" height="18" fill="black" />
-                <rect x="6" y="36" width="12" height="6" fill="black" />
-                <rect x="16" y="46" width="6" height="18" fill="black" />
-                <rect x="36" y="72" width="18" height="6" fill="black" />
-                <rect x="72" y="36" width="6" height="12" fill="black" />
-                <rect x="86" y="46" width="8" height="6" fill="black" />
-                <rect x="56" y="86" width="16" height="6" fill="black" />
-                <rect x="82" y="78" width="6" height="16" fill="black" />
-              </svg>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrCodeUri || `otpauth://totp/CyberITSM?secret=${mfaSecret}&issuer=CyberITSM`)}`}
+                alt="QR Code MFA"
+                className="w-36 h-36 bg-white p-2 border border-gray-300 rounded shadow-sm"
+              />
               <div className="mt-2.5 text-center">
                 <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Chave Secreta</span>
                 <code className="text-sm font-mono text-primary font-bold tracking-widest">{mfaSecret}</code>
