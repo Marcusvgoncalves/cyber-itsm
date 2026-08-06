@@ -41,6 +41,8 @@ create policy "security_qa_archive_service_role"
 
 -- ----------------------------------------------------------------------------
 -- 2. Tabela de resultados (qa_results)
+--    Idempotente: em tabelas preexistentes (parciais), as colunas faltantes
+--    são adicionadas via "alter table add column if not exists" abaixo.
 -- ----------------------------------------------------------------------------
 create table if not exists public.qa_results (
   id                   uuid primary key default gen_random_uuid(),
@@ -58,13 +60,42 @@ create table if not exists public.qa_results (
   overall_rating       text not null,
   executive_summary    text not null,
   findings             jsonb not null default '[]'::jsonb,
-  status               text not null default 'concluido'
-                       check (status in ('concluido', 'falha')),
+  status               text not null default 'concluido',
   error_message        text,
-  created_by           uuid references auth.users (id) on delete set null,
+  created_by           uuid,
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now()
 );
+
+-- Reparo idempotente: garante cada coluna usada pelo INSERT da API
+alter table public.qa_results add column if not exists project_name        text not null default '';
+alter table public.qa_results add column if not exists environment_url     text not null default '';
+alter table public.qa_results add column if not exists requirements        text not null default '';
+alter table public.qa_results add column if not exists original_file_name  text not null default '';
+alter table public.qa_results add column if not exists temp_storage_path   text;
+alter table public.qa_results add column if not exists archived_file_path  text not null default '';
+alter table public.qa_results add column if not exists archived_file_url   text;
+alter table public.qa_results add column if not exists archived_size_bytes bigint not null default 0;
+alter table public.qa_results add column if not exists original_size_bytes bigint not null default 0;
+alter table public.qa_results add column if not exists compression_ratio   numeric(6, 4);
+alter table public.qa_results add column if not exists compliance_percent  numeric(5, 2) not null default 0;
+alter table public.qa_results add column if not exists overall_rating      text not null default '';
+alter table public.qa_results add column if not exists executive_summary   text not null default '';
+alter table public.qa_results add column if not exists findings            jsonb not null default '[]'::jsonb;
+alter table public.qa_results add column if not exists status              text not null default 'concluido';
+alter table public.qa_results add column if not exists error_message       text;
+alter table public.qa_results add column if not exists created_by          uuid;
+alter table public.qa_results add column if not exists created_at          timestamptz not null default now();
+alter table public.qa_results add column if not exists updated_at          timestamptz not null default now();
+
+-- Constraint de status + FK para auth.users (recriadas com segurança)
+alter table public.qa_results drop constraint if exists qa_results_status_check;
+alter table public.qa_results add constraint qa_results_status_check
+  check (status in ('concluido', 'falha'));
+
+alter table public.qa_results drop constraint if exists qa_results_created_by_fkey;
+alter table public.qa_results add constraint qa_results_created_by_fkey
+  foreign key (created_by) references auth.users (id) on delete set null;
 
 create index if not exists idx_qa_results_created_at
   on public.qa_results (created_at desc);
