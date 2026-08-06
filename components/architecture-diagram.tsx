@@ -43,6 +43,12 @@ export function ArchitectureDiagram() {
       desc: "Simuladores de governança corporativa que sincronizam identidades com Microsoft Entra ID e gerenciam workflows no Sailpoint.",
       tools: ["Entra ID", "Keycloak", "Sailpoint IdentityNow", "Oracle Access Manager"],
       color: "border-orange-500 bg-orange-50 text-orange-700"
+    },
+    security_qa: {
+      title: "Centro de Security QA",
+      desc: "Bounded Context isolado para cruzamento inteligente de relatórios brutos (.json/.xml/.txt) com requisitos. Realiza análise Gemini estructurada, compressão GZIP forense, expurgo e geração de PDF.",
+      tools: ["@react-pdf/renderer", "Recharts", "zlib/GZIP", "streamObject (Gemini)"],
+      color: "border-red-600 bg-red-50 text-red-700"
     }
   };
 
@@ -142,6 +148,18 @@ export function ArchitectureDiagram() {
               <KeyRound className={`w-8 h-8 ${activeNode === 'iam' ? 'text-orange-500' : 'text-gray-400'}`} />
             </div>
             <span className="mt-3 font-semibold text-sm text-gray-700">Rede IAM</span>
+          </div>
+
+          {/* Node: Security QA */}
+          <div 
+            className="flex flex-col items-center cursor-pointer group"
+            onMouseEnter={() => setActiveNode('security_qa')}
+            onClick={() => setActiveNode('security_qa')}
+          >
+            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center bg-white border-2 shadow-md transition-all duration-300 ${activeNode === 'security_qa' ? 'border-red-600 scale-110 shadow-red-200' : 'border-gray-200 group-hover:border-red-300'}`}>
+              <Shield className={`w-8 h-8 ${activeNode === 'security_qa' ? 'text-red-600' : 'text-gray-400'}`} />
+            </div>
+            <span className="mt-3 font-semibold text-sm text-gray-700">Security QA</span>
           </div>
         </div>
 

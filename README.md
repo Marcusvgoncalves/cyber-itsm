@@ -25,9 +25,11 @@ O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco,
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
 | **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | Agente SecOps com RAG sobre 314 requisitos. `streamText`, temperatura 0.2. |
 | **RAG / Conhecimento** | `requisitos-sd.json` | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
-| **Banco de Dados** | Supabase PostgreSQL 15 | 8 tabelas com Row Level Security (RLS) ativa, triggers e seeds. |
+| **Banco de Dados** | Supabase PostgreSQL 15 | 9 tabelas com Row Level Security (RLS) ativa, buckets de Storage, triggers e seeds. |
 | **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
 | **IAM / IGA** | Adaptadores simulados (Entra ID, Keycloak, OAM, Sailpoint) + criação local | Governança de identidade, fila de aprovação e gestão de usuários. |
+| **Relatórios PDF** | `@react-pdf/renderer` | Geração sob demanda de relatórios de segurança em PDF para download. |
+| **Gráficos & Métricas** | Recharts | Gráficos dinâmicos de conformidade e distribuição de status. |
 | **Deploy** | Vercel | CDN/Edge serverless; pronto para produção online. |
 
 ---
@@ -45,16 +47,20 @@ cyber-itsm/
 │   │   ├── iam.ts                #   IAM/IGA + gestão de usuários (createLocalUser etc.)
 │   │   └── tickets.ts            #   CRUD de tickets, status e comentários
 │   ├── api/chat/route.ts         # Endpoint RAG da IA (streamText + Gemini)
+│   ├── api/qa-engine/route.ts    # Motor de IA do Centro de Security QA (streamObject)
 │   ├── dashboard/                # Página principal (Kanban + IAM + Audit + C4 + Config)
 │   ├── login/page.tsx            # Página de autenticação
-│   └── reset-password/page.tsx   # Redefinição de senha
+│   ├── reset-password/page.tsx   # Redefinição de senha
+│   └── security-qa/              # Centro de Security QA (Avaliações, Ingestão, Dashboards)
 ├── components/
 │   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
+│   ├── security-qa/              # Componentes do Security QA (Dashboard, Upload, PDF)
 │   ├── SecurityAgent.tsx         # Agente de IA (FAB) via useChat/@ai-sdk/react
 │   ├── login-form.tsx            # Fluxo de login com 3 passos (credenciais, MFA onboarding, MFA verify)
 │   ├── architecture-diagram.tsx  # Mapa de arquitetura interativo (cliente)
 │   └── ui/                       # button, card, input, label, select, separator, textarea
 ├── lib/
+│   ├── security-qa/              # Lógica de negócio, config, storage e repositório isolados
 │   ├── totp.ts                   # Geração/validação TOTP (RFC 6238, Web Crypto)
 │   ├── supabase.ts               # Acesso a dados (getTickets, getUsers, CRUD, auditoria)
 │   ├── types.ts                  # Modelos tipados + permissões RBAC
@@ -64,7 +70,8 @@ cyber-itsm/
 │   ├── client.ts                 # Client browser
 │   └── admin.ts                  # Client service role (operação de admin)
 ├── proxy.ts                      # Middleware Next.js 16: sessão + RBAC + check MFA
-├── supabase-schema.sql           # Schema completo (tabelas, RLS, triggers, seeds)
+├── supabase-schema.sql           # Schema completo legado (tabelas, RLS, triggers, seeds)
+├── supabase-security-qa.sql      # Schema isolado do Centro de Security QA (tabela, RLS, buckets)
 ├── requisitos-sd.json            # Base de conhecimento RAG (314 requisitos)
 └── public/images/architecture.svg # Desenho de arquitetura da solução
 ```
@@ -185,6 +192,16 @@ O projeto está pronto para deploy na Vercel (funcionamento online).
 
 > Detalhes técnicos completos (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
 
+### 🛡️ Centro de Security QA (Análise Automatizada de Relatórios)
+
+A plataforma conta com um módulo isolado e seguro para a ingestão e análise de relatórios de vulnerabilidades (JSON, XML ou TXT de até 5 MB), cruzando-os com requisitos de arquitetura de segurança via IA:
+
+1. **Upload Direto e Ingestão Efêmera**: As evidências brutas são carregadas diretamente do navegador para o bucket privado `qa-temp-evidences` no Supabase Storage.
+2. **Motor de IA via Stream (Gemini)**: O endpoint `/api/qa-engine` baixa a evidência bruta, cruza com os requisitos de arquitetura fornecidos usando a chamada `streamObject` do Gemini (`gemini-flash-latest`), gerando métricas de conformidade (%) e vereditos detalhados por requisito em tempo real (NDJSON stream).
+3. **Compressão Forense (zlib/GZIP)**: O relatório textual original é comprimido usando GZIP (nível de compressão máximo = 9) e armazenado no bucket imutável de arquivamento `qa-logs-archive`. O banco de dados (`qa_results`) armazena a URL assinada temporária para download.
+4. **Data Purge (Expurgo)**: Assim que a compressão e arquivamento em `.gz` são confirmados, a evidência bruta original é permanentemente deletada do bucket temporário, garantindo segurança de dados e economia de espaço.
+5. **Painel de Controle e Exportação**: O analista visualiza gráficos dinâmicos de conformidade e vereditos (usando Recharts Radial/Bar charts) e pode gerar um relatório executivo em PDF sob demanda (`@react-pdf/renderer`).
+
 ### 🚦 Segurança no CI/CD (Deploy Gate)
 
 Todo commit/PR na `main` dispara o pipeline de segurança [`Enterprise Security Scan`](.github/workflows/enterprise-security.yml), que **bloqueia o deploy na Vercel** se encontrar vulnerabilidades (segredos, CVEs High/Critical, falhas OWASP/SAST/DAST). Veja as regras customizadas de vazamento em [`.gitleaks.toml`](.gitleaks.toml) e o passo a passo de configuração do gate em [`docs/deploy-gate.md`](docs/deploy-gate.md).
@@ -212,9 +229,11 @@ The diagram details **every container, component, database table, authentication
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
 | **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | SecOps agent with RAG over 314 requirements. `streamText`, temperature 0.2. |
 | **RAG / Knowledge** | `requisitos-sd.json` | Weighted keyword retrieval (core×3, detail×2, light×1). |
-| **Database** | Supabase PostgreSQL 15 | 8 tables with Row Level Security (RLS), triggers and seeds. |
+| **Database** | Supabase PostgreSQL 15 | 9 tables with Row Level Security (RLS) active, Storage buckets, triggers and seeds. |
 | **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
 | **IAM / IGA** | Simulated adapters (Entra ID, Keycloak, OAM, Sailpoint) + local creation | Identity governance, approval queue and user management. |
+| **PDF Reporting** | `@react-pdf/renderer` | On-demand generation of downloadable PDF security reports. |
+| **Charts & Metrics** | Recharts | Dynamic charts of compliance progress and requirements distribution. |
 | **Deploy** | Vercel | CDN/Edge serverless; production-ready. |
 
 ---
@@ -227,21 +246,25 @@ cyber-itsm/
 │   ├── page.tsx                  # Redirects to /dashboard or /login
 │   ├── layout.tsx                # Root layout (fonts, metadata)
 │   ├── globals.css               # Mistica global styles
-│   ├── actions/                  # Typed Server Actions ("use server")
+│   ├── actions/                  # Server Actions (typed, "use server")
 │   │   ├── auth.ts               #   Login, MFA, password reset, audit
 │   │   ├── iam.ts                #   IAM/IGA + user mgmt (createLocalUser etc.)
 │   │   └── tickets.ts            #   Ticket/status/comment CRUD
 │   ├── api/chat/route.ts         # AI RAG endpoint (streamText + Gemini)
+│   ├── api/qa-engine/route.ts    # AI Engine for Security QA Center (streamObject)
 │   ├── dashboard/                # Main page (Kanban + IAM + Audit + C4 + Config)
 │   ├── login/page.tsx            # Authentication page
-│   └── reset-password/page.tsx   # Password reset
+│   ├── reset-password/page.tsx   # Password reset
+│   └── security-qa/              # Security QA Center (Assessments, Ingestion, Dashboards)
 ├── components/
 │   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
+│   ├── security-qa/              # Components for Security QA (Dashboard, Upload, PDF)
 │   ├── SecurityAgent.tsx         # AI agent (FAB) via useChat/@ai-sdk/react
 │   ├── login-form.tsx            # 3-step login (credentials, MFA onboarding, MFA verify)
 │   ├── architecture-diagram.tsx  # Interactive architecture map (client)
 │   └── ui/                       # button, card, input, label, select, separator, textarea
 ├── lib/
+│   ├── security-qa/              # Isolated business logic, config, storage, and repository
 │   ├── totp.ts                   # TOTP generation/validation (RFC 6238, Web Crypto)
 │   ├── supabase.ts               # Data access (getTickets, getUsers, CRUD, audit)
 │   ├── types.ts                  # Typed models + RBAC permissions
@@ -251,7 +274,8 @@ cyber-itsm/
 │   ├── client.ts                 # Browser client
 │   └── admin.ts                  # Service-role client (admin operations)
 ├── proxy.ts                      # Next.js 16 middleware: session + RBAC + MFA check
-├── supabase-schema.sql           # Full schema (tables, RLS, triggers, seeds)
+├── supabase-schema.sql           # Full legacy schema (tables, RLS, triggers, seeds)
+├── supabase-security-qa.sql      # Isolated schema for Security QA Center (table, RLS, buckets)
 ├── requisitos-sd.json            # RAG knowledge base (314 requirements)
 └── public/images/architecture.svg # Solution architecture diagram
 ```
@@ -370,10 +394,20 @@ The project is ready for Vercel deployment (online operation).
 
 ---
 
+### 🛡️ Security QA Center (Automated Report Analysis)
+
+The platform features an isolated and secure module for ingesting and analyzing vulnerability reports (JSON, XML, or TXT up to 5 MB), crossing them against security architecture requirements using AI:
+
+1. **Direct Upload & Ephemeral Ingestion**: Raw evidence files are uploaded directly from the browser to the private `qa-temp-evidences` Supabase Storage bucket.
+2. **AI Stream Engine (Gemini)**: The `/api/qa-engine` endpoint downloads the raw evidence, matches it against the provided architecture requirements using Gemini (`gemini-flash-latest`) via `streamObject`, and yields real-time compliance scores (%) and detailed requirements verdicts via NDJSON streaming.
+3. **Foresnic Compression (zlib/GZIP)**: The original text report is compressed using GZIP (level 9) and archived in the immutable `qa-logs-archive` bucket. The database table `qa_results` persists the temporary signed URL for download.
+4. **Data Purge**: Once GZIP compression and archival are verified, the original raw evidence is permanently purged from the temporary bucket, enforcing strict data minimisation and storage efficiency.
+5. **Dashboard & PDF Export**: Analysts view dynamic compliance gauges and requirement verdict charts (via Recharts) and can export a styled executive PDF report on-demand (`@react-pdf/renderer`).
+
 ### 🛡️ Vulnerability Mitigation / Remediação de Vulnerabilidades
 
 - **Remoção de dependências inseguras (`xlsx` / SheetJS)**: O pacote `xlsx` apresentava vulnerabilidades graves de **Prototype Pollution** (GHSA-4r6h-8v6p-xvw6) e **ReDoS** (GHSA-5pgg-2g8v-p4x9), bloqueando scans de segurança (Trivy/npm audit). O pacote foi desinstalado e excluído do repositório por obsolescência, uma vez que a leitura do Excel foi inteiramente substituída pela base local estável em JSON (`requisitos-sd.json`).
 
-> Detalhes técnicos da solução (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
+> Technical details of the solution (components, RLS, RAG, integrations) in [`docs/official_documentation.md`](docs/official_documentation.md).
 >
-> Resultados da última análise profunda de vulnerabilidades (SAST, SCA, Secrets) em [`docs/security-scan-results.md`](docs/security-scan-results.md).
+> Results of the latest deep vulnerability analysis (SAST, SCA, Secrets) in [`docs/security-scan-results.md`](docs/security-scan-results.md).

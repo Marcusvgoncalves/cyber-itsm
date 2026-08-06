@@ -25,18 +25,19 @@
 
 ![Desenho de arquitetura da solução](../public/images/architecture.svg)
 
-O desenho detalha os **atores, contêineres (frontend/backend), pipeline RAG de IA, banco de dados (8 tabelas + RLS) e integrações externas de IAM/IGA**, além da jornada de autenticação e MFA.
+O desenho detalha os **atores, contêineres (frontend/backend), pipeline RAG de IA, motor de Security QA, banco de dados (9 tabelas + RLS), storage e integrações externas de IAM/IGA**, além da jornada de autenticação e MFA.
 
 ```mermaid
 graph TD
   User["Analista SecOps / Admin / Solicitante"] -->|HTTPS| FE["Frontend Next.js 16 (React 19, Mistica)"]
 
   subgraph FE [Camada de Apresentação / SPA]
-    UI["Páginas: /dashboard · /login · /reset-password"]
-    COMP["Componentes: Kanban · SecurityAgent · login-form · ArchitectureDiagram"]
+    UI["Páginas: /dashboard · /login · /reset-password · /security-qa · /security-qa/assess · /security-qa/project/[id]"]
+    COMP["Componentes: Kanban · SecurityAgent · login-form · ArchitectureDiagram · EvidenceUpload · ProjectDashboard"]
   end
 
   FE -->|Server Actions (RPC)| BE["Backend Next.js Serverless (Vercel)"]
+  FE -->|POST /api/qa-engine (NDJSON Stream)| API_QA["api/qa-engine — Motor Security QA"]
 
   subgraph BE [Camada de Servidor]
     PX["proxy.ts — sessão + RBAC + check MFA"]
@@ -45,13 +46,22 @@ graph TD
   end
 
   FE -->|POST /api/chat| AI
+  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-flash-latest)"]
+  API_QA -->|Salvar resultado| DB
+  API_QA -->|Upload .gz / Delete bruto| ST[("Supabase Storage Buckets")]
 
   BE -->|Admin API (service role)| AUTH["auth.users (criação de usuários)"]
-  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 8 tabelas")]
+  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 9 tabelas")]
 
   subgraph DB [Camada de Dados]
     P1["users_profiles · tickets · ticket_statuses · comments"]
     P2["audit_logs · iam_providers · iam_users · identity_requests"]
+    P3["qa_results"]
+  end
+
+  subgraph ST [Camada de Armazenamento]
+    B1["qa-temp-evidences (ingestão temporária)"]
+    B2["qa-logs-archive (arquivamento imutável .gz)"]
   end
 
   BE -->|Simulado| IAM["IAM/IGA: Entra ID · Keycloak · OAM · Sailpoint"]
@@ -185,11 +195,28 @@ Banco PostgreSQL 15 com **8 tabelas**, todas com **Row Level Security (RLS)** at
 
 **Extensões**: `uuid-ossp` (uuid_generate_v4), `pgcrypto`. Schema completo: `supabase-schema.sql`.
 
+### 7. Centro de Security QA (Análise de Relatórios & Ingestão)
+
+Este módulo implementa um Bounded Context isolado para receber relatórios brutos de vulnerabilidades (formatos `.json`, `.xml` ou `.txt` de até 5 MB) e analisá-los contra um escopo específico de requisitos de segurança.
+
+#### 7.1 Pipeline de Processamento (Ingestão & IA)
+O fluxo ocorre de forma transacional e em tempo real via a API Route `POST /api/qa-engine`:
+1. **Upload Direto para o Temp Bucket**: O cliente faz upload do arquivo original para o bucket `qa-temp-evidences` no Supabase Storage utilizando o client público.
+2. **Download do Dado Bruto**: O servidor baixa o arquivo do bucket de forma segura utilizando o cliente de `service_role`.
+3. **Análise Estruturada via IA**: Os dados brutos e os requisitos técnicos são cruzados pelo motor de IA. O modelo `gemini-flash-latest` é executado com a diretriz `streamObject` (do Vercel AI SDK), gerando uma resposta estruturada que valida a conformidade de cada requisito em tempo real (NDJSON stream), reportando evidências e recomendações técnicas.
+4. **Arquivamento e Compressão Forense**: O texto original do relatório é comprimido no formato GZIP (`zlib` nativo do Node com nível de compressão máxima = 9) e armazenado no bucket imutável `qa-logs-archive`. O caminho do arquivo `.gz` e os metadados de compressão (tamanho original vs comprimido) são gravados.
+5. **Persistência de Resultados**: Os resultados da análise, o sumário executivo, a porcentagem de conformidade (`compliance_percent`), a classificação de risco (`overall_rating`) e a URL assinada de acesso ao arquivo `.gz` são persistidos na tabela `qa_results` do banco de dados.
+6. **Expurgo Completo (Data Purge)**: Após a confirmação de escrita em banco e upload no bucket imutável, o arquivo temporário original é removido do bucket `qa-temp-evidences`, garantindo a retenção apenas da evidência comprimida.
+
+#### 7.2 Exportação de PDF e Gráficos
+- **PDF nativo**: Gerado no lado do cliente utilizando a biblioteca `@react-pdf/renderer` através do componente `<QaReportDocument />`, que reconstrói a estrutura visual do sumário executivo, da tabela de requisitos e dos metadados forenses.
+- **Gráficos Recharts**: O dashboard renderiza a taxa de conformidade em um gráfico radial de ângulo polar e exibe a contagem de conformidade por status em um gráfico de barras.
+
 ---
 
-### 7. Execução, Build & Deploy
+### 8. Execução, Build & Deploy
 
-#### 7.1 Ambiente (`.env.local`)
+#### 8.1 Ambiente (`.env.local`)
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
@@ -199,7 +226,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 - A **service role** é obrigatória para criação manual de usuários e gestão IAM; roda apenas no servidor.
 - A **Gemini key** é necessária para a IA generativa.
 
-#### 7.2 Comandos
+#### 8.2 Comandos
 ```bash
 npm run dev       # desenvolvimento
 npm run build     # build de produção (validação de tipos + rotas)
@@ -208,7 +235,7 @@ npm run lint      # ESLint
 npx tsc --noEmit  # checagem de tipos estrita
 ```
 
-#### 7.3 Vercel (produção online)
+#### 8.3 Vercel (produção online)
 1. Aplicar `supabase-schema.sql` no SQL Editor do Supabase.
 2. Conectar o repositório na Vercel (deploy por push na `main`) ou `vercel --prod`.
 3. Definir as 4 variáveis de ambiente em **Settings → Environment Variables**.
@@ -235,18 +262,19 @@ npx tsc --noEmit  # checagem de tipos estrita
 
 ![Solution architecture diagram](../public/images/architecture.svg)
 
-The diagram details the **actors, containers (frontend/backend), AI RAG pipeline, database (8 tables + RLS), and external IAM/IGA integrations**, plus the authentication and MFA journey.
+The diagram details the **actors, containers (frontend/backend), AI RAG pipeline, Security QA engine, database (9 tables + RLS), storage and external IAM/IGA integrations**, plus the authentication and MFA journey.
 
 ```mermaid
 graph TD
   User["SecOps Analyst / Admin / Requester"] -->|HTTPS| FE["Next.js 16 Frontend (React 19, Mistica)"]
 
   subgraph FE [Presentation / SPA]
-    UI["Pages: /dashboard · /login · /reset-password"]
-    COMP["Components: Kanban · SecurityAgent · login-form · ArchitectureDiagram"]
+    UI["Pages: /dashboard · /login · /reset-password · /security-qa · /security-qa/assess · /security-qa/project/[id]"]
+    COMP["Components: Kanban · SecurityAgent · login-form · ArchitectureDiagram · EvidenceUpload · ProjectDashboard"]
   end
 
   FE -->|Server Actions (RPC)| BE["Next.js Serverless Backend (Vercel)"]
+  FE -->|POST /api/qa-engine (NDJSON Stream)| API_QA["api/qa-engine — Security QA Engine"]
 
   subgraph BE [Server Layer]
     PX["proxy.ts — session + RBAC + MFA check"]
@@ -255,13 +283,22 @@ graph TD
   end
 
   FE -->|POST /api/chat| AI
+  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-flash-latest)"]
+  API_QA -->|Save result| DB
+  API_QA -->|Upload .gz / Delete raw| ST[("Supabase Storage Buckets")]
 
   BE -->|Admin API (service role)| AUTH["auth.users (user creation)"]
-  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 8 tables")]
+  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 9 tables")]
 
   subgraph DB [Data Layer]
     P1["users_profiles · tickets · ticket_statuses · comments"]
     P2["audit_logs · iam_providers · iam_users · identity_requests"]
+    P3["qa_results"]
+  end
+
+  subgraph ST [Storage Layer]
+    B1["qa-temp-evidences (temporary ingestion)"]
+    B2["qa-logs-archive (immutable archival .gz)"]
   end
 
   BE -->|Simulated| IAM["IAM/IGA: Entra ID · Keycloak · OAM · Sailpoint"]
@@ -395,11 +432,28 @@ PostgreSQL 15 database with **8 tables**, all with **Row Level Security (RLS)** 
 
 **Extensions**: `uuid-ossp` (uuid_generate_v4), `pgcrypto`. Full schema: `supabase-schema.sql`.
 
+### 7. Security QA Center (Report Analysis & Ingestion)
+
+This module implements an isolated Bounded Context to ingest raw vulnerability reports (supported formats: `.json`, `.xml`, or `.txt` up to 5 MB) and analyze them against a specific scope of technical security requirements.
+
+#### 7.1 Ingestion & AI Pipeline
+The process runs transactionally and in real-time via the API Route `POST /api/qa-engine`:
+1. **Direct Upload to Temp Bucket**: The client uploads the original file directly to the `qa-temp-evidences` bucket on Supabase Storage using the anonymous public client.
+2. **Download Raw Content**: The server retrieves the raw file from the temporary bucket securely using the `service_role` client.
+3. **Structured AI Analysis**: The raw report and technical requirements are analyzed. The Gemini model (`gemini-flash-latest`) is called using `streamObject` (from the Vercel AI SDK) to yield structured compliance verdicts, evidence fragments, and recommendations in real-time (NDJSON stream).
+4. **Archival & GZIP Forensic Compression**: The original text is compressed using GZIP (`zlib` native with maximum compression level = 9) and uploaded to the immutable `qa-logs-archive` bucket. Compression metrics (original vs compressed size) are captured.
+5. **Result Persistency**: Analysis results, including the executive summary, compliance percent, overall rating, and a signed download URL for the compressed GZIP file, are persisted in the `qa_results` database table.
+6. **Data Purge**: Once database insertion and GZIP archive upload are verified, the original raw file is permanently removed from the temporary `qa-temp-evidences` bucket, enforcing data minimisation.
+
+#### 7.2 Exporting PDFs and Rendering Charts
+- **Native PDF**: Generated client-side using `@react-pdf/renderer` via the `<QaReportDocument />` component, replicating the layout, executive summary, requirement table, and forensic audit metadata.
+- **Recharts Visualization**: The dashboard renders the overall compliance percentage using a polar radial gauge, and displays status distribution counts using a clean bar chart.
+
 ---
 
-### 7. Execution, Build & Deploy
+### 8. Execution, Build & Deploy
 
-#### 7.1 Environment (`.env.local`)
+#### 8.1 Environment (`.env.local`)
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
@@ -409,7 +463,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 - The **service role** is required for manual user creation and IAM management; it runs only server-side.
 - The **Gemini key** is required for generative AI.
 
-#### 7.2 Commands
+#### 8.2 Commands
 ```bash
 npm run dev       # development
 npm run build     # production build (type + route validation)
@@ -418,7 +472,7 @@ npm run lint      # ESLint
 npx tsc --noEmit  # strict type check
 ```
 
-#### 7.3 Vercel (online production)
+#### 8.3 Vercel (online production)
 1. Apply `supabase-schema.sql` in the Supabase SQL Editor.
 2. Connect the repository in Vercel (deploy on `main` push) or `vercel --prod`.
 3. Set the 4 environment variables in **Settings → Environment Variables**.
@@ -426,9 +480,9 @@ npx tsc --noEmit  # strict type check
 
 ---
 
-### 8. Mitigação de Vulnerabilidades / Vulnerability Remediation
+### 9. Mitigação de Vulnerabilidades / Vulnerability Remediation
 
-#### 8.1 Remoção do Pacote `xlsx` (Agosto 2026)
+#### 9.1 Remoção do Pacote `xlsx` (Agosto 2026)
 - **Motivo**: O pacote `xlsx` continha falhas de segurança de alta gravidade (ReDoS e poluição de protótipo) detectadas em scans SCA.
 - **Resolução**: Removido por obsolescência, uma vez que a leitura do Excel foi substituída pela base local estável em JSON (`requisitos-sd.json`). A base de dependências do repositório foi zerada de vulnerabilidades.
 
