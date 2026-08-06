@@ -9,7 +9,18 @@ export const metadata = {
   description: "Painel de controle unificado e quadro Kanban",
 };
 
-export default async function DashboardPage() {
+type DashboardTab = "kanban" | "iam" | "audit" | "architecture" | "settings" | "knowledge";
+
+const VALID_TABS: DashboardTab[] = ["kanban", "iam", "audit", "architecture", "settings", "knowledge"];
+
+interface DashboardPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const { tab } = await searchParams;
+  const initialTab: DashboardTab = VALID_TABS.includes(tab as DashboardTab) ? (tab as DashboardTab) : "kanban";
+
   // Fetch logged in user profile
   const currentUser = await getCurrentUser();
   
@@ -60,6 +71,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       currentUser={currentUser}
+      initialTab={initialTab}
       initialStatuses={initialStatuses}
       initialTickets={initialTickets}
       initialIamProviders={initialIamProviders}

@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/supabase";
 import { listQaResults } from "@/lib/security-qa/qaRepository";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  ShieldAlert,
   PlusCircle,
   ChevronRight,
   CheckCircle2,
@@ -37,33 +34,10 @@ function statusCounts(result: QaResult) {
 }
 
 export default async function SecurityQaHomePage() {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) redirect("/login");
-
   const results = await listQaResults(50).catch(() => []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold tracking-tight text-gray-900">
-                Centro de Security QA <span className="text-vivo">SPN</span>
-              </span>
-            </div>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary"
-            >
-              Painel ITSM <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Avaliações de Segurança</h1>
@@ -165,7 +139,6 @@ export default async function SecurityQaHomePage() {
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }

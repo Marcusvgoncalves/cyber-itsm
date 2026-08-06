@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EvidenceUpload, type UploadedEvidence } from "@/components/security-qa/evidence-upload";
 import type { QaAnalysis, QaStreamEvent } from "@/lib/security-qa/types";
-import { ShieldAlert, Play, Loader2, CheckCircle2, XCircle, ArrowLeft, ChevronRight, Bot } from "lucide-react";
+import { Play, Loader2, CheckCircle2, XCircle, ChevronRight, Bot } from "lucide-react";
 
 const PHASE_LABELS: Record<string, string> = {
   download: "Baixando evidência bruta",
@@ -136,24 +135,7 @@ export default function AssessPage() {
   }, [evidence, projectName, environmentUrl, requirements, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold tracking-tight text-gray-900">
-                Centro de Security QA <span className="text-vivo">SPN</span>
-              </span>
-            </div>
-            <Link href="/security-qa" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary">
-              <ArrowLeft className="h-4 w-4" /> Voltar
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Nova Avaliação de Segurança</h1>
           <p className="text-sm text-gray-600 mt-1">
@@ -303,7 +285,6 @@ export default function AssessPage() {
             </CardContent>
           </Card>
         )}
-      </main>
-    </div>
+      </div>
   );
 }

@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   Download,
@@ -20,7 +19,6 @@ import {
   Play,
   Rocket,
   Search,
-  ShieldAlert,
   Sparkles,
   Workflow,
 } from "lucide-react";
@@ -127,25 +125,7 @@ const FAQ: FaqCategory[] = [
 
 export default function KnowledgeBasePage() {
   return (
-    <main className="min-h-screen bg-gray-50">
-      {/* Cabeçalho corporativo */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <ShieldAlert className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight text-gray-900">
-              CyberITSM <span className="text-vivo">SPN</span>
-            </span>
-          </Link>
-          <Button asChild variant="outline" size="sm" className="border-gray-300 text-gray-700">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar ao Painel
-            </Link>
-          </Button>
-        </div>
-      </header>
-
+    <div className="bg-gray-50">
       {/* Hero + busca */}
       <section className="bg-gradient-to-br from-primary via-primary to-[#4a006e] py-14 text-white">
         <div className="mx-auto max-w-5xl px-6">
@@ -270,6 +250,6 @@ export default function KnowledgeBasePage() {
           </p>
         </div>
       </footer>
-    </main>
+    </div>
   );
 }

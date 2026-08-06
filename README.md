@@ -39,22 +39,26 @@ O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco,
 ```
 cyber-itsm/
 ├── app/                          # Rotas (App Router)
-│   ├── page.tsx                  # Redireciona para /dashboard ou /login
-│   ├── layout.tsx                # Layout raiz (fontes, metadados)
-│   ├── globals.css               # Estilos globais Mistica
+│   ├── (app)/                    # Route Group da área logada (compartilha AppShell)
+│   │   ├── dashboard/            #   Página principal (Kanban + IAM + Audit + C4 + Config)
+│   │   ├── knowledge-base/       #   Base de Conhecimento e Frameworks
+│   │   ├── security-qa/          #   Centro de Security QA (Avaliações, Ingestão, Dashboards)
+│   │   └── layout.tsx            #   Layout autenticado (carrega <AppShell />)
 │   ├── actions/                  # Server Actions (tipadas, "use server")
 │   │   ├── auth.ts               #   Login, MFA, reset de senha, auditoria
 │   │   ├── iam.ts                #   IAM/IGA + gestão de usuários (createLocalUser etc.)
 │   │   └── tickets.ts            #   CRUD de tickets, status e comentários
 │   ├── api/chat/route.ts         # Endpoint RAG da IA (streamText + Gemini)
 │   ├── api/qa-engine/route.ts    # Motor de IA do Centro de Security QA (streamObject)
-│   ├── dashboard/                # Página principal (Kanban + IAM + Audit + C4 + Config)
 │   ├── login/page.tsx            # Página de autenticação
 │   ├── reset-password/page.tsx   # Redefinição de senha
-│   └── security-qa/              # Centro de Security QA (Avaliações, Ingestão, Dashboards)
+│   ├── layout.tsx                # Layout raiz (fontes, metadados)
+│   ├── globals.css               # Estilos globais Mistica
+│   └── page.tsx                  # Redireciona para /dashboard ou /login
 ├── components/
 │   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
 │   ├── security-qa/              # Componentes do Security QA (Dashboard, Upload, PDF)
+│   ├── shell/                    # Componentes da moldura da aplicação (Sidebar, Topbar, AppShell)
 │   ├── SecurityAgent.tsx         # Agente de IA (FAB) via useChat/@ai-sdk/react
 │   ├── login-form.tsx            # Fluxo de login com 3 passos (credenciais, MFA onboarding, MFA verify)
 │   ├── architecture-diagram.tsx  # Mapa de arquitetura interativo (cliente)
@@ -243,22 +247,26 @@ The diagram details **every container, component, database table, authentication
 ```
 cyber-itsm/
 ├── app/                          # Routes (App Router)
-│   ├── page.tsx                  # Redirects to /dashboard or /login
-│   ├── layout.tsx                # Root layout (fonts, metadata)
-│   ├── globals.css               # Mistica global styles
+│   ├── (app)/                    # Route Group for authenticated area (shares AppShell)
+│   │   ├── dashboard/            #   Main page (Kanban + IAM + Audit + C4 + Config)
+│   │   ├── knowledge-base/       #   Knowledge Base & Frameworks
+│   │   ├── security-qa/          #   Security QA Center (Assessments, Ingestion, Dashboards)
+│   │   └── layout.tsx            #   Authenticated layout (loads <AppShell />)
 │   ├── actions/                  # Server Actions (typed, "use server")
 │   │   ├── auth.ts               #   Login, MFA, password reset, audit
 │   │   ├── iam.ts                #   IAM/IGA + user mgmt (createLocalUser etc.)
 │   │   └── tickets.ts            #   Ticket/status/comment CRUD
 │   ├── api/chat/route.ts         # AI RAG endpoint (streamText + Gemini)
 │   ├── api/qa-engine/route.ts    # AI Engine for Security QA Center (streamObject)
-│   ├── dashboard/                # Main page (Kanban + IAM + Audit + C4 + Config)
 │   ├── login/page.tsx            # Authentication page
 │   ├── reset-password/page.tsx   # Password reset
-│   └── security-qa/              # Security QA Center (Assessments, Ingestion, Dashboards)
+│   ├── layout.tsx                # Root layout (fonts, metadata)
+│   ├── globals.css               # Mistica global styles
+│   └── page.tsx                  # Redirects to /dashboard or /login
 ├── components/
 │   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
 │   ├── security-qa/              # Components for Security QA (Dashboard, Upload, PDF)
+│   ├── shell/                    # Layout shell components (Sidebar, Topbar, AppShell)
 │   ├── SecurityAgent.tsx         # AI agent (FAB) via useChat/@ai-sdk/react
 │   ├── login-form.tsx            # 3-step login (credentials, MFA onboarding, MFA verify)
 │   ├── architecture-diagram.tsx  # Interactive architecture map (client)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, Fragment, useRef, useCallback } from "react";
+import { useState, useTransition, Fragment, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,15 @@ import { KanbanBoard } from "@/components/kanban/kanban-board";
 import type { AgentAction } from "@/components/SecurityAgent";
 import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
-  LogOut, Shield, Users, TicketCheck, Settings, Database, 
+  Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
-  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers, Menu as MenuIcon,
+  KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers,
   Trash2, Key
 } from "lucide-react";
-import { logoutUser, changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
+import { changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
-import securityRequirements from "../../requisitos-sd.json";
+import securityRequirements from "../../../requisitos-sd.json";
 
 // Lazy-load (next/dynamic) do Copiloto de IA — só baixa quando aberto.
 const SecurityAgent = dynamic(
@@ -30,6 +30,7 @@ const SecurityAgent = dynamic(
 
 interface DashboardClientProps {
   currentUser: User;
+  initialTab: 'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge';
   initialStatuses: Status[];
   initialTickets: Ticket[];
   initialIamProviders: IamProvider[];
@@ -41,6 +42,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({
   currentUser,
+  initialTab,
   initialStatuses,
   initialTickets,
   initialIamProviders,
@@ -50,8 +52,14 @@ export function DashboardClient({
   systemUsers,
 }: DashboardClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge'>('kanban');
+  const [activeTab, setActiveTab] = useState<'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge'>(initialTab);
   const [isPending, startTransition] = useTransition();
+
+  // Sincroniza a aba ativa quando a navegação lateral muda o parâmetro ?tab=
+  // (navegação entre rotas do dashboard sem remontar o componente).
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Knowledge base search state
   const [searchReq, setSearchReq] = useState("");
@@ -69,8 +77,6 @@ export function DashboardClient({
   // Security Agent state
   const [showAgent, setShowAgent] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  // Menu mobile (hamburger)
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Sinal monótono para abrir o modal "Novo Chamado" a partir do agente.
   const createSignal = useRef(0);
   const [openCreateSignal, setOpenCreateSignal] = useState(0);
@@ -113,12 +119,6 @@ export function DashboardClient({
   const [mfaCode, setMfaCode] = useState("");
   const [mfaError, setMfaError] = useState<string | null>(null);
   const [mfaSuccess, setMfaSuccess] = useState<string | null>(null);
-
-  const handleLogout = async () => {
-    await logoutUser();
-    router.push("/login");
-    router.refresh();
-  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -340,105 +340,12 @@ export function DashboardClient({
 
   const isAdmin = currentUser.role === 'admin';
 
-  type TabId = 'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge';
-
-  // Itens de navegação (compartilhados entre menu desktop e mobile).
-  const navItems: { id: TabId; label: string }[] = [
-    { id: 'kanban', label: 'Quadro Kanban' },
-    { id: 'iam', label: 'Portal IAM / IGA' },
-    { id: 'knowledge', label: 'Base de Conhecimento' },
-    ...(isAdmin ? [{ id: 'audit' as TabId, label: 'Audit Logs' }, { id: 'architecture' as TabId, label: 'Arquitetura C4' }] : []),
-    { id: 'settings', label: 'Configurações' },
-  ];
-
-  const navigateTab = (id: TabId) => {
-    setActiveTab(id);
-    setMobileNavOpen(false);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Shield className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold tracking-tight text-gray-900">CyberITSM <span className="text-vivo">SPN</span></span>
-              </div>
-              
-              <nav className="hidden md:flex items-center gap-1">
-                {navItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => navigateTab(item.id)}
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                      activeTab === item.id 
-                        ? 'bg-primary-light text-primary' 
-                        : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Hamburger (mobile) */}
-              <button
-                onClick={() => setMobileNavOpen((v) => !v)}
-                className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50"
-                aria-label={mobileNavOpen ? "Fechar menu" : "Abrir menu"}
-                aria-expanded={mobileNavOpen}
-              >
-                <MenuIcon className="h-5 w-5" />
-              </button>
-              <div className="flex flex-col items-end hidden sm:flex">
-                <span className="text-sm font-bold text-gray-900">{currentUser.full_name || currentUser.email}</span>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                  {currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'analista' ? 'Analista' : 'Solicitante'}
-                </span>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-sm border border-gray-100">
-                {currentUser.full_name?.substring(0, 2).toUpperCase() || currentUser.email.substring(0, 2).toUpperCase()}
-              </div>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-500 hover:text-primary">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Menu mobile (dropdown hamburger) */}
-      {mobileNavOpen && (
-        <div className="md:hidden border-b border-gray-200 bg-white shadow-sm animate-fadeIn">
-          <nav className="mx-auto max-w-7xl px-4 py-3">
-            <div className="flex flex-col gap-1">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => navigateTab(item.id)}
-                  className={`flex items-center justify-between rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
-                    activeTab === item.id
-                      ? 'bg-primary-light text-primary'
-                      : 'text-gray-600 hover:text-primary hover:bg-gray-50'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </nav>
-        </div>
-      )}
-
+    <div className="flex flex-col font-sans">
       {/* Main Panel Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'kanban' && (
-          <div className="h-[calc(100vh-170px)]">
+          <div className="h-[calc(100vh-112px)]">
             <KanbanBoard
               initialStatuses={statuses}
               initialTickets={tickets}
@@ -1460,7 +1367,7 @@ export function DashboardClient({
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Botão flutuante do Agente SecOps */}
       {!showAgent && (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { QaResult, QaFindingStatus } from "@/lib/security-qa/types";
@@ -19,7 +18,6 @@ import {
   Cell,
 } from "recharts";
 import {
-  ArrowLeft,
   Download,
   FileDown,
   Loader2,
@@ -95,30 +93,9 @@ export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps)
   }, [result]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold tracking-tight text-gray-900">Centro de Security QA <span className="text-vivo">SPN</span></span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting} className="gap-1.5">
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                Exportar PDF
-              </Button>
-              <Link href="/security-qa" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary">
-                <ArrowLeft className="h-4 w-4" /> Voltar
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Cabeçalho do resultado */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{result.project_name}</h1>
             <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
@@ -128,12 +105,18 @@ export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps)
               Avaliado em {new Date(result.created_at).toLocaleString("pt-BR")} · {result.original_file_name}
             </p>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 ${rating.bg}`}>
-            <ShieldAlert className={`h-5 w-5 ${rating.color}`} />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Classificação de Risco</p>
-              <p className={`text-lg font-bold leading-tight ${rating.color}`}>{rating.label}</p>
+          <div className="flex items-center gap-2 sm:items-center">
+            <div className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 ${rating.bg}`}>
+              <ShieldAlert className={`h-5 w-5 ${rating.color}`} />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Classificação de Risco</p>
+                <p className={`text-lg font-bold leading-tight ${rating.color}`}>{rating.label}</p>
+              </div>
             </div>
+            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting} className="gap-1.5">
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Exportar PDF
+            </Button>
           </div>
         </div>
 
@@ -351,7 +334,6 @@ export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps)
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   );
 }

@@ -70,8 +70,10 @@ graph TD
 #### 2.1 Camada de Apresentação (SPA)
 
 - **Next.js 16 App Router + React 19**: SSG/SSR híbrido; `app/page.tsx` redireciona para `/dashboard` (se autenticado) ou `/login`.
+- **Grupo de Rotas Autenticadas (`(app)`)**: As rotas logadas estão agrupadas sob `app/(app)/`, compartilhando um layout comum que renderiza o **`AppShell`** (sidebar colapsável, topbar de status e menu mobile), otimizando a consistência visual.
 - **Tema Mistica**: tipografia **Outfit** (via `next/font/google`), cores roxa `#660099` e laranja Vivo `#FF9900`.
 - **Componentes**:
+  - `components/shell/` — `AppShell`, `Sidebar`, `Topbar`, `MobileMenu` (moldura de navegação global).
   - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal` (drag-and-drop, criação/edição/remoção e comentários).
   - `components/SecurityAgent.tsx` — FAB de chat de IA via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
   - `components/login-form.tsx` — fluxo de login em 3 passos (credenciais → onboarding MFA → verificação MFA).
@@ -307,8 +309,10 @@ graph TD
 #### 2.1 Presentation Layer (SPA)
 
 - **Next.js 16 App Router + React 19**: hybrid SSG/SSR; `app/page.tsx` redirects to `/dashboard` (if authenticated) or `/login`.
+- **Authenticated Route Group (`(app)`)**: Authenticated routes are grouped under `app/(app)/`, sharing a layout that renders the global **`AppShell`** (collapsible sidebar, status topbar, and mobile menu), ensuring visual and navigation consistency.
 - **Mistica theme**: **Outfit** typography (via `next/font/google`), Vivo purple `#660099` and orange `#FF9900`.
 - **Components**:
+  - `components/shell/` — `AppShell`, `Sidebar`, `Topbar`, `MobileMenu` (global layout frame).
   - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal` (drag-and-drop, create/edit/delete, comments).
   - `components/SecurityAgent.tsx` — AI chat FAB via `useChat` from `@ai-sdk/react` with `DefaultChatTransport`, sending `ticketContext`.
   - `components/login-form.tsx` — 3-step login flow (credentials → MFA onboarding → MFA verification).
