@@ -1,4 +1,4 @@
-import { generateObject, jsonSchema, type LanguageModel } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
@@ -12,13 +12,14 @@ import {
 } from '@/lib/security-qa/storage';
 import { insertQaResult } from '@/lib/security-qa/qaRepository';
 import type { QaAnalysis, QaStreamEvent, QaFinding } from '@/lib/security-qa/types';
+import { z } from 'zod';
 
 // ============================================================================
 // Centro de Security QA — Motor de IA Isolado (Bounded Context Multiagente).
 //
 // Pipeline: download evidência (qa-temp-evidences) → Roteador Multiagente
 // (Groq -> OpenRouter -> Google Gemini -> Fallback Determinístico) →
-// generateObject com schema JSON → compressão GZIP (zlib nativo) →
+// generateObject com schema Zod → compressão GZIP (zlib nativo) →
 // upload .gz (qa-logs-archive) → persistência em qa_results → expurgo.
 // ============================================================================
 
@@ -37,6 +38,7 @@ function resolveApiKey(names: string[]): string | null {
 
 type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
 
+// O SDK do Groq mapeará perfeitamente o Zod schema (structuredOutputs false fallback nativo)
 const GROQ: ModelFactory = (apiKey) => {
   const provider = createGroq({ apiKey });
   return (modelId) => provider(modelId);
@@ -70,44 +72,40 @@ const AGENTS: AgentConfig[] = [
   },
   {
     id: 'openrouter',
-    label: 'OpenRouter (DeepSeek / Llama)',
+    label: 'OpenRouter (Gemini & Llama Free)',
     envKeys: ['OPENROUTER_API_KEY'],
-    modelIds: ['deepseek/deepseek-chat:free', 'meta-llama/llama-3.3-70b-instruct:free'],
+    // Adicionamos modelos Free atualizados do OpenRouter que suportam JSON robusto
+    modelIds: [
+      'google/gemini-2.0-flash-lite-preview-02-05:free',
+      'google/gemini-2.0-flash-exp:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'nvidia/llama-3.1-nemotron-70b-instruct:free'
+    ],
     createModel: OPENROUTER,
   },
   {
     id: 'google',
     label: 'Google (Gemini 2.0 / 1.5 Flash)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
-    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest', 'gemini-2.5-flash'],
+    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'],
     createModel: GOOGLE,
   },
 ];
 
-const ANALYSIS_SCHEMA = jsonSchema({
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    compliancePercent: { type: 'number', minimum: 0, maximum: 100 },
-    overallRating: { type: 'string', enum: ['baixo', 'medio', 'alto', 'critico'] },
-    executiveSummary: { type: 'string' },
-    findings: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          requirementId: { type: 'string' },
-          requirementName: { type: 'string' },
-          status: { type: 'string', enum: ['conforme', 'parcial', 'nao_conforme'] },
-          evidence: { type: 'string' },
-          recommendation: { type: 'string' },
-        },
-        required: ['requirementId', 'requirementName', 'status', 'evidence', 'recommendation'],
-      },
-    },
-  },
-  required: ['compliancePercent', 'overallRating', 'executiveSummary', 'findings'],
+// Migração de jsonSchema() para z.object() para máxima compatibilidade multi-LLM (Groq/OpenRouter)
+const ANALYSIS_SCHEMA = z.object({
+  compliancePercent: z.number().min(0).max(100).describe("Porcentagem geral de conformidade (0 a 100)"),
+  overallRating: z.enum(['baixo', 'medio', 'alto', 'critico']).describe("Risco global baseado na porcentagem"),
+  executiveSummary: z.string().describe("Sumário executivo em português (pt-BR), máximo 150 palavras"),
+  findings: z.array(
+    z.object({
+      requirementId: z.string().describe("ID do requisito fornecido (ex: VIVO.SEGURA.X)"),
+      requirementName: z.string().describe("Nome descritivo do requisito"),
+      status: z.enum(['conforme', 'parcial', 'nao_conforme']).describe("Status de atendimento da evidência"),
+      evidence: z.string().describe("Descrição do motivo/trecho encontrado no relatório"),
+      recommendation: z.string().describe("Recomendação técnica para adequação"),
+    })
+  ).describe("Lista de resultados, uma para cada requisito do escopo"),
 });
 
 const SYSTEM_PROMPT = `Você é um engenheiro de segurança sênior do "Centro de Security QA".
@@ -119,7 +117,7 @@ REGRAS OBRIGATÓRIAS:
 3. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
 4. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
 5. Para cada finding, use requirementId exatamente como citado no escopo.
-6. Responda APENAS com o JSON conforme o schema.`;
+6. Você deve obrigatoriamente retornar todos os dados em um objeto JSON válido.`;
 
 function sanitizeText(input: unknown): string {
   if (typeof input !== 'string') return '';
@@ -145,12 +143,10 @@ function generateFallbackAnalysis(requirementsText: string, evidenceText: string
   const evidenceLower = evidenceText.toLowerCase();
 
   const findings: QaFinding[] = reqLines.map((reqLine, idx) => {
-    // Tenta extrair ID do tipo VIVO.SEGURA.* ou usa fallback
     const idMatch = reqLine.match(/([A-Z0-9._-]+)/i);
     const reqId = idMatch ? idMatch[1] : `REQ-${idx + 1}`;
     const name = reqLine.length > 40 ? reqLine.slice(0, 40) + '...' : reqLine;
 
-    // Busca palavras-chave
     const tokens = reqLine.toLowerCase().split(/[^a-z0-9]+/);
     const matches = tokens.filter((t) => t.length > 3 && evidenceLower.includes(t));
 
@@ -219,12 +215,9 @@ export async function POST(req: Request) {
 
     await ensureQaBuckets();
 
-    // 1) Download do texto original a partir do bucket temporário.
     const { text } = await downloadEvidenceText(storagePath);
 
-    // OTIMIZAÇÃO ANTI-TIMEOUT (Vercel 60s):
-    // Limita a evidência a 35.000 caracteres (~8k tokens).
-    // Execução garantida em 2 a 4 segundos.
+    // OTIMIZAÇÃO ANTI-TIMEOUT: Limita contexto a 35k caracteres para LLMs mais curtos (Llama 8B)
     const evidence = text.length > 35_000 ? text.slice(0, 35_000) + '\n\n[CONTEÚDO RESUMIDO DEFENSIVAMENTE PARA PERFORMANCE]' : text;
 
     const encoder = new TextEncoder();
@@ -244,7 +237,7 @@ export async function POST(req: Request) {
           let activeAgentLabel = '';
           const failures: string[] = [];
 
-          // Loop do Roteador Multiagente (Groq -> OpenRouter -> Google Gemini)
+          // Loop do Roteador Multiagente
           for (const agent of AGENTS) {
             const apiKey = resolveApiKey(agent.envKeys);
             if (!apiKey) {
@@ -287,27 +280,25 @@ export async function POST(req: Request) {
             if (analysis) break;
           }
 
-          // Fallback determinístico caso nenhuma API externa responda
+          // Fallback determinístico
           if (!analysis) {
-            console.warn(`[Security QA Engine] Nenhum provedor de IA externo respondeu (${failures.join(' | ')}). Executando motor de análise determinístico...`);
+            console.warn(`[Security QA Engine] Nenhum provedor LLM respondeu com sucesso (${failures.join(' | ')}). Executando motor de análise determinístico...`);
             send({
               type: 'status',
               phase: 'analysis',
-              message: 'Executando motor de análise de conformidade de segurança...',
+              message: 'Executando motor de análise determinística de segurança (fallback)...',
             });
             analysis = generateFallbackAnalysis(requirements, evidence);
           }
 
           send({ type: 'delta', partial: analysis });
 
-          // 3) Cold storage preparation: comprime o texto ORIGINAL em GZIP.
           send({ type: 'status', phase: 'archive', message: 'Comprimindo evidência bruta com GZIP e gerando hash forense...' });
           const { archivedPath, gzSizeBytes, originalSizeBytes } =
             await archiveGzippedEvidence(text, activeStoragePath);
 
           const archivedUrl = await getArchivedSignedUrl(archivedPath);
 
-          // 4) Gravando o resultado consolidado no Supabase/Prisma.
           send({ type: 'status', phase: 'archive', message: 'Registrando laudo de conformidade no banco de dados...' });
           const row = await insertQaResult({
             projectName,
@@ -323,7 +314,6 @@ export async function POST(req: Request) {
             createdBy: null,
           });
 
-          // 5) Purge: deleta a evidência BRUTA DESCOMPRIMIDA.
           send({ type: 'status', phase: 'purge', message: 'Expurgando arquivo temporário do bucket (Zero Data Leak)...' });
           await purgeTemporaryEvidence(activeStoragePath);
 
