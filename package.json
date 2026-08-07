@@ -11,7 +11,7 @@
     "db:generate": "prisma generate"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.33",
+    "@ai-sdk/google": "^4.0.37",
     "@ai-sdk/openai": "^4.0.29",
     "@ai-sdk/react": "^4.0.54",
     "@prisma/adapter-pg": "^7.9.1",
@@ -26,7 +26,7 @@
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.0",
-    "ai": "^7.0.51",
+    "ai": "^7.0.56",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.28.0",
