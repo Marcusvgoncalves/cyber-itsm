@@ -142,7 +142,7 @@ export function EvidenceUpload({ onUploaded, onCleared, disabled }: EvidenceUplo
                 Formatos aceitos: <code className="font-mono">.docx</code>, <code className="font-mono">.pdf</code>,{" "}
                 <code className="font-mono">.jpg</code>, <code className="font-mono">.png</code>,{" "}
                 <code className="font-mono">.json</code>, <code className="font-mono">.xml</code>,{" "}
-                <code className="font-mono">.txt</code> · máx. 15 MB
+                <code className="font-mono">.txt</code> · máx. 10 MB
               </p>
             </div>
           )}

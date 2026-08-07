@@ -24,8 +24,8 @@ export const QA_ALLOWED_EXTENSIONS = [
   '.png',
 ] as const;
 
-/** Tamanho máximo do arquivo de evidência (15 MB). */
-export const QA_MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+/** Tamanho máximo do arquivo de evidência (10 MB). */
+export const QA_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 /** Tabela do banco (isolada por schema implícito public.qa_results). */
 export const QA_TABLE = 'qa_results';

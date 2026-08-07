@@ -37,7 +37,7 @@ export async function ensureQaBuckets(): Promise<void> {
         'image/jpg',
         'image/png',
       ],
-      fileSizeLimit: 15 * 1024 * 1024,
+      fileSizeLimit: 10 * 1024 * 1024,
     }),
     ensureBucket(client, QA_BUCKETS.archive, {
       public: false,
