@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,23 @@ import { signInWithCredentials, initiateMfa, confirmMfaSetup, verifyMfa, request
 type LoginStep = 'CREDENTIALS' | 'MFA_ONBOARDING' | 'MFA_VERIFICATION';
 
 export function LoginForm() {
+  // Limpa histórico do chat do Copiloto a cada novo acesso ao formulário
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith("cyberitsm_secops_chat_messages_")) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (e) {
+        console.error("Erro ao limpar histórico do chat:", e);
+      }
+    }
+  }, []);
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirect") || "/dashboard"
