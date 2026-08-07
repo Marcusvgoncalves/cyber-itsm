@@ -28,7 +28,7 @@ export const QA_GZIP_LEVEL = 9;
 export const QA_SIGNED_URL_EXPIRES = 60 * 60 * 24 * 7;
 
 /** Modelo do motor de IA (alias rolante, alinhado ao agente legado). */
-export const QA_MODEL_ID = 'gemini-flash-latest';
+export const QA_MODEL_ID = 'gemini-1.5-flash';
 
 /** Limite de execução da função na plataforma (Vercel Pro: 60s em Hobby). */
 export const QA_MAX_DURATION = 60;

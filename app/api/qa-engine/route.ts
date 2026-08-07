@@ -186,7 +186,16 @@ export async function POST(req: Request) {
         } catch (err) {
           // Se algo falhar ANTES do expurgo, o dado bruto permanece no bucket
           // temporário (não há perda de evidência).
-          const message = err instanceof Error ? err.message : 'Erro desconhecido no pipeline de QA.';
+          const rawMessage = err instanceof Error ? err.message : String(err);
+          const isRateLimit = 
+            rawMessage.includes('429') || 
+            rawMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
+            rawMessage.toLowerCase().includes('rate limit');
+
+          const message = isRateLimit
+            ? '⚠️ Limite de cota de IA excedido (Rate Limit) pelo provedor. Por favor, aguarde alguns instantes ou verifique as configurações de cota do projeto.'
+            : rawMessage || 'Erro desconhecido no pipeline de QA.';
+
           console.error('[qa-engine] pipeline error:', err);
           send({ type: 'error', message });
         } finally {
@@ -204,6 +213,19 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('[qa-engine] request error:', error);
+    const errMessage = error instanceof Error ? error.message : String(error);
+    const isRateLimit = 
+      errMessage.includes('429') || 
+      errMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
+      errMessage.toLowerCase().includes('rate limit');
+
+    if (isRateLimit) {
+      return Response.json(
+        { error: '⚠️ Limite de cota de IA excedido (Rate Limit) pelo provedor. Por favor, aguarde alguns instantes ou verifique as configurações de cota do projeto.' },
+        { status: 429 }
+      );
+    }
+
     return Response.json(
       { error: 'Erro interno ao processar a análise de segurança.' },
       { status: 500 }
