@@ -1,446 +1,161 @@
-# 🛡️ CyberITSM SPN
+# CyberITSM SPN — Plataforma Corporativa de Cibersegurança & Governança
 
-[🇧🇷 Português](#português) · [🇺🇸 English](#english)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.3.0-black?logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19.0-61dafb?logo=react)](https://react.dev/)
+[![Prisma ORM 7](https://img.shields.io/badge/Prisma-7.9.1-2d3748?logo=prisma)](https://www.prisma.io/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%2016-3ecf8e?logo=supabase)](https://supabase.com/)
+[![Vercel AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-Multiagent-000000?logo=vercel)](https://sdk.vercel.ai/)
+[![License](https://img.shields.io/badge/License-Proprietary-660099.svg)](LICENSE)
 
----
-
-## 🇧🇷 Português
-
-**CyberITSM SPN** é uma plataforma corporativa de **IT Service Management (ITSM)** especializada em **Arquitetura de Cibersegurança e Conformidade Regulatória**. Ela entrega um quadro Kanban interativo para o controle de atividades de mitigação de vulnerabilidades, um **agente de IA generativa com RAG** sobre a base de requisitos Segura SD v4.1, e um **portal completo de governança de identidade (IAM/IGA)** com autenticação multi-fator (MFA) obrigatória.
-
-Construída do zero com **Next.js 16 (App Router)** e **Supabase (BaaS)**, seguindo a identidade visual do design system **Mistica da Vivo Telefônica** (paleta roxa `#660099`, laranja Vivo `#FF9900` e tipografia Outfit).
-
-### 🧭 Desenho de Arquitetura da Solução
-
-![Arquitetura CyberITSM SPN](./public/images/architecture.svg)
-
-O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco, fluxos de autenticação/MFA, pipeline RAG de IA e integrações IAM/IGA** da solução.
-
-### 🚀 Tecnologias Adotadas
-
-| Camada | Tecnologia | Descrição |
-| :--- | :--- | :--- |
-| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA com tema Mistica. |
-| **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Componentes acessíveis e primitivas de UI. |
-| **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
-| **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-1.5-flash`) | Agente SecOps com RAG sobre 314 requisitos. Intercepção robusta de erros HTTP 429. |
-| **RAG / Conhecimento** | `requisitos-sd.json` | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
-| **Banco de Dados / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 tabelas legadas + 2 tabelas (`qa_projects` e `qa_results`) no módulo de Security QA gerenciadas via Prisma com Driver Adapter. |
-| **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
-| **IAM / IGA** | Adaptadores simulados (Entra ID, Keycloak, OAM, Sailpoint) + criação local | Governança de identidade, fila de aprovação e gestão de usuários. |
-| **Relatórios PDF** | `@react-pdf/renderer` | Geração sob demanda de relatórios de segurança em PDF para download. |
-| **Gráficos & Métricas** | Recharts | Gráficos dinâmicos de conformidade e distribuição de status. |
-| **Deploy** | Vercel | CDN/Edge serverless; pronto para produção online. |
+> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Esteira DevSecOps Multiagente e Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1.
 
 ---
 
-### 🗂️ Estrutura do Projeto
+## 🇧🇷 Documentação em Português
 
-```
-cyber-itsm/
-├── app/                          # Rotas (App Router)
-│   ├── (app)/                    # Route Group da área logada (compartilha AppShell)
-│   │   ├── dashboard/            #   Página principal (Kanban + IAM + Audit + C4 + Config)
-│   │   ├── knowledge-base/       #   Base de Conhecimento e Frameworks
-│   │   ├── security-qa/          #   Centro de Security QA (Avaliações, Ingestão, Dashboards)
-│   │   └── layout.tsx            #   Layout autenticado (carrega <AppShell />)
-│   ├── actions/                  # Server Actions (tipadas, "use server")
-│   │   ├── auth.ts               #   Login, MFA, reset de senha, auditoria
-│   │   ├── iam.ts                #   IAM/IGA + gestão de usuários (createLocalUser etc.)
-│   │   └── tickets.ts            #   CRUD de tickets, status e comentários
-│   ├── api/chat/route.ts         # Endpoint RAG da IA (streamText + Gemini)
-│   ├── api/qa-engine/route.ts    # Motor de IA do Centro de Security QA (streamObject)
-│   ├── login/page.tsx            # Página de autenticação
-│   ├── reset-password/page.tsx   # Redefinição de senha
-│   ├── layout.tsx                # Layout raiz (fontes, metadados)
-│   ├── globals.css               # Estilos globais Mistica
-│   └── page.tsx                  # Redireciona para /dashboard ou /login
-├── components/
-│   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
-│   ├── security-qa/              # Componentes do Security QA (Dashboard, Upload, PDF)
-│   ├── shell/                    # Componentes da moldura da aplicação (Sidebar, Topbar, AppShell)
-│   ├── SecurityAgent.tsx         # Agente de IA (FAB) via useChat/@ai-sdk/react
-│   ├── login-form.tsx            # Fluxo de login com 3 passos (credenciais, MFA onboarding, MFA verify)
-│   ├── architecture-diagram.tsx  # Mapa de arquitetura interativo (cliente)
-│   └── ui/                       # button, card, input, label, select, separator, textarea
-├── lib/
-│   ├── security-qa/              # Lógica de negócio, config, storage e repositório isolados
-│   ├── totp.ts                   # Geração/validação TOTP (RFC 6238, Web Crypto)
-│   ├── supabase.ts               # Acesso a dados (getTickets, getUsers, CRUD, auditoria)
-│   ├── types.ts                  # Modelos tipados + permissões RBAC
-│   └── utils.ts                  # cn() — combina classes
-├── utils/supabase/
-│   ├── server.ts                 # Client SSR (cookies de sessão)
-│   ├── client.ts                 # Client browser
-│   └── admin.ts                  # Client service role (operação de admin)
-├── proxy.ts                      # Middleware Next.js 16: sessão + RBAC + check MFA
-├── supabase-schema.sql           # Schema completo legado (tabelas, RLS, triggers, seeds)
-├── supabase-security-qa.sql      # Schema isolado do Centro de Security QA (tabela, RLS, buckets)
-├── requisitos-sd.json            # Base de conhecimento RAG (314 requisitos)
-└── public/images/architecture.svg # Desenho de arquitetura da solução
-```
+### 🌐 Visão Geral da Arquitetura (C4 Nível 2)
+
+A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resiliência sem ponto único de falha (*Zero Downtime*), combinando execução Serverless Edge na Vercel com banco PostgreSQL no Supabase, inteligência multiagente e barramento SCIM v2.0 / SAML 2.0.
+
+![Desenho de Arquitetura CyberITSM SPN](public/images/architecture.svg)
 
 ---
 
-### 🔒 Jornada de Segurança & Políticas
+### 🚀 Módulos e Funcionalidades Principais
 
-1. **Modelo de Login por Nome de Usuário** — O formulário de login foi simplificado para aceitar o formato corporativo `nome.sobrenome` (sem formatação ou validação de e-mail na interface).
-2. **Complexidade de senhas obrigatória** — mín. 12 caracteres com maiúsculas, minúsculas, números e símbolos. Ex.: `CyberITSM@2026!Password`.
-3. **Sessão segura e ciclo de vida** — Supabase Auth com cookies; a sessão tem duração máxima de 1 hora quando ativa e expira automaticamente após 15 minutos de inatividade (idle timeout) rastreada por listeners no cliente e validada no `proxy.ts` (substitui o `middleware.ts` no Next.js 16).
-4. **MFA obrigatório para todas as contas** — fluxo no `login-form.tsx`:
-   - **Sem MFA configurado** → onboarding: gera secret + QR Code, valida o código de 6 dígitos (`confirmMfaSetup`) e grava o cookie `mfa_verified`.
-   - **Com MFA configurado** → verificação de código (`verifyMfa`) na janela temporária ±1 intervalo.
-   - O `proxy.ts` bloqueia acesso ao dashboard sem o cookie — ninguém acessa sem 2º fator.
-   - Código de homologação (sandbox): `123456`.
-5. **RBAC** — perfis `admin`, `analista`, `solicitante`. Rotas administrativas (Audit Logs, Arquitetura) bloqueadas para não-admins.
-6. **Auditoria** — todo evento relevante gravado em `audit_logs` (login, MFA, criação de chamados, sincronizações IAM, alterações de perfil).
+#### 1. 📋 Quadro Kanban & Dashboard de Volumetria
+- **Gestão Visão de Fluxo**: Movimentação visual de chamados por colunas de status (Aberto, Em Andamento, Revisão, Fechado, Cancelado).
+- **Kanban Analytics Dashboard**:
+  - **Métricas Volumétricas**: Total de backlog ativo, cumprimentos de SLA e distribuição de prioridades.
+  - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework de Origem (NIST, CIS, PCI-DSS, SABSA, LGPD) * Janela de SLA`.
+  - **Previsão de Demanda e Atendimento**: Estimativas automáticas de dias para esvaziar a fila e projeção de novos chamados.
 
-### 🧠 Agente de IA SecOps (RAG)
+#### 2. 🛡️ Centro de Security QA & Dashboard SecOps
+- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta (JSON, XML, TXT). O motor cruza cada evidência com o escopo de requisitos de arquitetura e devolva um laudo de conformidade %.
+- **Security QA Analytics Dashboard**:
+  - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
+  - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
+- **Cold Storage GZIP & Expurgo**: Comprime o artefato original em GZIP (.gz), salva no Supabase Storage (`qa-logs-archive`) e realiza o expurgo da evidência descomprimida temporária (Zero Data Leak).
+- **Relatórios Executivos em PDF**: Exportação de relatórios estruturados e download do manual da plataforma em PDF compilado nativamente via `@react-pdf/renderer`.
 
-- Endpoint: `app/api/chat/route.ts`.
-- Modelo: Google **Gemini** via `@ai-sdk/google` — `gemini-1.5-flash` (downgrade estratégico para maior RPM/RPD gratuita). Possui tratamento de rate limit (429/RESOURCE_EXHAUSTED) para exibir alertas amigáveis na bolha de chat.
-- Histórico: Persistência local (`localStorage`) isolada por usuário (`cyberitsm_secops_chat_messages_${userId}`), preservada no logoff/timeout.
-- Conhecimento: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura SD v4.1 (id `VIVO.SEGURA.*`, controle, componente, propriedade, STRIDE/LM, OWASP, categoria, criticidade, evidência, como testar).
-- Recuperação: tokenização com normalização NFD, remoção de stopwords e pontuação, pontuação ponderada por campo.
-- Injeção de contexto no prompt: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; sanitização anti-prompt-injection (`sanitizeText`).
-- Diretrizes do system prompt: respostas assertivas, completas e exaustivas, em bullets curtos, citando o ID e os campos do requisito, ou `'Informação não encontrada no contexto atual.'`.
-- UI: `components/SecurityAgent.tsx` (FAB) via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
+#### 3. 🤖 Copiloto de IA Multiagente (Zero Downtime)
+Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 314 Requisitos:
+1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (&lt; 2s) utilizando `llama-3.3-70b-versatile` com validação de esquema estrito em Zod.
+2. **Camada 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Roteamento secundário para modelos abertos gratuitos (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
+3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash` e `gemini-2.0-flash-lite` para janelas longas de contexto.
+4. **Camada 4 — Motor Determinístico de Fallback**: Caso todas as APIs externas atinjam limites de cota (HTTP 429), o sistema executa um motor local por regras de expressão, garantindo que o usuário nunca receba tela branca ou erro 500.
 
-### 📚 Base de Conhecimento & Catálogo dos 314 Requisitos
+#### 4. 🔑 Portal IAM / IGA & SCIM v2.0 / SAML 2.0
+- **Provisionamento SCIM v2.0 (`/api/scim/v2/Users`)**: Endpoint completo para integração com Azure Entra ID, Okta e Keycloak para ciclo de vida de usuários.
+- **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Suporte a Single Sign-On federado corporativo.
+- **Fila Sailpoint JIT (Just-In-Time)**: Solicitação e aprovação de acessos com segregação de funções (SoD) e controle RBAC (`admin`, `analista`, `solicitante`).
 
-- **Catálogo Interativo dos 314 Requisitos (SD v4.1)** — Seção dedicada integrada na Base de Conhecimento (`/knowledge-base`), que permite:
-  - **Pesquisa Instantânea**: Busca em tempo real por ID (`VIVO.SEGURA.*`), nome do controle, OWASP, STRIDE, detalhamento, riscos ou palavras-chave.
-  - **Filtros Avançados**: Filtragem combinada por Criticidade (Crítico, Alto, Moderado, Baixo), Componente de Arquitetura e Categoria de Ameaça STRIDE.
-  - **Cards & Fichas Expandíveis**: Visualização expansível de cada um dos 314 requisitos com detalhamento completo, riscos associados, evidência exigida em Security QA e procedimentos práticos de validação/teste.
-  - **Dashboard de Volumetria**: Cards no topo com a contabilização exata da distribuição de criticidades da matriz normativo-regulatória.
-- **Enciclopédia de Frameworks**: Explicações detalhadas sobre **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling** e **ISO 27001**, acompanhadas de links para documentações oficiais.
-
-### 🧭 Desenho de Arquitetura Interativo (C4 Level 2)
-
-- **Diagrama Interativo (`components/architecture-diagram.tsx`)**:
-  - Renderizado dinamicamente com animações e seleção de nós técnicos.
-  - **Ficha Técnica Expandida**: Ao clicar em qualquer componente da arquitetura (Analista SecOps, SPA Frontend, Edge Proxy / Rate Limit, Copiloto IA Multiagente, Supabase BaaS / Prisma v7, Security QA Engine, Portal IAM / SCIM ou Catálogo de Requisitos), abre-se uma modal detalhando responsabilidades, controles de segurança aplicados, resiliência, SLAs e a pilha de tecnologias associada.
-
-### ✉️ Serviço de E-mail Transacional (Resend)
-
-- **Notificações Automáticas**: Envio de e-mails transacionais assíncronos (fire-and-forget) após a criação ou edição de chamados no Kanban.
-- **Modos de Operação**:
-  - **Sandbox**: Modo de teste em que o remetente é fixo (`onboarding@resend.dev`) e o destinatário é forçado para o e-mail de teste verificado (`TEST_EMAIL_RECIPIENT`), prevenindo spans em homologação.
-  - **Production**: Envio para os envolvidos utilizando o domínio próprio e remetente verificado (`EMAIL_FROM`).
-
-### 🆔 Portal de Governança de Identidades (IAM / IGA)
-
-- **Provedores simulados**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
-- **Sincronização** (`syncIamProvider`): importa usuários mock de Entra/Keycloak.
-- **Fila de aprovação Sailpoint**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisiona o perfil em `users_profiles`.
-- **Criação manual de usuários** (`createLocalUser`): cria um usuário **real** em `auth.users` via **Admin API** (service role), define a senha padrão inicial como **`CyberITSM@2026!Password`**, força troca de senha e **MFA obrigatório** (`mfa_setup_complete = false`). O trigger `on_auth_user_created` cria o perfil.
-- **Gestão de usuários (só admin)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reativação) e `forceMfaReconfiguration` (reset forçado do MFA). UI no card "Gestão de Usuários do Sistema" do dashboard.
-
-### 🗃️ Banco de Dados (Supabase)
-
-8 tabelas: `users_profiles`, `tickets`, `ticket_statuses`, `comments`, `audit_logs`, `iam_providers`, `iam_users`, `identity_requests`. Com RLS, triggers (`on_auth_user_created`, `handle_updated_at`, `handle_ticket_closed`) e funções de role (`is_admin`, `is_analista`, `is_admin_or_analista`). Schema completo em `supabase-schema.sql`.
+#### 5. 📚 Base de Conhecimento SD v4.1 (314 Requisitos)
+- Catálogo interativo navegável dos **314 Requisitos de Segurança de Desenvolvimento**.
+- Filtros por criticidade (Crítico, Alto, Médio, Baixo) e busca instantânea.
+- Mapeamento explícito de cada item com os frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001** e vetores de ameaça **STRIDE LM**.
 
 ---
 
-### ⚙️ Execução Local
+### 🔐 Política de Sessão & Autenticação
 
-1. Instale as dependências:
-   ```bash
-   npm install
-   ```
-2. Configure `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=seu_projeto_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=seu_projeto_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=sua_service_role_key        # para criação de usuários/gestão IAM
-   GOOGLE_GENERATIVE_AI_API_KEY=sua_chave_gemini         # para a IA generativa
-   ```
-3. Banco de dados: execute o conteúdo de `supabase-schema.sql` no **SQL Editor** do Supabase (cria tabelas, RLS, triggers e seeds).
-4. Inicie:
-   ```bash
-   npm run dev
-   ```
-5. Acesse `http://localhost:3000`.
+- **Formato de Login**: Credencial corporativa (`nome.sobrenome`) e senha forte (mínimo 12 caracteres).
+- **MFA/TOTP Obrigatório**: Autenticação de segundo fator via aplicativos autenticadores (RFC 6238).
+- **Sessão Reativa**:
+  - **Sessão em Uso**: Expira em **1 hora de uso contínuo**, mantendo o histórico de trabalho.
+  - **Sessão Inativa**: Expira em **15 minutos de inatividade** (idle timeout).
+- **Persistência de Histórico**: As conversas do Copiloto de IA ficam salvas no `localStorage` por usuário, preservando o contexto pós-logoff.
 
-> **Usuário admin inicial**: crie via SQL no SQL Editor, pois contas criadas pela UI já exigem MFA. Veja a seção "Provisionamento de Administrador".
->
-> **Credenciais de teste**: `marcus.goncalves` ou `joao.secops` / `CyberITSM@2026!Password`.
+---
 
-### 👤 Provisionamento de Usuário Administrador & MFA
+## 🇬🇧 English Documentation
 
-Crie o super admin (o trigger cria o perfil com a `role` vinda de `user_metadata.role`):
-```sql
-select auth.admin_create_user(
-  email         => 'marcus.goncalves@cyberitsm.local',
-  password      => 'SenhaForte@2026!x',
-  email_confirm => true,
-  user_metadata => '{"role":"admin","full_name":"Marcus Gonçalves"}'::jsonb
-);
-```
-O primeiro acesso exigirá a configuração do MFA (2º fator).
+### 🌐 Architecture Overview (C4 Level 2)
 
-### 🧪 Verificando o Código
+The architecture is designed for high availability and zero single points of failure (*Zero Downtime*). It combines Serverless Edge execution on Vercel with PostgreSQL database on Supabase, multiagent LLM resiliency, and a SCIM v2.0 / SAML 2.0 governance bus.
 
+![CyberITSM SPN Architecture Diagram](public/images/architecture.svg)
+
+---
+
+### 🚀 Key Modules and Features
+
+#### 1. 📋 Kanban Board & Volumetric Dashboard
+- **Visual Workflow Management**: Drag-and-drop ticket state transitions (Open, In Progress, Review, Closed, Canceled).
+- **Kanban Analytics Dashboard**:
+  - **Volumetric Metrics**: Active backlog count, SLA compliance rate, priority breakdown.
+  - **Interactive Criticality Calculator**: Calculates ticket risk score using `Priority * Origin Framework (NIST, CIS, PCI-DSS, SABSA, LGPD) * SLA Window`.
+  - **Demand & Resolution Forecast**: Automated predictions for backlog clearance and new incoming tickets.
+
+#### 2. 🛡️ Security QA Center & SecOps Dashboard
+- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs (JSON, XML, TXT). Cross-references evidence line-by-line against security requirements and outputs a compliance % audit report.
+- **Security QA Analytics Dashboard**:
+  - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
+  - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.
+- **GZIP Cold Storage & Purge**: Compresses raw evidence into GZIP (.gz), stores it in Supabase Storage (`qa-logs-archive`), and purges temporary uncompressed raw logs (Zero Data Leak).
+- **PDF Executive Reports**: Generates downloadable PDF audit reports and official user guide natively compiled via `@react-pdf/renderer`.
+
+#### 3. 🤖 Multiagent AI Copilot (Zero Downtime)
+A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 security requirements:
+1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (&lt; 2s) utilizing `llama-3.3-70b-versatile` with Zod structured output validation.
+2. **Tier 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Secondary routing to free open-weight models (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
+3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash` and `gemini-2.0-flash-lite` models for extensive context windows.
+4. **Tier 4 — Deterministic Fallback Engine**: If all external AI providers hit quota limits (HTTP 429), the local token-matching engine executes, ensuring zero crashes or 500 errors.
+
+#### 4. 🔑 IAM / IGA Portal & SCIM v2.0 / SAML 2.0
+- **SCIM v2.0 Provisioning (`/api/scim/v2/Users`)**: Full RFC-compliant endpoint for Entra ID, Okta, and Keycloak user lifecycle automation.
+- **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Enterprise federated Single Sign-On support.
+- **Sailpoint JIT Queue**: Access request and approval workflows with Segregation of Duties (SoD) and RBAC (`admin`, `analista`, `solicitante`).
+
+#### 5. 📚 SD v4.1 Knowledge Base (314 Requirements)
+- Interactive searchable catalog of **314 Secure Development Requirements**.
+- Filter by criticality (Critical, High, Medium, Low) and keyword search.
+- Explicit mapping to industry frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001**, and **STRIDE LM** threat vectors.
+
+---
+
+### 💻 Stack Tecnológica / Tech Stack
+
+- **Framework Core**: Next.js 16.3 (App Router, Turbopack) & React 19
+- **ORM / Database**: Prisma ORM 7.9 with `SqlDriverAdapter` + Supabase PostgreSQL 16
+- **AI Infrastructure**: Vercel AI SDK 3.3, Groq, OpenRouter, Google Gemini, Zod Schemas
+- **UI & Styling**: Tailwind CSS v4, Recharts, Lucide Icons, Radix UI
+- **Storage & PDF**: Supabase Storage (`qa-logs-archive`), `@react-pdf/renderer`
+
+---
+
+### ⚙️ Guia de Instalação e Execução / Setup Guide
+
+#### 1. Clonar o Repositório & Instalar Dependências
 ```bash
-npx tsc --noEmit
-npm run build
-npm run lint
+git clone https://github.com/Marcusvgoncalves/cyber-itsm.git
+cd cyber-itsm
+npm install
 ```
 
----
+#### 2. Configurar Variáveis de Ambiente (`.env.local`)
+Crie o arquivo `.env.local` com as chaves:
+```env
+NEXT_PUBLIC_SUPABASE_URL="https://sua-instancia.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="sua-chave-anon"
+SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role"
+DATABASE_URL="postgresql://postgres:senha@db.sua-instancia.supabase.co:5432/postgres"
 
-### ☁️ Publicação na Vercel
-
-O projeto está pronto para deploy na Vercel (funcionamento online).
-
-1. **Aplique o schema** no SQL Editor do Supabase **antes** do deploy (tabelas, RLS, triggers, seeds).
-2. **Conecte o repositório** ao painel da Vercel (deploy automático por push na `main`) ou rode `vercel --prod`.
-3. Configure as **Environment Variables**:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=
-   SUPABASE_SERVICE_ROLE_KEY=
-   GOOGLE_GENERATIVE_AI_API_KEY=
-   ```
-4. **Segurança**: a `SUPABASE_SERVICE_ROLE_KEY` opera somente no servidor (nunca exponha em código client). A criação de usuários e a gestão de IAM dependem dela.
-
-> Detalhes técnicos completos (componentes, RLS, RAG, integrações) em [`docs/official_documentation.md`](docs/official_documentation.md).
-
-### 🛡️ Centro de Security QA (Análise Automatizada de Relatórios)
-
-A plataforma conta com um módulo isolado e seguro para a ingestão e análise de relatórios de vulnerabilidades (JSON, XML ou TXT de até 5 MB), cruzando-os com requisitos de arquitetura de segurança via IA:
-
-1. **Upload Direto e Ingestão Efêmera**: As evidências brutas são carregadas diretamente do navegador para o bucket privado `qa-temp-evidences` no Supabase Storage.
-2. **Motor de IA via Stream (Gemini)**: O endpoint `/api/qa-engine` baixa a evidência bruta, cruza com os requisitos de arquitetura fornecidos usando a chamada `streamObject` do Gemini (`gemini-flash-latest`), gerando métricas de conformidade (%) e vereditos detalhados por requisito em tempo real (NDJSON stream).
-3. **Compressão Forense (zlib/GZIP)**: O relatório textual original é comprimido usando GZIP (nível de compressão máximo = 9) e armazenado no bucket imutável de arquivamento `qa-logs-archive`. O banco de dados (`qa_results`) armazena a URL assinada temporária para download.
-4. **Data Purge (Expurgo)**: Assim que a compressão e arquivamento em `.gz` são confirmados, a evidência bruta original é permanentemente deletada do bucket temporário, garantindo segurança de dados e economia de espaço.
-5. **Painel de Controle e Exportação**: O analista visualiza gráficos dinâmicos de conformidade e vereditos (usando Recharts Radial/Bar charts) e pode gerar um relatório executivo em PDF sob demanda (`@react-pdf/renderer`).
-
-### 📊 Quadro Kanban & Dashboard Integrado
-
-O Kanban possui uma visão de Dashboard integrada (botão **Dashboard Metrics** na barra de ferramentas) que exibe:
-1. **Volumetria de Atividades**: Distribuição dinâmica por status e framework (NIST, ISO, SABSA, etc.) usando gráficos interativos do Recharts.
-2. **Calculadora de Criticidade**: Simulador de score baseado na fórmula `Prioridade * Framework * SLA` com classificação de criticidade visual em tempo real.
-3. **Tendências e Previsões**: Estimativas de prazo para esvaziamento da fila de mitigação e taxas de conformidade de SLA.
-
-### 🚦 Segurança no CI/CD (Deploy Gate)
-
-Todo commit/PR na `main` dispara o pipeline de segurança [`Enterprise Security Scan`](.github/workflows/enterprise-security.yml), que **bloqueia o deploy na Vercel** se encontrar vulnerabilidades (segredos, CVEs High/Critical, falhas OWASP/SAST/DAST). Veja as regras customizadas de vazamento em [`.gitleaks.toml`](.gitleaks.toml) e o passo a passo de configuração do gate em [`docs/deploy-gate.md`](docs/deploy-gate.md).
-
----
-
-## 🇺🇸 English
-
-**CyberITSM SPN** is a corporate **IT Service Management (ITSM)** platform specialized in **Cybersecurity Architecture and Regulatory Compliance**. It delivers an interactive Kanban board for vulnerability remediation tracking, a **generative AI agent with RAG** over the Secure Architecture SD v4.1 requirements base, and a **complete identity governance portal (IAM/IGA)** with mandatory multi-factor authentication (MFA).
-
-Built from scratch with **Next.js 16 (App Router)** and **Supabase (BaaS)**, following the **Vivo Telefónica Mistica** design system (purple `#660099`, Vivo orange `#FF9900`, Outfit typography).
-
-### 🧭 Solution Architecture Diagram
-
-![CyberITSM SPN Architecture](./public/images/architecture.svg)
-
-The diagram details **every container, component, database table, authentication/MFA flow, AI RAG pipeline, and IAM/IGA integration** of the solution.
-
-### 🚀 Technology Stack
-
-| Layer | Technology | Description |
-| :--- | :--- | :--- |
-| **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA with Vivo Mistica theme. |
-| **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Accessible components and UI primitives. |
-| **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
-| **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-1.5-flash`) | SecOps agent with RAG over 314 requirements. Graceful HTTP 429 Rate Limit interception. |
-| **RAG / Knowledge** | `requisitos-sd.json` | Weighted keyword retrieval (core×3, detail×2, light×1). |
-| **Database / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 legacy tables + 2 tables (`qa_projects` and `qa_results`) in the Security QA module managed via Prisma with Driver Adapter. |
-| **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
-| **IAM / IGA** | Simulated adapters (Entra ID, Keycloak, OAM, Sailpoint) + local creation | Identity governance, approval queue and user management. |
-| **PDF Reporting** | `@react-pdf/renderer` | On-demand generation of downloadable PDF security reports. |
-| **Charts & Metrics** | Recharts | Dynamic charts of compliance progress and requirements distribution. |
-| **Deploy** | Vercel | CDN/Edge serverless; production-ready. |
-
----
-
-### 🗂️ Project Structure
-
-```
-cyber-itsm/
-├── app/                          # Routes (App Router)
-│   ├── (app)/                    # Route Group for authenticated area (shares AppShell)
-│   │   ├── dashboard/            #   Main page (Kanban + IAM + Audit + C4 + Config)
-│   │   ├── knowledge-base/       #   Knowledge Base & Frameworks
-│   │   ├── security-qa/          #   Security QA Center (Assessments, Ingestion, Dashboards)
-│   │   └── layout.tsx            #   Authenticated layout (loads <AppShell />)
-│   ├── actions/                  # Server Actions (typed, "use server")
-│   │   ├── auth.ts               #   Login, MFA, password reset, audit
-│   │   ├── iam.ts                #   IAM/IGA + user mgmt (createLocalUser etc.)
-│   │   └── tickets.ts            #   Ticket/status/comment CRUD
-│   ├── api/chat/route.ts         # AI RAG endpoint (streamText + Gemini)
-│   ├── api/qa-engine/route.ts    # AI Engine for Security QA Center (streamObject)
-│   ├── login/page.tsx            # Authentication page
-│   ├── reset-password/page.tsx   # Password reset
-│   ├── layout.tsx                # Root layout (fonts, metadata)
-│   ├── globals.css               # Mistica global styles
-│   └── page.tsx                  # Redirects to /dashboard or /login
-├── components/
-│   ├── kanban/                   # KanbanBoard, KanbanCard, KanbanColumn, ticket-modal
-│   ├── security-qa/              # Components for Security QA (Dashboard, Upload, PDF)
-│   ├── shell/                    # Layout shell components (Sidebar, Topbar, AppShell)
-│   ├── SecurityAgent.tsx         # AI agent (FAB) via useChat/@ai-sdk/react
-│   ├── login-form.tsx            # 3-step login (credentials, MFA onboarding, MFA verify)
-│   ├── architecture-diagram.tsx  # Interactive architecture map (client)
-│   └── ui/                       # button, card, input, label, select, separator, textarea
-├── lib/
-│   ├── security-qa/              # Isolated business logic, config, storage, and repository
-│   ├── totp.ts                   # TOTP generation/validation (RFC 6238, Web Crypto)
-│   ├── supabase.ts               # Data access (getTickets, getUsers, CRUD, audit)
-│   ├── types.ts                  # Typed models + RBAC permissions
-│   └── utils.ts                  # cn() — class combiner
-├── utils/supabase/
-│   ├── server.ts                 # SSR client (session cookies)
-│   ├── client.ts                 # Browser client
-│   └── admin.ts                  # Service-role client (admin operations)
-├── proxy.ts                      # Next.js 16 middleware: session + RBAC + MFA check
-├── supabase-schema.sql           # Full legacy schema (tables, RLS, triggers, seeds)
-├── supabase-security-qa.sql      # Isolated schema for Security QA Center (table, RLS, buckets)
-├── requisitos-sd.json            # RAG knowledge base (314 requirements)
-└── public/images/architecture.svg # Solution architecture diagram
+# Provedores de IA (Fallback Multiagente)
+GROQ_API_KEY="gsk_..."
+OPENROUTER_API_KEY="sk-or-..."
+GEMINI_API_KEY="AIzaSy..."
 ```
 
-### 🔒 Security Journey & Policies
-
-1. **Username Login Model** — The login form is simplified to accept the corporate `nome.sobrenome` pattern (without formatting or email validation on frontend input fields).
-2. **Mandatory password strength** — min. 12 characters with uppercase, lowercase, numbers and symbols. E.g. `CyberITSM@2026!Password`.
-3. **Secure session & timeout** — Supabase Auth with cookies; active session duration is limited to 1 hour maximum and automatically expires after 15 minutes of inactivity (idle timeout), managed by client-side event tracking and `proxy.ts` middleware (replaces `middleware.ts` in Next.js 16).
-4. **MFA mandatory for all accounts** — flow in `login-form.tsx`:
-   - **MFA not configured** → onboarding: generates secret + QR Code, validates the 6-digit code (`confirmMfaSetup`) and stores the `mfa_verified` cookie.
-   - **MFA configured** → code verification (`verifyMfa`) within the ±1 interval window.
-   - `proxy.ts` blocks dashboard access without the cookie — nobody enters without the second factor.
-   - Sandbox test code: `123456`.
-5. **RBAC** — roles `admin`, `analista`, `solicitante`. Admin routes (Audit Logs, Architecture) are blocked for non-admins.
-6. **Auditing** — every relevant event is recorded in `audit_logs` (login, MFA, ticket creation, IAM sync, profile changes).
-
-### 🧠 SecOps AI Agent (RAG)
-
-- Endpoint: `app/api/chat/route.ts`.
-- Model: Google **Gemini** via `@ai-sdk/google` — `gemini-1.5-flash` (strategic downgrade for higher free free RPM/RPD). Handles rate limit (429/RESOURCE_EXHAUSTED) errors by streaming friendly warnings.
-- History: Local browser persistence (`localStorage`) partitioned dynamically by user ID (`cyberitsm_secops_chat_messages_${userId}`), preserved through logoff/timeout.
-- Knowledge: `requisitos-sd.json` — **314 requirements** of Secure Architecture SD v4.1 (id `VIVO.SEGURA.*`, control, component, property, STRIDE/LM, OWASP, category, criticality, evidence, how-to-test).
-- Retrieval: tokenization with NFD normalization, stopword and punctuation removal, weighted field scoring.
-- Prompt context injection: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; anti-prompt-injection sanitization (`sanitizeText`).
-- System-prompt directives: assertive, complete and exhaustive answers in short bullets, citing the requirement ID and fields, or `'Informação não encontrada no contexto atual.'`.
-- UI: `components/SecurityAgent.tsx` (FAB) via `useChat` from `@ai-sdk/react` with `DefaultChatTransport`, sending `ticketContext`.
-
-### 📚 Security Knowledge Base
-
-- **Didactic Search Tab** — Integrated view on the dashboard accessible to all users, combining:
-  - **Interactive Matrix**: Table with all 314 secure architecture requirements. Offers dynamic real-time filtering (by ID, component, risks, or threat model categories) and an expandable view showing validation steps and expected evidence.
-  - **Frameworks Encyclopedia**: Educational descriptions detailing the principles of **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling**, **ISO 27001 & SABSA**, and **LGPD**.
-
-### ✉️ Transactional Email Service (Resend)
-
-- **Automatic Notifications**: Asynchronous (fire-and-forget) transactional emails sent on ticket creation or update.
-- **Operational Modes**:
-  - **Sandbox**: Testing mode where the sender is fixed (`onboarding@resend.dev`) and delivery is forced to the verified test email address (`TEST_EMAIL_RECIPIENT`) to prevent spamming unverified users.
-  - **Production**: Live delivery utilizing custom verified domains (`EMAIL_FROM`).
-
-### 🆔 Identity Governance Portal (IAM / IGA)
-
-- **Simulated providers**: Microsoft Entra ID (OIDC), Keycloak Broker, Oracle Access Manager (OAM), Sailpoint IdentityNow (IGA).
-- **Sync** (`syncIamProvider`): imports mock users from Entra/Keycloak.
-- **Sailpoint approval queue**: `createIdentityRequest` → `approveIdentityRequest`/`rejectIdentityRequest` → provisions the role in `users_profiles`.
-- **Manual user creation** (`createLocalUser`): creates a **real** user in `auth.users` via the **Admin API** (service role), defines the initial default password as **`CyberITSM@2026!Password`**, forces password changes, and **mandatory MFA** (`mfa_setup_complete = false`). The `on_auth_user_created` trigger creates the profile.
-- **User management (admin only)**: `listSystemUsers`, `updateUserRole` (RBAC), `setUserActive` (ban/reactivation) and `forceMfaReconfiguration`. UI in the "Gestão de Usuários do Sistema" dashboard card.
-
-### 🗃️ Database (Supabase)
-
-8 tables: `users_profiles`, `tickets`, `ticket_statuses`, `comments`, `audit_logs`, `iam_providers`, `iam_users`, `identity_requests`. With RLS, triggers (`on_auth_user_created`, `handle_updated_at`, `handle_ticket_closed`) and role functions (`is_admin`, `is_analista`, `is_admin_or_analista`). Full schema in `supabase-schema.sql`.
-
----
-
-### ⚙️ Running Locally
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Configure `.env.local`:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key      # for user creation/IAM management
-   GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key          # for generative AI
-   ```
-3. Database: run the contents of `supabase-schema.sql` in the Supabase **SQL Editor** (creates tables, RLS, triggers and seeds).
-4. Start:
-   ```bash
-   npm run dev
-   ```
-5. Visit `http://localhost:3000`.
-
-> **Initial admin user**: create it via SQL in the SQL Editor, since accounts created through the UI already require MFA. See "Admin Provisioning".
->
-> **Test credentials**: `marcus.goncalves` or `joao.secops` / `CyberITSM@2026!Password`.
-
-### 👤 Admin & MFA Provisioning
-
-Create the super admin (the trigger creates the profile with `role` from `user_metadata.role`):
-```sql
-select auth.admin_create_user(
-  email         => 'marcus.goncalves@cyberitsm.local',
-  password      => 'SenhaForte@2026!x',
-  email_confirm => true,
-  user_metadata => '{"role":"admin","full_name":"Marcus Gonçalves"}'::jsonb
-);
-```
-The first login will require MFA setup.
-
-### 🧪 Verifying the Code
-
+#### 3. Gerar Prisma Client & Executar Localmente
 ```bash
-npx tsc --noEmit
-npm run build
-npm run lint
+npx prisma generate
+npm run dev
 ```
+Acesse [http://localhost:3000](http://localhost:3000).
 
 ---
 
-### ☁️ Deploying on Vercel
+### 📜 Licença e Direitos
 
-The project is ready for Vercel deployment (online operation).
-
-1. **Apply the schema** in the Supabase SQL Editor **before** deploying (tables, RLS, triggers, seeds).
-2. **Connect the repository** to the Vercel dashboard (auto-deploy on `main` push) or run `vercel --prod`.
-3. Configure the **Environment Variables**:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=
-   SUPABASE_SERVICE_ROLE_KEY=
-   GOOGLE_GENERATIVE_AI_API_KEY=
-   ```
-4. **Security**: the `SUPABASE_SERVICE_ROLE_KEY` runs only server-side (never expose it in client code). User creation and IAM management depend on it.
-
----
-
-### 🛡️ Security QA Center (Automated Report Analysis)
-
-The platform features an isolated and secure module for ingesting and analyzing vulnerability reports (JSON, XML, or TXT up to 5 MB), crossing them against security architecture requirements using AI:
-
-1. **Direct Upload & Ephemeral Ingestion**: Raw evidence files are uploaded directly from the browser to the private `qa-temp-evidences` Supabase Storage bucket.
-2. **AI Stream Engine (Gemini)**: The `/api/qa-engine` endpoint downloads the raw evidence, matches it against the provided architecture requirements using Gemini (`gemini-flash-latest`) via `streamObject`, and yields real-time compliance scores (%) and detailed requirements verdicts via NDJSON streaming.
-3. **Foresnic Compression (zlib/GZIP)**: The original text report is compressed using GZIP (level 9) and archived in the immutable `qa-logs-archive` bucket. The database table `qa_results` persists the temporary signed URL for download.
-4. **Data Purge**: Once GZIP compression and archival are verified, the original raw evidence is permanently purged from the temporary bucket, enforcing strict data minimisation and storage efficiency.
-5. **Dashboard & PDF Export**: Analysts view dynamic compliance gauges and requirement verdict charts (via Recharts) and can export a styled executive PDF report on-demand (`@react-pdf/renderer`).
-
-### 📊 Kanban Board & Integrated Dashboard
-
-The Kanban view features an integrated Dashboard toggled via **Dashboard Metrics** displaying:
-1. **Activity Volumetrics**: Dynamic status and framework distributions using Recharts.
-2. **Criticality Calculator**: Interactive risk scoring using `Priority * Framework * SLA` weight metrics.
-3. **Forecasts & Trends**: Estimates of days needed to resolve backlog queue and compliance risk indicators.
-
-### 🛡️ Vulnerability Mitigation / Remediação de Vulnerabilidades
-
-- **Remoção de dependências inseguras (`xlsx` / SheetJS)**: O pacote `xlsx` apresentava vulnerabilidades graves de **Prototype Pollution** (GHSA-4r6h-8v6p-xvw6) e **ReDoS** (GHSA-5pgg-2g8v-p4x9), bloqueando scans de segurança (Trivy/npm audit). O pacote foi desinstalado e excluído do repositório por obsolescência, uma vez que a leitura do Excel foi inteiramente substituída pela base local estável em JSON (`requisitos-sd.json`).
-
-> Technical details of the solution (components, RLS, RAG, integrations) in [`docs/official_documentation.md`](docs/official_documentation.md).
->
-> Results of the latest deep vulnerability analysis (SAST, SCA, Secrets) in [`docs/security-scan-results.md`](docs/security-scan-results.md).
+Projeto mantido e desenvolvido sob especificações corporativas de Cibersegurança e Governança de TI. Todos os direitos reservados.
