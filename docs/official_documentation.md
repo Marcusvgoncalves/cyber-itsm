@@ -55,6 +55,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Localização**: `components/kanban/kanban-board.tsx` & `components/kanban/kanban-dashboard.tsx`
 - **Capacidades**:
   - Drag-and-drop de chamados entre colunas de status.
+  - Suporte ao upload nativo de evidências documentais (DOCX, PDF, JPG, PNG) com compressão inteligente (limite 10MB).
   - Indicadores volumétricos de backlog ativo e taxa de conformidade SLA.
   - Calculadora de criticidade dinâmica: `Score = Prioridade * Framework (NIST, CIS, PCI-DSS, SABSA, LGPD) * Janela SLA`.
   - Previsão preditiva de demandas semanais e tempo estimado de apuração da fila.
@@ -62,25 +63,33 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 ### 3.2 Centro de Security QA & Dashboard SecOps
 - **Localização**: `app/(app)/security-qa/` & `components/security-qa/`
 - **Capacidades**:
-  - Ingestão de relatórios brutos de vulnerabilidade (.json, .xml, .txt).
-  - Cruzamento automático dos achados com os requisitos de arquitetura via Zod e IA.
+  - Ingestão de relatórios brutos e anexos documentais de vulnerabilidade (.json, .xml, .txt, .docx, .pdf, .jpg, .png).
+  - OCR e parsing de anexos (limite 10MB) cruzando automaticamente os achados com os requisitos de arquitetura via Zod e IA.
   - Security QA Analytics Dashboard com vereditos (`conforme`, `parcial`, `nao_conforme`) e calculadora SecOps: `Score = Severidade * Escopo do Sistema * Exposição de Rede`.
   - Cold Storage em GZIP (.gz) no bucket `qa-logs-archive` e expurgo automático da evidência bruta descomprimida (Zero Data Leak).
-  - Emissão de relatórios executivos em PDF compilados via `@react-pdf/renderer`.
+  - Exportação nativa de relatórios executivos e auditorias completas em formato PDF compilados via `@react-pdf/renderer`.
 
 ### 3.3 Copiloto de IA Multiagente (Zero Downtime)
 - **Localização**: `app/api/chat/route.ts` & `app/api/qa-engine/route.ts`
 - **Capacidades**:
+  - Persona Especialista Sênior Estrita em Cibersegurança que higieniza o próprio contexto/memória localmente a cada novo login.
   - Roteamento transparente em cascata entre Groq, OpenRouter, Google Gemini e Motor Determinístico.
   - Esquema estrito Zod para estruturação JSON de resposta.
   - RAG (*Retrieval-Augmented Generation*) integrado consultando o acervo dos 314 Requisitos Segura SD v4.1.
 
-### 3.4 Portal IAM / IGA & Conectores SCIM v2.0 / SAML 2.0
+### 3.4 Portal IAM / IGA & Logs Transacionais
 - **Localização**: `app/api/scim/v2/Users/route.ts`, `app/api/saml/sso/route.ts`, `app/actions/iam.ts`
 - **Capacidades**:
   - Protocolo SCIM v2.0 para criação, leitura, atualização e inativação de identidades por Provedores de Identidade (IdP).
   - SAML 2.0 Single Sign-On federado com suporte a metadados XML.
   - Gestão de solicitações Just-In-Time (JIT) via Sailpoint com papel RBAC e justificativa SecOps.
+  - Painel de **Logs de Auditoria** com metadados transacionais (HTTP, IP) e exportação front-end imediata para formato CSV.
+
+### 3.5 Integrações B2B & MTLS Outbound
+- **Localização**: `app/(app)/dashboard/dashboard-client.tsx`
+- **Capacidades**:
+  - **Conectores de Software**: Suporte e configuração de chaves para **Jira Software**, **ServiceNow** e **Microsoft 365**.
+  - **Mutual TLS (MTLS)**: Toggle de segurança para injetar obrigatoriedade de apresentação de certificado cliente (`.pem` e `.key`) nas chamadas B2B externas.
 
 ---
 
@@ -150,8 +159,9 @@ model QaResult {
 ## 5. English Architecture & Specification Summary
 
 The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase PostgreSQL, and Prisma ORM v7. It features:
-- **Kanban Board & Volumetric Analytics**: Dynamic ticket pipeline management with SLA forecasting and criticality score calculators.
-- **Security QA Center**: Automated vulnerability report evaluation against the **314 SD v4.1 Requirements**, GZIP cold storage archiving, Zero Data Leak purge, and native PDF generation.
-- **4-Tier Multiagent AI Pipeline**: Seamless fallback routing (Groq Llama 3.3 70B -> OpenRouter Free LLMs -> Google Gemini 2.0 -> Deterministic Rules Engine) with RAG over security requirements.
-- **IAM / IGA Portal**: SCIM v2.0 provisioning endpoints (`/api/scim/v2/Users`), SAML 2.0 federated SSO, and Sailpoint JIT access request approval workflows.
+- **Kanban Board & Volumetric Analytics**: Dynamic ticket pipeline management with SLA forecasting, criticality score calculators, and document attachment parsing (OCR support < 10MB).
+- **Security QA Center**: Automated vulnerability report evaluation against the **314 SD v4.1 Requirements**, GZIP cold storage archiving, Zero Data Leak purge, and extensive native PDF generation for reports.
+- **4-Tier Multiagent AI Pipeline**: Seamless fallback routing with RAG over security requirements, Strict Cybersecurity persona, and automatic memory hygiene on login.
+- **IAM / IGA Portal**: SCIM v2.0 provisioning endpoints (`/api/scim/v2/Users`), SAML 2.0 federated SSO, CSV Audit Logs export, and Sailpoint JIT access request workflows.
+- **B2B Integrations & MTLS**: Native setup interfaces for Jira, ServiceNow, and M365 with Mutual TLS certificate handling.
 - **Reactive Session & Security**: MFA/TOTP (RFC 6238) enforcement, 1-hour active session limit, 15-minute idle timeout, and per-user local chat history persistence.

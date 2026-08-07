@@ -25,22 +25,23 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 #### 1. 📋 Quadro Kanban & Dashboard de Volumetria
 - **Gestão Visão de Fluxo**: Movimentação visual de chamados por colunas de status (Aberto, Em Andamento, Revisão, Fechado, Cancelado).
+- **Suporte a Anexos**: Upload de evidências (docx, pdf, jpg, png) comprimidas nativamente, limitadas a 10MB por arquivo.
 - **Kanban Analytics Dashboard**:
   - **Métricas Volumétricas**: Total de backlog ativo, cumprimentos de SLA e distribuição de prioridades.
   - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework de Origem (NIST, CIS, PCI-DSS, SABSA, LGPD) * Janela de SLA`.
   - **Previsão de Demanda e Atendimento**: Estimativas automáticas de dias para esvaziar a fila e projeção de novos chamados.
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
-- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta (JSON, XML, TXT). O motor cruza cada evidência com o escopo de requisitos de arquitetura e devolva um laudo de conformidade %.
+- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor aplica OCR e parsing avançado, cruzando cada evidência com o escopo de requisitos de arquitetura e devolvendo um laudo de conformidade %.
 - **Security QA Analytics Dashboard**:
   - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
   - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
-- **Cold Storage GZIP & Expurgo**: Comprime o artefato original em GZIP (.gz), salva no Supabase Storage (`qa-logs-archive`) e realiza o expurgo da evidência descomprimida temporária (Zero Data Leak).
-- **Relatórios Executivos em PDF**: Exportação de relatórios estruturados e download do manual da plataforma em PDF compilado nativamente via `@react-pdf/renderer`.
+- **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados (até 10MB) e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) para máximo aproveitamento do espaço físico e realizando o expurgo da evidência descomprimida temporária (Zero Data Leak).
+- **Relatórios Executivos em PDF**: Exportação integral de relatórios de auditoria, projetos avaliados e laudos estruturados em PDF compilados nativamente via `@react-pdf/renderer`.
 
 #### 3. 🤖 Copiloto de IA Multiagente (Zero Downtime)
-Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 314 Requisitos:
-1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (&lt; 2s) utilizando `llama-3.3-70b-versatile` com validação de esquema estrito em Zod.
+Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 314 Requisitos. O Copiloto opera com uma persona **Especialista Sênior Estrita em Cibersegurança** e possui higiene automática do contexto a cada novo login (limpeza local).
+1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (< 2s) utilizando `llama-3.3-70b-versatile` com validação de esquema estrito em Zod.
 2. **Camada 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Roteamento secundário para modelos abertos gratuitos (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
 3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash` e `gemini-2.0-flash-lite` para janelas longas de contexto.
 4. **Camada 4 — Motor Determinístico de Fallback**: Caso todas as APIs externas atinjam limites de cota (HTTP 429), o sistema executa um motor local por regras de expressão, garantindo que o usuário nunca receba tela branca ou erro 500.
@@ -54,6 +55,11 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 - Catálogo interativo navegável dos **314 Requisitos de Segurança de Desenvolvimento**.
 - Filtros por criticidade (Crítico, Alto, Médio, Baixo) e busca instantânea.
 - Mapeamento explícito de cada item com os frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001** e vetores de ameaça **STRIDE LM**.
+
+#### 6. 🔌 Conectores Outbound, MTLS & Logs de Auditoria CSV
+- **Conectores Nativos B2B**: Interfaces dedicadas para integração externa com **Jira Software**, **ServiceNow** e **Microsoft 365**.
+- **Segurança MTLS (Mutual TLS)**: Suporte para exigência de certificados de cliente (Client Certificate `.pem/.crt` e Private Key `.key`) para conexões outbound seguras com outros ambientes.
+- **Auditoria Transacional e Exportação CSV**: Rastreabilidade imutável de eventos operacionais e transacionais (HTTP, IPs, Métodos API) com função front-end de geração instantânea e download de relatório estruturado em formato CSV.
 
 ---
 
@@ -82,22 +88,23 @@ The architecture is designed for high availability and zero single points of fai
 
 #### 1. 📋 Kanban Board & Volumetric Dashboard
 - **Visual Workflow Management**: Drag-and-drop ticket state transitions (Open, In Progress, Review, Closed, Canceled).
+- **Attachment Support**: Upload evidence (docx, pdf, jpg, png) natively compressed, limited to 10MB per file.
 - **Kanban Analytics Dashboard**:
   - **Volumetric Metrics**: Active backlog count, SLA compliance rate, priority breakdown.
   - **Interactive Criticality Calculator**: Calculates ticket risk score using `Priority * Origin Framework (NIST, CIS, PCI-DSS, SABSA, LGPD) * SLA Window`.
   - **Demand & Resolution Forecast**: Automated predictions for backlog clearance and new incoming tickets.
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
-- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs (JSON, XML, TXT). Cross-references evidence line-by-line against security requirements and outputs a compliance % audit report.
+- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine applies OCR and advanced parsing, cross-referencing evidence line-by-line against security requirements and outputs a compliance % audit report.
 - **Security QA Analytics Dashboard**:
   - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
   - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.
-- **GZIP Cold Storage & Purge**: Compresses raw evidence into GZIP (.gz), stores it in Supabase Storage (`qa-logs-archive`), and purges temporary uncompressed raw logs (Zero Data Leak).
-- **PDF Executive Reports**: Generates downloadable PDF audit reports and official user guide natively compiled via `@react-pdf/renderer`.
+- **GZIP Cold Storage & Purge**: Compresses attached artifacts (up to 10MB) and raw evidence into GZIP (.gz), storing them in Supabase Storage (`qa-logs-archive`), and purging temporary uncompressed files (Zero Data Leak).
+- **PDF Executive Reports**: Full export of audit reports, evaluated projects, and structured PDF reports natively compiled via `@react-pdf/renderer`.
 
 #### 3. 🤖 Multiagent AI Copilot (Zero Downtime)
-A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 security requirements:
-1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (&lt; 2s) utilizing `llama-3.3-70b-versatile` with Zod structured output validation.
+A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 security requirements. The Copilot operates with a **Strict Senior Cybersecurity Expert** persona and features automatic context hygiene on every new login (local memory wipe).
+1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (< 2s) utilizing `llama-3.3-70b-versatile` with Zod structured output validation.
 2. **Tier 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Secondary routing to free open-weight models (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
 3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash` and `gemini-2.0-flash-lite` models for extensive context windows.
 4. **Tier 4 — Deterministic Fallback Engine**: If all external AI providers hit quota limits (HTTP 429), the local token-matching engine executes, ensuring zero crashes or 500 errors.
@@ -111,6 +118,11 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 - Interactive searchable catalog of **314 Secure Development Requirements**.
 - Filter by criticality (Critical, High, Medium, Low) and keyword search.
 - Explicit mapping to industry frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001**, and **STRIDE LM** threat vectors.
+
+#### 6. 🔌 Outbound Connectors, MTLS & CSV Audit Logs
+- **B2B Native Connectors**: Dedicated interfaces for external integration with **Jira Software**, **ServiceNow**, and **Microsoft 365**.
+- **MTLS Security (Mutual TLS)**: Support for client certificate requirement (Client Certificate `.pem/.crt` and Private Key `.key`) for secure outbound connections with other environments.
+- **Transactional Audit and CSV Export**: Immutable traceability of operational and transactional events (HTTP, APIs, IPs) with front-end function for instant generation and download of structured reports in CSV format.
 
 ---
 

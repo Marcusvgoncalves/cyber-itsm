@@ -80,19 +80,20 @@
     <g transform="translate(20,50)">
       <rect width="270" height="160" rx="8" fill="#fcf7ff" stroke="#e9d5ff" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#660099">Módulo Kanban &amp; Dashboard</text>
-      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Drag-and-drop de chamados</text>
+      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Drag-and-drop de chamados e anexos</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Volumetria em gráficos Recharts</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de criticidade de tickets</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Previsões de SLA e demanda</text>
+      <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Compressão nativa de anexos &lt; 10MB</text>
     </g>
 
     <g transform="translate(310,50)">
       <rect width="270" height="160" rx="8" fill="#fef2f2" stroke="#fecaca" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#dc2626">Centro de Security QA &amp; Dashboard</text>
-      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Ingestão de relatórios JSON/XML/TXT</text>
+      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Ingestão de relatórios e anexos (OCR)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Security QA Analytics Dashboard</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de risco SecOps</text>
-      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Exportação de relatórios PDF</text>
+      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Exportação de relatórios PDF estruturados</text>
     </g>
 
     <g transform="translate(600,50)">
@@ -101,7 +102,7 @@
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• API SCIM v2.0 (/api/scim/v2/Users)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Endpoints SAML 2.0 SSO / Metadata</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Solicitações JIT via Sailpoint</text>
-      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Conectores Entra ID &amp; Keycloak</text>
+      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Conectores IAM e Auditoria em CSV</text>
     </g>
 
     <g transform="translate(890,50)">
@@ -127,7 +128,7 @@
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Edge Proxy &amp; Middleware (proxy.ts)</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Validação síncrona de sessão e RBAC</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Interceptação contra estouro de cotas (HTTP 429)</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Endpoints SCIM v2.0 &amp; OAuth 2.0 Token Server</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• SCIM, OAuth e Connectors B2B (MTLS)</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Server Actions para Kanban e Identidades</text>
     </g>
 
