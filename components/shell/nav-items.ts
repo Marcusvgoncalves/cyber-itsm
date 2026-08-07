@@ -41,7 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Governança",
     items: [
-      { path: "/dashboard", tab: "audit", label: "Audit Logs", icon: ScrollText, adminOnly: true },
+      { path: "/dashboard", tab: "audit", label: "Logs de Auditoria", icon: ScrollText, adminOnly: true },
       { path: "/dashboard", tab: "architecture", label: "Arquitetura C4", icon: Network, adminOnly: true },
     ],
   },

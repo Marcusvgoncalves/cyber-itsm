@@ -15,7 +15,7 @@ import {
   Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
   KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers,
-  Trash2, Key
+  Trash2, Key, Download, Plug, UploadCloud
 } from "lucide-react";
 import { changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
@@ -142,6 +142,32 @@ export function DashboardClient({
     } else {
       setPwdError("Erro ao alterar senha.");
     }
+  };
+
+  const exportCSV = () => {
+    if (auditLogs.length === 0) return;
+    const headers = ["ID", "Timestamp", "Usuário", "Ação", "Entidade", "Entidade ID", "Metadados Transacionais"];
+    const rows = auditLogs.map(log => [
+      log.id,
+      new Date(log.created_at).toISOString(),
+      log.user?.full_name || log.user?.email || 'Sistema',
+      log.action,
+      log.entity_type,
+      log.entity_id || '',
+      JSON.stringify(log.new_data || {}).replace(/"/g, '""')
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => `"${row.join('","')}"`)
+    ].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `audit_logs_${new Date().toISOString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Sync Provider (Entra ID or Keycloak)
@@ -775,9 +801,15 @@ export function DashboardClient({
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-bold">Histórico de Eventos Auditados</CardTitle>
-                <CardDescription>Trilha imutável de eventos (criação, edição de chamados e autenticações)</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg font-bold">Histórico de Eventos Auditados</CardTitle>
+                  <CardDescription>Trilha imutável de eventos operacionais e transacionais (HTTP/API)</CardDescription>
+                </div>
+                <Button size="sm" onClick={exportCSV} variant="outline" className="gap-2 h-8 text-xs font-semibold">
+                  <Download className="h-3.5 w-3.5" />
+                  Exportar CSV
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -1076,6 +1108,120 @@ export function DashboardClient({
                       Atualizar Senha
                     </Button>
                   </form>
+                </CardContent>
+              </Card>
+
+              {/* Connectors / MTLS */}
+              <Card className="md:col-span-2 mt-2">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <Plug className="h-5 w-5 text-primary" />
+                    Conectores de Integração & MTLS
+                  </CardTitle>
+                  <CardDescription>
+                    Configure conexões seguras com Jira, ServiceNow e Microsoft 365, incluindo suporte a Mutual TLS (MTLS).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* MTLS Config */}
+                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-gray-900">Autenticação MTLS (Mutual TLS)</h4>
+                        <p className="text-xs text-gray-500">Exigir certificado de cliente para todas as integrações outbound</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" />
+                        <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs">Client Certificate (.pem / .crt)</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Input type="file" className="text-xs h-9 cursor-pointer bg-white" accept=".pem,.crt" />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Private Key (.key)</Label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Input type="file" className="text-xs h-9 cursor-pointer bg-white" accept=".key" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Connectors Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Jira */}
+                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
+                      <div className="font-bold text-gray-900 flex items-center gap-2">
+                        <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-[10px]">JR</div>
+                        Jira Software
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Base URL</Label>
+                          <Input className="h-8 text-xs" placeholder="https://empresa.atlassian.net" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">E-mail</Label>
+                          <Input className="h-8 text-xs" placeholder="admin@empresa.com" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">API Token</Label>
+                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
+                        </div>
+                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
+                      </div>
+                    </div>
+
+                    {/* ServiceNow */}
+                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
+                      <div className="font-bold text-gray-900 flex items-center gap-2">
+                        <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center text-white text-[10px]">SN</div>
+                        ServiceNow
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Instance URL</Label>
+                          <Input className="h-8 text-xs" placeholder="https://dev00000.service-now.com" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Client ID (OAuth)</Label>
+                          <Input className="h-8 text-xs" placeholder="Client ID" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Client Secret</Label>
+                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
+                        </div>
+                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
+                      </div>
+                    </div>
+
+                    {/* MS 365 */}
+                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
+                      <div className="font-bold text-gray-900 flex items-center gap-2">
+                        <div className="w-6 h-6 bg-orange-600 rounded flex items-center justify-center text-white text-[10px]">O365</div>
+                        Microsoft 365
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Tenant ID</Label>
+                          <Input className="h-8 text-xs" placeholder="0000-0000-0000-0000" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Client ID</Label>
+                          <Input className="h-8 text-xs" placeholder="Client ID" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-gray-500">Client Secret</Label>
+                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
+                        </div>
+                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
