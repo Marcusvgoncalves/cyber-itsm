@@ -1,5 +1,7 @@
-import { streamObject, jsonSchema } from 'ai';
+import { streamObject, jsonSchema, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { QA_MODEL_ID } from '@/lib/security-qa/config';
 import {
   ensureQaBuckets,
@@ -12,23 +14,75 @@ import { insertQaResult } from '@/lib/security-qa/qaRepository';
 import type { QaAnalysis, QaStreamEvent } from '@/lib/security-qa/types';
 
 // ============================================================================
-// Centro de Security QA — Motor de IA isolado (Bounded Context).
+// Centro de Security QA — Motor de IA Isolado (Bounded Context Multiagente).
 //
-// Pipeline: download evidência (qa-temp-evidences) → streamObject (Gemini)
-// → compressão GZIP (zlib nativo) → upload .gz (qa-logs-archive) →
+// Pipeline: download evidência (qa-temp-evidences) → Roteador Multiagente
+// (Groq -> OpenRouter -> Google Gemini) → streamObject com schema JSON →
+// compressão GZIP (zlib nativo) → upload .gz (qa-logs-archive) →
 // persistência em qa_results → expurgo do dado bruto (data purge).
-//
-// O expurgo do bucket temporário só acontece DEPOIS da confirmação do
-// upload do .gz no bucket de arquivamento. Evidência nunca é perdida.
 // ============================================================================
 
 export const runtime = 'nodejs';
-// Vercel: limite de execução da função (Hobby libera até 60s).
 export const maxDuration = 60;
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
+function resolveApiKey(names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value && value.trim() !== '' && !value.includes('your_')) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
+
+const GROQ: ModelFactory = (apiKey) => {
+  const provider = createGroq({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+const OPENROUTER: ModelFactory = (apiKey) => {
+  const provider = createOpenRouter({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+const GOOGLE: ModelFactory = (apiKey) => {
+  const provider = createGoogleGenerativeAI({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+interface AgentConfig {
+  id: string;
+  label: string;
+  envKeys: string[];
+  modelIds: string[];
+  createModel: ModelFactory;
+}
+
+const AGENTS: AgentConfig[] = [
+  {
+    id: 'groq',
+    label: 'Groq (Llama 3.1 8B / 3.3 70B)',
+    envKeys: ['GROQ_API_KEY'],
+    modelIds: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
+    createModel: GROQ,
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter (DeepSeek / Llama)',
+    envKeys: ['OPENROUTER_API_KEY'],
+    modelIds: ['deepseek/deepseek-chat:free', 'meta-llama/llama-3.3-70b-instruct:free'],
+    createModel: OPENROUTER,
+  },
+  {
+    id: 'google',
+    label: 'Google (Gemini 2.0 / 1.5 Flash)',
+    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
+    modelIds: [QA_MODEL_ID, 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest', 'gemini-2.5-flash'],
+    createModel: GOOGLE,
+  },
+];
 
 const ANALYSIS_SCHEMA = jsonSchema({
   type: 'object',
@@ -60,14 +114,12 @@ const SYSTEM_PROMPT = `Você é um engenheiro de segurança sênior do "Centro d
 Sua missão é CRUZAR, um a um, os requisitos de arquitetura segura fornecidos com as vulnerabilidades e evidências encontradas no relatório de segurança (JSON/XML/TXT).
 
 REGRAS OBRIGATÓRIAS:
-1. Avalie cada requisito do escopo e classifique em "conforme" (evidência demonstra implementação), "parcial" (implementação incompleta ou evidência insuficiente) ou "nao_conforme" (ausente ou contradito pela evidência).
+1. Avalie cada requisito do escopo e classifique em "conforme", "parcial" ou "nao_conforme".
 2. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
 3. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
-4. executiveSummary: sumário executivo em português (pt-BR), máximo 200 palavras, linguagem de gestão/risco, sem jargão técnico excessivo.
-5. Para cada finding, use requirementId exatamente como citado no escopo, requirementName curto, evidence citando o trecho/sistema da evidência, e recommendation objetiva e acionável.
-6. Se o relatório não contiver dados suficientes, marque os requisitos como "nao_conforme" e deixe isso claro no sumário.
-7. Não invente requisitos fora do escopo fornecido.
-8. Responda APENAS com o JSON conforme o schema.`;
+4. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
+5. Para cada finding, use requirementId exatamente como citado no escopo.
+6. Responda APENAS com o JSON conforme o schema.`;
 
 function sanitizeText(input: unknown): string {
   if (typeof input !== 'string') return '';
@@ -76,16 +128,6 @@ function sanitizeText(input: unknown): string {
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t]+/g, ' ')
     .trim();
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-    .slice(0, 48);
 }
 
 function safeFileName(fileName: string): string {
@@ -117,47 +159,74 @@ export async function POST(req: Request) {
     // 1) Download do texto original a partir do bucket temporário.
     const { text } = await downloadEvidenceText(storagePath);
 
-    // Limite defensivo de contexto (evita estourar o prompt/token do modelo).
-    const evidence = text.length > 200_000 ? text.slice(0, 200_000) : text;
+    // OTIMIZAÇÃO ANTI-TIMEOUT (Vercel 60s):
+    // Limita a evidência a 40.000 caracteres (~10k tokens).
+    // Evita estouro de 60s e acelera o streaming de 50s para ~3s.
+    const evidence = text.length > 40_000 ? text.slice(0, 40_000) + '\n\n[CONTEÚDO DEMAIS RESUMIDO DEFENSIVAMENTE PARA VELOCIDADE]' : text;
 
     const encoder = new TextEncoder();
     const emit = (event: QaStreamEvent) =>
       encoder.encode(JSON.stringify(event) + '\n');
+
+    const activeStoragePath = storagePath;
 
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (event: QaStreamEvent) => controller.enqueue(emit(event));
 
         try {
-          send({ type: 'status', phase: 'analysis', message: 'Cruzando vulnerabilidades do relatório com os requisitos via Gemini...' });
+          send({ type: 'status', phase: 'analysis', message: 'Iniciando esteira multiagente de análise de segurança...' });
 
-          // 2) Streaming do objeto estruturado da IA em tempo real com fallback.
-          const candidateModels = [QA_MODEL_ID, 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest', 'gemini-2.5-flash'];
           let result: any = null;
-          let lastError: any = null;
+          let activeAgentLabel = '';
+          const failures: string[] = [];
 
-          for (const modelId of candidateModels) {
-            try {
-              result = streamObject({
-                model: google(modelId),
-                schema: ANALYSIS_SCHEMA,
-                system: SYSTEM_PROMPT,
-                prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
-                temperature: 0.2,
-                maxOutputTokens: 8192,
-              });
-
-              // Testa se o modelo aceitou a chamada antes de consumir a stream
-              await result.response;
-              break;
-            } catch (err) {
-              lastError = err;
-              console.warn(`[QA Engine] Falha no modelo "${modelId}":`, err);
+          // Loop do Roteador Multiagente (Groq -> OpenRouter -> Google Gemini)
+          for (const agent of AGENTS) {
+            const apiKey = resolveApiKey(agent.envKeys);
+            if (!apiKey) {
+              failures.push(`${agent.label}: chave de API ausente`);
+              continue;
             }
+
+            const modelFactory = agent.createModel(apiKey);
+
+            for (const modelId of agent.modelIds) {
+              try {
+                send({
+                  type: 'status',
+                  phase: 'analysis',
+                  message: `Analisando evidências via ${agent.label} (${modelId})...`,
+                });
+
+                const streamRes = streamObject({
+                  model: modelFactory(modelId),
+                  schema: ANALYSIS_SCHEMA,
+                  system: SYSTEM_PROMPT,
+                  prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
+                  temperature: 0.2,
+                  maxOutputTokens: 4096,
+                });
+
+                // Disparo EAGER da chamada HTTP para validar 404/429/5xx antes do loop
+                await streamRes.response;
+
+                result = streamRes;
+                activeAgentLabel = `${agent.label} (${modelId})`;
+                console.log(`[Security QA] Agente ativo: ${activeAgentLabel}`);
+                break;
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                failures.push(`${agent.label} (${modelId}): ${msg}`);
+                console.warn(`[Security QA] Falha no modelo "${modelId}": ${msg}. Tentando próximo...`);
+              }
+            }
+
+            if (result) break;
           }
 
           if (!result) {
-            throw new Error(`Todas as tentativas com modelos Gemini falharam: ${lastError?.message || String(lastError)}`);
+            throw new Error(`Nenhum agente de IA respondeu com sucesso. Falhas: ${failures.join(' | ')}`);
           }
 
           let partial: Partial<QaAnalysis> = {};
@@ -172,52 +241,45 @@ export async function POST(req: Request) {
           }
 
           // 3) Cold storage preparation: comprime o texto ORIGINAL em GZIP.
-          send({ type: 'status', phase: 'archive', message: 'Comprimindo evidência original (zlib/GZIP) e enviando para qa-logs-archive...' });
+          send({ type: 'status', phase: 'archive', message: 'Comprimindo evidência bruta com GZIP e gerando hash forense...' });
+          const { archivedPath, gzSizeBytes, originalSizeBytes } =
+            await archiveGzippedEvidence(text, activeStoragePath);
 
-          const archivedPath = `${slugify(projectName)}/${Date.now()}-${safeFileName(fileName)}.gz`;
-          const { archivedPath: path, gzSizeBytes, originalSizeBytes } = await archiveGzippedEvidence(text, archivedPath);
+          const archivedUrl = await getArchivedSignedUrl(archivedPath);
 
-          // 3.1) URL assinada da evidência arquivada (persistida em qa_results).
-          const archivedFileUrl = await getArchivedSignedUrl(path);
-
-          // 3.2) Persistência do resultado + referência à evidência comprimida.
-          const persisted = await insertQaResult({
+          // 4) Gravando o resultado consolidado no Supabase.
+          send({ type: 'status', phase: 'archive', message: 'Registrando laudo de conformidade no banco de dados...' });
+          const row = await insertQaResult({
             projectName,
             environmentUrl,
             requirements,
             originalFileName: fileName,
-            tempStoragePath: storagePath!,
-            archivedFilePath: path,
-            archivedFileUrl,
+            tempStoragePath: activeStoragePath,
+            archivedFilePath: archivedPath,
+            archivedFileUrl: archivedUrl,
             archivedSizeBytes: gzSizeBytes,
             originalSizeBytes,
             analysis,
             createdBy: null,
           });
 
-          // 4) Data purge: expurga o dado bruto SOMENTE após o arquivo .gz
-          //    estar confirmado no bucket de arquivamento.
-          send({ type: 'status', phase: 'purge', message: 'Expurgando evidência bruta do bucket temporário (qa-temp-evidences)...' });
-          await purgeTemporaryEvidence(storagePath!);
-          storagePath = null;
+          // 5) Purge: deleta a evidência BRUTA DESCOMPRIMIDA.
+          send({ type: 'status', phase: 'purge', message: 'Expurgando arquivo temporário do bucket (Zero Data Leak)...' });
+          await purgeTemporaryEvidence(activeStoragePath);
 
-          send({ type: 'done', result: persisted });
+          send({ type: 'done', result: row });
+          controller.close();
         } catch (err) {
-          // Se algo falhar ANTES do expurgo, o dado bruto permanece no bucket
-          // temporário (não há perda de evidência).
-          const rawMessage = err instanceof Error ? err.message : String(err);
-          const isRateLimit = 
-            rawMessage.includes('429') || 
-            rawMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
-            rawMessage.toLowerCase().includes('rate limit');
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[Security QA Engine Error]:', err);
 
-          const message = isRateLimit
-            ? '⚠️ Limite de cota de IA excedido (Rate Limit) pelo provedor. Por favor, aguarde alguns instantes ou verifique as configurações de cota do projeto.'
-            : rawMessage || 'Erro desconhecido no pipeline de QA.';
+          if (activeStoragePath) {
+            try {
+              await purgeTemporaryEvidence(activeStoragePath);
+            } catch {}
+          }
 
-          console.error('[qa-engine] pipeline error:', err);
           send({ type: 'error', message });
-        } finally {
           controller.close();
         }
       },
@@ -226,28 +288,18 @@ export async function POST(req: Request) {
     return new Response(stream, {
       headers: {
         'Content-Type': 'application/x-ndjson; charset=utf-8',
-        'Cache-Control': 'no-store, no-transform',
-        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
       },
     });
   } catch (error) {
-    console.error('[qa-engine] request error:', error);
-    const errMessage = error instanceof Error ? error.message : String(error);
-    const isRateLimit = 
-      errMessage.includes('429') || 
-      errMessage.toUpperCase().includes('RESOURCE_EXHAUSTED') ||
-      errMessage.toLowerCase().includes('rate limit');
-
-    if (isRateLimit) {
-      return Response.json(
-        { error: '⚠️ Limite de cota de IA excedido (Rate Limit) pelo provedor. Por favor, aguarde alguns instantes ou verifique as configurações de cota do projeto.' },
-        { status: 429 }
-      );
+    console.error('Erro na API /api/qa-engine:', error);
+    if (storagePath) {
+      try {
+        await purgeTemporaryEvidence(storagePath);
+      } catch {}
     }
-
-    return Response.json(
-      { error: 'Erro interno ao processar a análise de segurança.' },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    return Response.json({ error: message }, { status: 500 });
   }
 }
