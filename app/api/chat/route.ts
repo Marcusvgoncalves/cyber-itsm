@@ -69,23 +69,33 @@ interface AgentConfig {
 const AGENTS: AgentConfig[] = [
   {
     id: 'groq',
-    label: 'Groq (Llama 3.1 8B Instant)',
+    label: 'Groq (Llama 3.1 8B / 3.3 70B)',
     envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.1-8b-instant'],
+    modelIds: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
     createModel: GROQ,
   },
   {
     id: 'openrouter',
-    label: 'OpenRouter (DeepSeek)',
+    label: 'OpenRouter (DeepSeek / Llama)',
     envKeys: ['OPENROUTER_API_KEY'],
-    modelIds: ['deepseek/deepseek-r1:free', 'deepseek/deepseek-chat:free'],
+    modelIds: [
+      'deepseek/deepseek-r1:free',
+      'deepseek/deepseek-chat:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'google/gemini-2.0-flash-exp:free',
+    ],
     createModel: OPENROUTER,
   },
   {
     id: 'google',
-    label: 'Google (Gemini Flash)',
+    label: 'Google (Gemini 2.0 / 1.5 Flash)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
-    modelIds: ['gemini-1.5-flash-8b', 'gemini-2.0-flash-lite'],
+    modelIds: [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash-latest',
+      'gemini-2.5-flash',
+    ],
     createModel: GOOGLE,
   },
 ];

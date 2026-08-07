@@ -27,8 +27,8 @@ export const QA_GZIP_LEVEL = 9;
 /** Validade do URL assinado para download da evidência arquivada (segundos). */
 export const QA_SIGNED_URL_EXPIRES = 60 * 60 * 24 * 7;
 
-/** Modelo do motor de IA (alias rolante, alinhado ao agente legado). */
-export const QA_MODEL_ID = 'gemini-1.5-flash';
+/** Modelo do motor de IA (alias rolante de alta capacidade e estabilidade). */
+export const QA_MODEL_ID = 'gemini-2.0-flash';
 
 /** Limite de execução da função na plataforma (Vercel Pro: 60s em Hobby). */
 export const QA_MAX_DURATION = 60;

@@ -131,15 +131,34 @@ export async function POST(req: Request) {
         try {
           send({ type: 'status', phase: 'analysis', message: 'Cruzando vulnerabilidades do relatório com os requisitos via Gemini...' });
 
-          // 2) Streaming do objeto estruturado da IA em tempo real.
-          const result = streamObject({
-            model: google(QA_MODEL_ID),
-            schema: ANALYSIS_SCHEMA,
-            system: SYSTEM_PROMPT,
-            prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
-            temperature: 0.2,
-            maxOutputTokens: 8192,
-          });
+          // 2) Streaming do objeto estruturado da IA em tempo real com fallback.
+          const candidateModels = [QA_MODEL_ID, 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest', 'gemini-2.5-flash'];
+          let result: any = null;
+          let lastError: any = null;
+
+          for (const modelId of candidateModels) {
+            try {
+              result = streamObject({
+                model: google(modelId),
+                schema: ANALYSIS_SCHEMA,
+                system: SYSTEM_PROMPT,
+                prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
+                temperature: 0.2,
+                maxOutputTokens: 8192,
+              });
+
+              // Testa se o modelo aceitou a chamada antes de consumir a stream
+              await result.response;
+              break;
+            } catch (err) {
+              lastError = err;
+              console.warn(`[QA Engine] Falha no modelo "${modelId}":`, err);
+            }
+          }
+
+          if (!result) {
+            throw new Error(`Todas as tentativas com modelos Gemini falharam: ${lastError?.message || String(lastError)}`);
+          }
 
           let partial: Partial<QaAnalysis> = {};
           for await (const delta of result.partialObjectStream) {
