@@ -23,7 +23,7 @@ O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco,
 | **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA com tema Mistica. |
 | **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Componentes acessíveis e primitivas de UI. |
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
-| **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | Agente SecOps com RAG sobre 314 requisitos. `streamText`, temperatura 0.2. |
+| **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-1.5-flash`) | Agente SecOps com RAG sobre 314 requisitos. Intercepção robusta de erros HTTP 429. |
 | **RAG / Conhecimento** | `requisitos-sd.json` | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
 | **Banco de Dados / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 tabelas legadas + 2 tabelas (`qa_projects` e `qa_results`) no módulo de Security QA gerenciadas via Prisma com Driver Adapter. |
 | **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
@@ -86,7 +86,7 @@ cyber-itsm/
 
 1. **Modelo de Login por Nome de Usuário** — O formulário de login foi simplificado para aceitar o formato corporativo `nome.sobrenome` (sem formatação ou validação de e-mail na interface).
 2. **Complexidade de senhas obrigatória** — mín. 12 caracteres com maiúsculas, minúsculas, números e símbolos. Ex.: `CyberITSM@2026!Password`.
-3. **Sessão segura** — Supabase Auth com cookies; `proxy.ts` (substitui o `middleware.ts` no Next.js 16) garante autenticação antes do `/dashboard`.
+3. **Sessão segura e ciclo de vida** — Supabase Auth com cookies; a sessão tem duração máxima de 1 hora quando ativa e expira automaticamente após 15 minutos de inatividade (idle timeout) rastreada por listeners no cliente e validada no `proxy.ts` (substitui o `middleware.ts` no Next.js 16).
 4. **MFA obrigatório para todas as contas** — fluxo no `login-form.tsx`:
    - **Sem MFA configurado** → onboarding: gera secret + QR Code, valida o código de 6 dígitos (`confirmMfaSetup`) e grava o cookie `mfa_verified`.
    - **Com MFA configurado** → verificação de código (`verifyMfa`) na janela temporária ±1 intervalo.
@@ -98,7 +98,8 @@ cyber-itsm/
 ### 🧠 Agente de IA SecOps (RAG)
 
 - Endpoint: `app/api/chat/route.ts`.
-- Modelo: Google **Gemini** via `@ai-sdk/google` — `gemini-flash-latest` (um fallback local Ollama fica comentado/desabilitado).
+- Modelo: Google **Gemini** via `@ai-sdk/google` — `gemini-1.5-flash` (downgrade estratégico para maior RPM/RPD gratuita). Possui tratamento de rate limit (429/RESOURCE_EXHAUSTED) para exibir alertas amigáveis na bolha de chat.
+- Histórico: Persistência local (`localStorage`) isolada por usuário (`cyberitsm_secops_chat_messages_${userId}`), preservada no logoff/timeout.
 - Conhecimento: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura SD v4.1 (id `VIVO.SEGURA.*`, controle, componente, propriedade, STRIDE/LM, OWASP, categoria, criticidade, evidência, como testar).
 - Recuperação: tokenização com normalização NFD, remoção de stopwords e pontuação, pontuação ponderada por campo.
 - Injeção de contexto no prompt: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; sanitização anti-prompt-injection (`sanitizeText`).
@@ -206,6 +207,13 @@ A plataforma conta com um módulo isolado e seguro para a ingestão e análise d
 4. **Data Purge (Expurgo)**: Assim que a compressão e arquivamento em `.gz` são confirmados, a evidência bruta original é permanentemente deletada do bucket temporário, garantindo segurança de dados e economia de espaço.
 5. **Painel de Controle e Exportação**: O analista visualiza gráficos dinâmicos de conformidade e vereditos (usando Recharts Radial/Bar charts) e pode gerar um relatório executivo em PDF sob demanda (`@react-pdf/renderer`).
 
+### 📊 Quadro Kanban & Dashboard Integrado
+
+O Kanban possui uma visão de Dashboard integrada (botão **Dashboard Metrics** na barra de ferramentas) que exibe:
+1. **Volumetria de Atividades**: Distribuição dinâmica por status e framework (NIST, ISO, SABSA, etc.) usando gráficos interativos do Recharts.
+2. **Calculadora de Criticidade**: Simulador de score baseado na fórmula `Prioridade * Framework * SLA` com classificação de criticidade visual em tempo real.
+3. **Tendências e Previsões**: Estimativas de prazo para esvaziamento da fila de mitigação e taxas de conformidade de SLA.
+
 ### 🚦 Segurança no CI/CD (Deploy Gate)
 
 Todo commit/PR na `main` dispara o pipeline de segurança [`Enterprise Security Scan`](.github/workflows/enterprise-security.yml), que **bloqueia o deploy na Vercel** se encontrar vulnerabilidades (segredos, CVEs High/Critical, falhas OWASP/SAST/DAST). Veja as regras customizadas de vazamento em [`.gitleaks.toml`](.gitleaks.toml) e o passo a passo de configuração do gate em [`docs/deploy-gate.md`](docs/deploy-gate.md).
@@ -231,7 +239,7 @@ The diagram details **every container, component, database table, authentication
 | **Frontend** | React 19 · Next.js 16 App Router · Tailwind CSS v4 | SPA with Vivo Mistica theme. |
 | **UI Assets** | Radix UI · Lucide Icons · CVA · clsx/tailwind-merge | Accessible components and UI primitives. |
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
-| **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | SecOps agent with RAG over 314 requirements. `streamText`, temperature 0.2. |
+| **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-1.5-flash`) | SecOps agent with RAG over 314 requirements. Graceful HTTP 429 Rate Limit interception. |
 | **RAG / Knowledge** | `requisitos-sd.json` | Weighted keyword retrieval (core×3, detail×2, light×1). |
 | **Database / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 legacy tables + 2 tables (`qa_projects` and `qa_results`) in the Security QA module managed via Prisma with Driver Adapter. |
 | **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
@@ -292,7 +300,7 @@ cyber-itsm/
 
 1. **Username Login Model** — The login form is simplified to accept the corporate `nome.sobrenome` pattern (without formatting or email validation on frontend input fields).
 2. **Mandatory password strength** — min. 12 characters with uppercase, lowercase, numbers and symbols. E.g. `CyberITSM@2026!Password`.
-3. **Secure session** — Supabase Auth with cookies; `proxy.ts` (replaces `middleware.ts` in Next.js 16) enforces authentication before `/dashboard`.
+3. **Secure session & timeout** — Supabase Auth with cookies; active session duration is limited to 1 hour maximum and automatically expires after 15 minutes of inactivity (idle timeout), managed by client-side event tracking and `proxy.ts` middleware (replaces `middleware.ts` in Next.js 16).
 4. **MFA mandatory for all accounts** — flow in `login-form.tsx`:
    - **MFA not configured** → onboarding: generates secret + QR Code, validates the 6-digit code (`confirmMfaSetup`) and stores the `mfa_verified` cookie.
    - **MFA configured** → code verification (`verifyMfa`) within the ±1 interval window.
@@ -304,7 +312,8 @@ cyber-itsm/
 ### 🧠 SecOps AI Agent (RAG)
 
 - Endpoint: `app/api/chat/route.ts`.
-- Model: Google **Gemini** via `@ai-sdk/google` — `gemini-flash-latest` (a local Ollama fallback is commented out/disabled).
+- Model: Google **Gemini** via `@ai-sdk/google` — `gemini-1.5-flash` (strategic downgrade for higher free free RPM/RPD). Handles rate limit (429/RESOURCE_EXHAUSTED) errors by streaming friendly warnings.
+- History: Local browser persistence (`localStorage`) partitioned dynamically by user ID (`cyberitsm_secops_chat_messages_${userId}`), preserved through logoff/timeout.
 - Knowledge: `requisitos-sd.json` — **314 requirements** of Secure Architecture SD v4.1 (id `VIVO.SEGURA.*`, control, component, property, STRIDE/LM, OWASP, category, criticality, evidence, how-to-test).
 - Retrieval: tokenization with NFD normalization, stopword and punctuation removal, weighted field scoring.
 - Prompt context injection: `[CONTEXTO DO CHAMADO]` + `[BASE DE CONHECIMENTO - REQUISITOS RELEVANTES]`; anti-prompt-injection sanitization (`sanitizeText`).
@@ -411,6 +420,13 @@ The platform features an isolated and secure module for ingesting and analyzing 
 3. **Foresnic Compression (zlib/GZIP)**: The original text report is compressed using GZIP (level 9) and archived in the immutable `qa-logs-archive` bucket. The database table `qa_results` persists the temporary signed URL for download.
 4. **Data Purge**: Once GZIP compression and archival are verified, the original raw evidence is permanently purged from the temporary bucket, enforcing strict data minimisation and storage efficiency.
 5. **Dashboard & PDF Export**: Analysts view dynamic compliance gauges and requirement verdict charts (via Recharts) and can export a styled executive PDF report on-demand (`@react-pdf/renderer`).
+
+### 📊 Kanban Board & Integrated Dashboard
+
+The Kanban view features an integrated Dashboard toggled via **Dashboard Metrics** displaying:
+1. **Activity Volumetrics**: Dynamic status and framework distributions using Recharts.
+2. **Criticality Calculator**: Interactive risk scoring using `Priority * Framework * SLA` weight metrics.
+3. **Forecasts & Trends**: Estimates of days needed to resolve backlog queue and compliance risk indicators.
 
 ### 🛡️ Vulnerability Mitigation / Remediação de Vulnerabilidades
 

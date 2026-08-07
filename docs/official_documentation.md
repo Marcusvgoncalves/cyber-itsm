@@ -46,7 +46,7 @@ graph TD
   end
 
   FE -->|POST /api/chat| AI
-  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-flash-latest)"]
+  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-1.5-flash)"]
   API_QA -->|Salvar resultado| DB
   API_QA -->|Upload .gz / Delete bruto| ST[("Supabase Storage Buckets")]
 
@@ -73,7 +73,7 @@ graph TD
 - **Tema Mistica**: tipografia **Outfit** (via `next/font/google`), cores roxa `#660099` e laranja Vivo `#FF9900`.
 - **Componentes**:
   - `components/shell/` — `AppShell`, `Sidebar`, `Topbar`, `MobileMenu` (moldura de navegação global).
-  - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal` (drag-and-drop, criação/edição/remoção e comentários).
+  - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal`, `kanban-dashboard` (Quadro Kanban com drag-and-drop, comentários, e visualização integrada de volumetrias, previsões e calculadora de criticidade de vulnerabilidades).
   - `components/SecurityAgent.tsx` — FAB de chat de IA via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
   - `components/login-form.tsx` — fluxo de login em 3 passos (credenciais → onboarding MFA → verificação MFA).
   - `components/architecture-diagram.tsx` — mapa de arquitetura interativo (admin).
@@ -103,6 +103,7 @@ Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.
 3. **Sem MFA (primeiro acesso)** → onboarding: `initiateMfa` gera um secret Base32 e o URI `otpauth://`; a UI exibe um QR Code (simulado) e a chave secreta; o usuário informa o código de 6 dígitos (Google Authenticator) e `confirmMfaSetup` valida e grava o cookie `mfa_verified`.
 4. **Com MFA** → `verifyMfa` valida o código na janela temporária **±1 intervalo (30 s)** e grava o cookie `mfa_verified` (24 h, `httpOnly`, `SameSite=Strict`).
 5. **Proteção de rota** — `proxy.ts` impede acesso ao `/dashboard` sem o cookie → **MFA obrigatório para todas as contas**.
+6. **Ciclo de Vida da Sessão e Expiração por Inatividade**: A sessão tem tempo limite absoluto de 1 hora de utilização contínua e tempo limite de inatividade (idle timeout) de 15 minutos. Um listener no frontend intercepta interações (movimento do mouse, cliques, teclas, rolagem) a cada 10 segundos e atualiza o cookie `last_activity`. Se qualquer um dos limites for estourado, o `proxy.ts` ou o verificado de timer do cliente invalida o cookie de MFA e redireciona para `/login?session_expired=true`.
 6. **Recuperação de senha** — `requestPasswordReset` gera `reset_token` (válido 1 h) e exibe o link `/reset-password?token=XYZ` no sandbox; `resetPasswordWithToken` troca a senha e limpa o token.
 
 **Validação TOTP** (`lib/totp.ts`): `verifyTOTP(token, secret)` — valida 6 dígitos, janela de −1/0/+1, HMAC-SHA1 via Web Crypto, com fallback de homologação `123456`.
@@ -114,7 +115,8 @@ Fluxo implementado em `components/login-form.tsx` e nas Server Actions de `auth.
 ### 4. Agente de IA SecOps (Pipeline RAG)
 
 - **Endpoint**: `app/api/chat/route.ts`.
-- **Modelo**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, modelo `gemini-flash-latest` (alias rolling). Um fallback local Ollama (`createOpenAI` → `http://localhost:11434/v1`) fica comentado/desabilitado.
+- **Modelo**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, modelo `gemini-1.5-flash` (downgrade estratégico para otimização de RPM/RPD). Possui tratamento e intercepção robusta de erros de cota / Rate Limit (HTTP 429 - RESOURCE_EXHAUSTED).
+- **Histórico**: Armazenamento no browser via `localStorage` com partição dinâmica por ID do usuário logado (`cyberitsm_secops_chat_messages_${userId}`), persistido no logoff/timeout.
 - **Conhecimento**: `requisitos-sd.json` — **314 requisitos** de Arquitetura Segura. Cada requisito possui: `id` (ex.: `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
 - **Recuperação** (`retrieveRelevantRequisitos`, limite padrão 6):
   - Tokenização com normalização **NFD** (remove acentos), lowercase, split por não-alfanumérico, remoção de tokens ≤2 e de uma lista de stopwords em português.
@@ -284,7 +286,7 @@ graph TD
   end
 
   FE -->|POST /api/chat| AI
-  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-flash-latest)"]
+  API_QA -->|Gemini streamObject| GEMINI["Google Gemini API (gemini-1.5-flash)"]
   API_QA -->|Save result| DB
   API_QA -->|Upload .gz / Delete raw| ST[("Supabase Storage Buckets")]
 
@@ -311,7 +313,7 @@ graph TD
 - **Mistica theme**: **Outfit** typography (via `next/font/google`), Vivo purple `#660099` and orange `#FF9900`.
 - **Components**:
   - `components/shell/` — `AppShell`, `Sidebar`, `Topbar`, `MobileMenu` (global layout frame).
-  - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal` (drag-and-drop, create/edit/delete, comments).
+  - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal`, `kanban-dashboard` (Kanban Board with drag-and-drop, comments, and integrated view of metrics/forecasts and vulnerability criticality calculator).
   - `components/SecurityAgent.tsx` — AI chat FAB via `useChat` from `@ai-sdk/react` with `DefaultChatTransport`, sending `ticketContext`.
   - `components/login-form.tsx` — 3-step login flow (credentials → MFA onboarding → MFA verification).
   - `components/architecture-diagram.tsx` — interactive architecture map (admin).
@@ -341,6 +343,7 @@ Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.
 3. **No MFA (first access)** → onboarding: `initiateMfa` generates a Base32 secret and an `otpauth://` URI; the UI renders a (simulated) QR Code and the secret key; the user enters the 6-digit code (Google Authenticator) and `confirmMfaSetup` validates and stores the `mfa_verified` cookie.
 4. **MFA present** → `verifyMfa` validates the code within the **±1 interval (30 s)** time window and stores the `mfa_verified` cookie (24 h, `httpOnly`, `SameSite=Strict`).
 5. **Route protection** — `proxy.ts` blocks `/dashboard` access without the cookie → **MFA mandatory for all accounts**.
+6. **Session Lifetimes & Idle Inactivity Timeout**: The session enforces a 1-hour absolute duration ceiling and a 15-minute idle inactivity timeout. Client-side trackers capture user input events (clicks, scrolls, typing) and throttle update cookies to 10-second intervals. Expiry triggers automatic cookie destruction via `proxy.ts` middleware or client-side checks and redirects users to `/login?session_expired=true`.
 6. **Password recovery** — `requestPasswordReset` generates a `reset_token` (valid 1 h) and displays the `/reset-password?token=XYZ` link in the sandbox; `resetPasswordWithToken` changes the password and clears the token.
 
 **TOTP validation** (`lib/totp.ts`): `verifyTOTP(token, secret)` — validates 6 digits, window −1/0/+1, HMAC-SHA1 via Web Crypto, with the `123456` testing fallback.
@@ -352,7 +355,8 @@ Flow implemented in `components/login-form.tsx` and the Server Actions in `auth.
 ### 4. SecOps AI Agent (RAG Pipeline)
 
 - **Endpoint**: `app/api/chat/route.ts`.
-- **Model**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, model `gemini-flash-latest` (rolling alias). A local Ollama fallback (`createOpenAI` → `http://localhost:11434/v1`) is commented out/disabled.
+- **Model**: Google **Gemini** via `@ai-sdk/google` — `createGoogleGenerativeAI({ apiKey })`, model `gemini-1.5-flash` (strategic downgrade for RPM/RPD optimization). Features robust HTTP 429 (Rate Limit) exception handling.
+- **History**: Local storage persistence (`localStorage`) partitioned dynamically by user ID (`cyberitsm_secops_chat_messages_${userId}`), preserved on logoff/timeout.
 - **Knowledge**: `requisitos-sd.json` — **314 requirements** of Secure Architecture. Each requirement has: `id` (e.g. `VIVO.SEGURA.APIS.001`), `controle`, `detalhamento`, `componente`, `propriedade`, `strideLM`, `riscos`, `owasp`, `categoria`, `criticidade`, `tipoControle`, `evidencia`, `comoTestar`.
 - **Retrieval** (`retrieveRelevantRequisitos`, default limit 6):
   - Tokenization with **NFD** normalization (strips accents), lowercase, split on non-alphanumerics, removal of tokens ≤2 and a Portuguese stopword list.

@@ -19,6 +19,7 @@ import {
   Play,
   Rocket,
   Search,
+  ShieldCheck,
   Sparkles,
   Workflow,
 } from "lucide-react";
@@ -28,6 +29,8 @@ interface FaqEntry {
   answer: string[];
   /** Links internos reais (next/link) para as funcionalidades citadas. */
   links?: { label: string; href: string }[];
+  /** Links externos reais (âncora target="_blank") para a documentação oficial. */
+  externalLinks?: { label: string; href: string }[];
 }
 
 interface FaqCategory {
@@ -121,6 +124,54 @@ const FAQ: FaqCategory[] = [
       },
     ],
   },
+  {
+    id: "frameworks-seguranca",
+    title: "Frameworks de Segurança",
+    description: "Referências oficiais dos principais frameworks de cibersegurança.",
+    icon: <ShieldCheck className="h-5 w-5 text-success" />,
+    items: [
+      {
+        question: "OWASP Top 10",
+        answer: [
+          "Ranking dos dez riscos de segurança mais críticos em aplicações web, atualizado pela OWASP Foundation.",
+          "Serve como base para priorizar correções (Injeção, Broken Access Control, XSS, SSRF, etc.).",
+        ],
+        externalLinks: [
+          { label: "Documentação Oficial OWASP Top 10", href: "https://owasp.org/www-project-top-ten/" },
+        ],
+      },
+      {
+        question: "NIST CSF",
+        answer: [
+          "Framework do NIST (EUA) para gestão e redução de risco de cibersegurança, organizado em cinco funções: Identificar, Proteger, Detectar, Responder e Recuperar.",
+          "Amplamente usado como base para programas corporativos e requisitos normativos.",
+        ],
+        externalLinks: [
+          { label: "Documentação Oficial NIST CSF", href: "https://www.nist.gov/cyberframework" },
+        ],
+      },
+      {
+        question: "CIS Controls",
+        answer: [
+          "Conjunto priorizado de 18 controles práticos (Center for Internet Security) para defesa contra ataques conhecidos.",
+          "Ideal para definir quick wins de hardening e medir maturidade operacional.",
+        ],
+        externalLinks: [
+          { label: "Documentação Oficial CIS Controls", href: "https://www.cisecurity.org/controls" },
+        ],
+      },
+      {
+        question: "ISO/IEC 27001",
+        answer: [
+          "Norma internacional para Sistemas de Gestão de Segurança da Informação (SGSI).",
+          "Define requisitos para implantar, monitorar e melhorar continuamente controles de segurança.",
+        ],
+        externalLinks: [
+          { label: "Documentação Oficial ISO/IEC 27001", href: "https://www.iso.org/standard/27001" },
+        ],
+      },
+    ],
+  },
 ];
 
 export default function KnowledgeBasePage() {
@@ -146,7 +197,7 @@ export default function KnowledgeBasePage() {
             <Input
               type="text"
               placeholder="Pesquise por assunto ou funcionalidade..."
-              className="h-11 rounded-full border-0 bg-white pl-10 text-sm shadow-lg focus-visible:ring-white/60"
+              className="h-11 rounded-full border-0 bg-white pl-10 text-sm text-gray-900 placeholder:text-gray-400 shadow-lg focus-visible:ring-white/60"
             />
           </div>
         </div>
@@ -225,6 +276,22 @@ export default function KnowledgeBasePage() {
                                   {link.label}
                                 </Link>
                               </Button>
+                            ))}
+                          </div>
+                        )}
+                        {item.externalLinks && item.externalLinks.length > 0 && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {item.externalLinks.map((link) => (
+                              <a
+                                key={link.href}
+                                href={link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary-light"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5" />
+                                {link.label}
+                              </a>
                             ))}
                           </div>
                         )}

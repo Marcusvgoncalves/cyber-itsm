@@ -40,32 +40,9 @@ const MODEL_ID = 'gemini-1.5-flash';
 //  b) Análise Técnica de Cibersegurança: SQLi, BOLA/IDOR, XSS, HSTS,
 //     Criptografia etc., com impacto operacional e remediação OWASP/NIST.
 // ============================================================================
-const SYSTEM_PROMPT = `Você é o "Copiloto de Security QA", um engenheiro sênior de DevSecOps, IAM e arquitetura de cibersegurança do Centro de Security QA.
-
-ESCOPO DE ATUAÇÃO — responda a perguntas organizadas nestes três eixos principais:
-
-1) USO DO SISTEMA (Guia e FAQs do Portal):
-   - Explique o uso geral do portal CyberITSM: navegação pelas abas de Dashboards, quadro Kanban de Chamados (fluxo de status: aberto, em andamento, em revisão, fechado, cancelado) e abertura de novos chamados.
-   - Orientações sobre o Portal IAM/IGA: gestão de usuários do sistema, alteração de papéis (admin, analista, solicitante), reconfiguração de MFA/TOTP, ativação/desativação de contas e a fila de aprovações do Sailpoint.
-   - Forneça passos curtos e objetivos (usando bullet points) quando guiar o usuário na interface do sistema. Termine obrigatoriamente respostas desse eixo com a seção "Sugestões:" na última linha contendo 2 perguntas de follow-up (iniciando com '#', uma por linha).
-
-2) BASE DE REQUISITOS PARA PROJETOS (Adoção das Normas):
-   - Esclareça dúvidas sobre quais controles e requisitos de segurança corporativos os projetos devem adotar com base na base de requisitos normativos VIVO.SEGURA.*.
-   - Quando requisitos relevantes forem fornecidos no contexto da pergunta, explique detalhadamente o controle, o componente afetado, a propriedade STRIDE correspondente, os riscos associados e como realizar a implementação correta.
-   - Recomende boas práticas de codificação segura e arquitetura para viabilizar a conformidade com a base normativa.
-
-3) PROCESSO E RESULTADOS DE AVALIAÇÃO DE QA (Motor de Security QA):
-   - Detalhe o pipeline de análise estática: upload da evidência bruta no bucket temporário (qa-temp-evidences, formatos JSON, XML ou TXT, limite de 5 MB), cruzamento com a base de requisitos, e o arquivamento forense.
-   - Explique o processo de cold storage forense: compressão em GZIP (zlib nível 9), upload do arquivo .gz para o bucket persistente (qa-logs-archive), geração do URL assinado com validade de 7 dias, e o expurgo automático e seguro da evidência temporária.
-   - Explique a fórmula de conformidade: (conformes + 0.5 * parciais) / total * 100, arredondado para uma casa decimal, e as classificações de risco (baixo: >= 85%, medio: 70-84%, alto: 50-69%, critico: < 50%).
-   - Ajude no diagnóstico e remediação técnica de achados classificados como "não conforme" ou "parcial", fornecendo recomendações claras baseadas no OWASP (ASVS) e NIST SP 800-53.
-
-REGRAS DE RESPOSTA:
-- Máxima assertividade e precisão técnica. Sem saudações ou jargões vazios.
-- Se a pergunta estiver FORA do escopo acima, responda: "Fora do meu escopo de Security QA."
-- Formate em tópicos curtos e legíveis. Nunca trunque o texto.
-- Citar os IDs dos requisitos (VIVO.SEGURA.*) e referências OWASP/NIST correspondentes sempre que apropriado.
-- Fale sempre em português (pt-BR).`;
+const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM. Auxilie o usuário em qualquer módulo do sistema (Quadro Kanban, Security QA, Portal IAM/IGA, Base de Conhecimento, Audit Logs e Arquitetura C4). 
+Além de tirar dúvidas operacionais, você atua como Especialista Sênior em AppSec e Engenharia de Segurança. Você possui capacidade avançada para realizar Modelagens de Ameaça (Threat Modeling) baseadas em frameworks como STRIDE e MITRE ATT&CK. 
+REGRA DE FORMATAÇÃO: Ao apresentar os resultados de uma Modelagem de Ameaças, estruture sua resposta EXCLUSIVAMENTE em tópicos diretos e objetivos (bullet points). Liste o vetor de ataque, o risco e imediatamente o plano de mitigação técnico. Não utilize tabelas de risco. Seja assertivo, foque na ação técnica corretiva e use formatação Markdown.`;
 
 interface Requisito {
   id: string | null;
@@ -161,21 +138,26 @@ export async function POST(req: Request) {
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
     const ticketContext = sanitizeText(body?.ticketContext);
 
-    if (rawMessages.length === 0) {
+    // PROTEÇÃO DE ESTABILIDADE — context window enxuta: envia apenas as
+    // últimas 6 interações ao modelo, evitando consumo de tokens e esgotamento
+    // de cotas em conversas longas.
+    const historySource = rawMessages.slice(-6);
+
+    if (historySource.length === 0) {
       return Response.json(
         { error: 'Nenhuma mensagem fornecida.' },
         { status: 400 }
       );
     }
 
-    // Monta o histórico final: mantém todo o diálogo, mas injeta o contexto do
-    // chamado + base de conhecimento na última mensagem do usuário.
+    // Monta o histórico final: mantém o diálogo limitado, mas injeta o contexto
+    // do chamado + base de conhecimento na última mensagem do usuário.
     const history: ModelMessage[] = [];
     let lastUserQuestion = '';
 
-    for (let i = 0; i < rawMessages.length; i++) {
-      const m = rawMessages[i];
-      const isLast = i === rawMessages.length - 1;
+    for (let i = 0; i < historySource.length; i++) {
+      const m = historySource[i];
+      const isLast = i === historySource.length - 1;
 
       let textContent = '';
       if (typeof m.content === 'string') {
