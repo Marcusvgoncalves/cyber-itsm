@@ -400,6 +400,6 @@
   <g transform="translate(40,1188)">
     <rect width="1200" height="40" rx="10" fill="#0f172a" filter="url(#shadow)" />
     <text x="16" y="25" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#ffffff">Deploy: Vercel (funciona online)</text>
-    <text x="210" y="25" font-family="'Outfit',sans-serif" font-size="10" fill="#9ca3af">Next.js 16 build · Env: NEXT_PUBLIC_SUPABASE_URL · ANON_KEY · SERVICE_ROLE_KEY · GOOGLE_GENERATIVE_AI_API_KEY · DATABASE_URL (Prisma)</text>
+    <text x="210" y="25" font-family="'Outfit',sans-serif" font-size="10" fill="#9ca3af">Next.js 16 build · Env: NEXT_PUBLIC_SUPABASE_URL · ANON_KEY · GOOGLE_GENERATIVE_AI_API_KEY · DATABASE_URL · DIRECT_URL (Prisma)</text>
   </g>
 </svg>
