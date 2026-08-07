@@ -30,7 +30,7 @@ interface SecurityAgentProps {
 }
 
 const WELCOME_MESSAGE =
-  "Sou o Agente de Arquitetura de Cibersegurança. Faça perguntas estritamente sobre o contexto deste chamado. Também posso ser seu guia: pergunte 'como abro um chamado?'.";
+  "Sou o Copiloto de Security QA. Posso explicar o fluxo da plataforma (upload .json/.xml/.txt, cruzamento com VIVO.SEGURA.*, cálculo de conformidade e arquivamento GZIP) e responder dúvidas técnicas de cibersegurança (SQLi, BOLA, XSS, HSTS, criptografia e remediações OWASP/NIST).";
 
 const GUIDE_KEYWORDS = [
   "passo a passo",
@@ -176,8 +176,8 @@ export function SecurityAgent({ ticketData, isOpen, onClose, onAction }: Securit
             <ShieldAlert className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white">Agente de Cibersegurança</h2>
-            <p className="text-[10px] text-white/80">Guia interativo · Contexto do chamado</p>
+            <h2 className="text-sm font-bold text-white">Copiloto de Security QA</h2>
+            <p className="text-[10px] text-white/80">FAQ da plataforma · Análise técnica (OWASP/NIST)</p>
           </div>
         </div>
         <Button
@@ -308,6 +308,7 @@ export function SecurityAgent({ ticketData, isOpen, onClose, onAction }: Securit
         {error && (
           <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
             Erro ao processar a solicitação. Tente novamente.
+            {error instanceof Error ? ` (${error.message})` : typeof error === "string" ? ` (${error})` : ""}
           </p>
         )}
 

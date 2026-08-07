@@ -3,36 +3,64 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import requisitos from '../../../requisitos-sd.json';
 
 // ============================================================================
-// PROVEDOR ATIVO: Google Gemini (gemini-flash-latest)
-// Modelo leve e gratuito dentro das quotas do plano Free do Google AI Studio.
-// Variável de ambiente obrigatória: GOOGLE_GENERATIVE_AI_API_KEY
-// ============================================================================
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-});
-
-const MODEL_ID = 'gemini-flash-latest'; // alias rolante do flash mais recente (modelos fixos 1.5/2.5 foram descontinuados)
-
-// ============================================================================
-// PROVEDOR LOCAL (OLLAMA) - COMENTADO
-// Para rodar o agente 100% localmente via Ollama.
-// O Docker precisa estar de pé com o modelo baixado:
+// COPILOTO DE SECURITY QA — integração oficial do Vercel AI SDK + @ai-sdk/google.
 //
-//   docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
-//   docker exec ollama ollama pull phi3   # ou: llama3
-//
-// import { createOpenAI } from '@ai-sdk/openai';
-//
-// const openai = createOpenAI({
-//   apiKey: process.env.OLLAMA_API_KEY ?? 'ollama',
-//   baseURL: 'http://localhost:11434/v1', // endpoint compatível com OpenAI do Ollama
-// });
-//
-// const MODEL_ID = 'phi3'; // alternativa leve: 'llama3'
-// const PROVIDER = openai;
+// Pipeline: useChat (@ai-sdk/react) → POST /api/chat → streamText (Gemini).
+// Chave de API lida de GEMINI_API_KEY ou GOOGLE_GENERATIVE_AI_API_KEY.
 // ============================================================================
 
-const SYSTEM_PROMPT = `Você é um Assistente de Arquitetura de Cibersegurança especializado em ITSM e na Base de Requisitos de Arquitetura Segura SD v4.1. Responda baseando-se ESTRITAMENTE nos dois contextos fornecidos: [CONTEXTO DO CHAMADO] e [BASE DE CONHECIMENTO DE FRAMEWORKS]. REGRAS: 1. Responda com máxima assertividade e precisão técnica. 2. Sem saudações ou jargões. 3. Se a informação não estiver nos contextos, responda APENAS: 'Informação não encontrada no contexto atual.' 4. Formate a saída em tópicos curtos. 5. REGRA IMPORTANTE: responda de forma COMPLETA e exaustiva, cobrindo TODOS os requisitos relevantes da base, sem truncar. 6. Quando aplicável, cite o ID do requisito (ex.: VIVO.SEGURA.*), o componente, a categoria, a criticidade e a evidência/como testar da base de conhecimento. 7. Além de analisar chamados, você é o GUIA DO SISTEMA. Se o usuário perguntar como fazer algo na plataforma (ex: 'como abro um chamado?', 'onde vejo as métricas?'), explique de forma curta, em bullet points, o passo a passo na interface. 8. Regra de prioridade: quando a pergunta for de USO/NAVEGAÇÃO da plataforma (passo a passo na interface), priorize responder como guia do sistema, sem citar IDs de requisitos da base. 9. Toda resposta no MODO GUIA deve terminar com a seção 'Sugestões:' na última linha, listando 2 perguntas de acompanhamento (follow-up) curtas, uma por linha, começando com o caractere '#' (ex.: # Como troco a prioridade do chamado?). Esta seção é usada pela interface para renderizar chips de próximo passo.`;
+// Chave de API: suporta ambos os nomes. Se ausente, `getApiKey` lança um erro
+// DESCRITIVO no console do servidor em vez de quebrar silenciosamente
+// (a criação do provider com apiKey "undefined" costumava mascarar o 401).
+function getApiKey(): string {
+  const key =
+    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!key || key.trim() === '' || key.includes('your_')) {
+    const names = ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'].join(' ou ');
+    throw new Error(
+      `[Copiloto IA] Chave de API do Google ausente/inválida. Defina ${names} nas variáveis de ambiente da Vercel e no .env.local.`
+    );
+  }
+  return key.trim();
+}
+
+const google = createGoogleGenerativeAI({ apiKey: getApiKey() });
+
+// Modelo EXPLÍCITO, suportado pela versão instalada de @ai-sdk/google (4.0.x).
+// O alias rolante "gemini-flash-latest" foi descontinuado/preterido; optamos
+// pelo fixo e estável "gemini-2.5-flash".
+const MODEL_ID = 'gemini-2.5-flash';
+
+// ============================================================================
+// PERSONA — escopo estrito do Copiloto de Security QA:
+//  a) FAQ da Plataforma: upload (.json/.xml/.txt), cruzamento com a base de
+//     requisitos normativos VIVO.SEGURA.*, cálculo de conformidade (%) e o
+//     arquivamento seguro em GZIP (Supabase buckets qa-temp-evidences /
+//     qa-logs-archive).
+//  b) Análise Técnica de Cibersegurança: SQLi, BOLA/IDOR, XSS, HSTS,
+//     Criptografia etc., com impacto operacional e remediação OWASP/NIST.
+// ============================================================================
+const SYSTEM_PROMPT = `Você é o "Copiloto de Security QA", um engenheiro sênior de DevSecOps e arquitetura de cibersegurança de um centro de avaliação de segurança.
+
+SCOPO DE ATUAÇÃO — responda SOMENTE dentro destes dois eixos:
+
+1) FAQ DA PLATAFORMA (guia do sistema):
+   - Explique como o upload de evidências funciona: formatos aceitos (.json, .xml, .txt), limite de 5 MB e o fluxo de ingestão.
+   - Explique o cruzamento do relatório com a base de requisitos normativos (IDs como VIVO.SEGURA.*), como cada requisito é avaliado.
+   - Explique o cálculo do percentual de conformidade: (conformes + 0.5*parciais)/total * 100, e a classificação de risco (baixo/medio/alto/critico).
+   - Explique o arquivamento forense: compressão GZIP (zlib) e a transição dos buckets Supabase qa-temp-evidences → qa-logs-archive, e o expurgo do dado bruto.
+   - Dê passos curtos e objetivos na interface (bullet points), e termine com a seção "Sugestões:" na última linha, 2 perguntas de follow-up, uma por linha, começando com '#'.
+
+2) ANÁLISE TÉCNICA DE CIBERSEGURANÇA:
+   - Responda com profundidade sobre SQLi (e friendparametrizado), BOLA/IDOR, XSS, HSTS/cabeçalhos HTTP, criptografia (dados em repouso/trânsito, TLS 1.2+, hashing/para senha com PBKDF2/bcrypt/argon2), controle de acesso (RBAC/ABAC), etc.
+   - Explique o IMPACTO OPERACIONAL de cada vulnerabilidade e forneça código de alta qualidade ou recomendações de remediação baseadas em OWASP (ASVS/Testing Guide) e NIST (SP 800-53, frameworks).
+
+REGRAS:
+- Máxima assertividade e precisão técnica. Sem saudações nem jargões vazios.
+- Se a pergunta estiver FORA do escopo acima, responda: "Fora do meu escopo de Security QA."
+- Formate em tópicos curtos. Não trunque.
+- Citar IDs de requisitos (VIVO.SEGURA.*) e referências OWASP/NIST quando pertinente.
+- Fale sempre em português (pt-BR).`;
 
 interface Requisito {
   id: string | null;
@@ -50,10 +78,6 @@ interface Requisito {
   comoTestar: string | null;
 }
 
-/**
- * Recupera os requisitos mais relevantes da base SD v4.1 para a pergunta,
- * com base em correspondência de palavras-chave (RAG simplificado por BM25-aprox).
- */
 const STOPWORDS = new Set([
   'qual', 'quais', 'como', 'para', 'que', 'com', 'uma', 'um', 'das', 'dos', 'da', 'de', 'do', 'em',
   'oque', 'pode', 'posso', 'me', 'mais', 'mas', 'por', 'na', 'no', 'se', 'sobre', 'quero', 'saber',
@@ -68,13 +92,11 @@ function tokenize(text: string): string[] {
 
 function retrieveRelevantRequisitos(question: string, context: string, limit = 6): Requisito[] {
   const queryTokens = [...tokenize(question), ...tokenize(context)];
-
   const scored = (requisitos as unknown as Requisito[]).map((req) => {
-    // Campos com maior peso têm mais relevância para o matching.
     const weighted = {
       core: [req.controle, req.componente, req.id, req.owasp, req.strideLM],
       detail: [req.detalhamento, req.riscos, req.categoria, req.propriedade],
-      light: [req.criticidade, req.propriedade],
+      light: [req.criticidade],
     };
     let score = 0;
     for (const token of queryTokens) {
@@ -84,7 +106,6 @@ function retrieveRelevantRequisitos(question: string, context: string, limit = 6
     }
     return { req, score };
   });
-
   return scored
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score)
@@ -103,11 +124,6 @@ function formatRequerimento(req: Requisito): string {
   ].join('\n');
 }
 
-/**
- * Sanitiza a string de entrada: remove espaços duplicados/iniciais/finais e
- * descarta quaisquer caracteres de controle que possam ser usados para
- * injeção de prompt. Mantém apenas caracteres imprimíveis seguros de texto.
- */
 function sanitizeText(input: unknown): string {
   if (typeof input !== 'string') return '';
   return input
@@ -117,19 +133,12 @@ function sanitizeText(input: unknown): string {
     .trim();
 }
 
-/**
- * Concatena o contexto do chamado, a base de conhecimento recuperada (RAG) e
- * a pergunta na mensagem final do usuário.
- */
 function buildUserMessage(
   userMessage: string,
   ticketContext: string,
   relevantRequisitos: Requisito[]
 ): string {
   const cleanContext = sanitizeText(ticketContext);
-  const contextSection = cleanContext
-    ? `Contexto do Chamado: ${cleanContext}. `
-    : '';
 
   let baseSection = '';
   if (relevantRequisitos.length > 0) {
@@ -162,14 +171,13 @@ export async function POST(req: Request) {
     for (let i = 0; i < rawMessages.length; i++) {
       const m = rawMessages[i];
       const isLast = i === rawMessages.length - 1;
-      
-      // Handle both formats (content as string or parts array)
+
       let textContent = '';
       if (typeof m.content === 'string') {
         textContent = m.content;
       } else if (m.parts && Array.isArray(m.parts)) {
-        const textPart = m.parts.find((p: any) => p.type === "text");
-        textContent = textPart?.text ?? "";
+        const textPart = m.parts.find((p: any) => p.type === 'text');
+        textContent = textPart?.text ?? '';
       } else {
         textContent = String(m.content || '');
       }
@@ -194,15 +202,20 @@ export async function POST(req: Request) {
       model: google(MODEL_ID),
       system: SYSTEM_PROMPT,
       messages: history,
-      // Valores seguros para reduzir custo e latência no modelo leve.
       temperature: 0.2,
       maxOutputTokens: 4096,
+      // Tratamento de erros ROBUSTO: erros de streaming que ocorrem DEPOIS do
+      // retorno da Response (comunicação com a API do Google, 4xx/5xx, rede)
+      // são capturados aqui e logados no servidor para troubleshooting.
+      onError({ error }) {
+        console.error('Erro no Copiloto IA (streaming):', error);
+      },
     });
 
     // Retorna a resposta em streaming no formato consumido pelo useChat.
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    console.error('[chat] erro no agente de contexto:', error);
+    console.error('Erro no Copiloto IA:', error);
     return Response.json(
       { error: 'Erro interno ao processar a análise do chamado.' },
       { status: 500 }
