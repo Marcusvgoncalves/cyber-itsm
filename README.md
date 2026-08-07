@@ -106,11 +106,20 @@ cyber-itsm/
 - Diretrizes do system prompt: respostas assertivas, completas e exaustivas, em bullets curtos, citando o ID e os campos do requisito, ou `'Informação não encontrada no contexto atual.'`.
 - UI: `components/SecurityAgent.tsx` (FAB) via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
 
-### 📚 Base de Conhecimento de Segurança
+### 📚 Base de Conhecimento & Catálogo dos 314 Requisitos
 
-- **Aba de Consulta Didática** — Nova página integrada no painel, visível a todos os usuários, agregando:
-  - **Matriz Interativa**: Tabela completa com os 314 controles de arquitetura segura. Oferece filtragem dinâmica em tempo real (busca textual rápida por ID, componente, riscos ou categorias) e visualização expansível de cada controle (detalhamento técnico, riscos, validação/teste e evidência).
-  - **Enciclopédia de Frameworks**: Explicação didática de frameworks corporativos como **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling**, **ISO 27001 & SABSA** e **LGPD**.
+- **Catálogo Interativo dos 314 Requisitos (SD v4.1)** — Seção dedicada integrada na Base de Conhecimento (`/knowledge-base`), que permite:
+  - **Pesquisa Instantânea**: Busca em tempo real por ID (`VIVO.SEGURA.*`), nome do controle, OWASP, STRIDE, detalhamento, riscos ou palavras-chave.
+  - **Filtros Avançados**: Filtragem combinada por Criticidade (Crítico, Alto, Moderado, Baixo), Componente de Arquitetura e Categoria de Ameaça STRIDE.
+  - **Cards & Fichas Expandíveis**: Visualização expansível de cada um dos 314 requisitos com detalhamento completo, riscos associados, evidência exigida em Security QA e procedimentos práticos de validação/teste.
+  - **Dashboard de Volumetria**: Cards no topo com a contabilização exata da distribuição de criticidades da matriz normativo-regulatória.
+- **Enciclopédia de Frameworks**: Explicações detalhadas sobre **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **STRIDE Threat Modeling** e **ISO 27001**, acompanhadas de links para documentações oficiais.
+
+### 🧭 Desenho de Arquitetura Interativo (C4 Level 2)
+
+- **Diagrama Interativo (`components/architecture-diagram.tsx`)**:
+  - Renderizado dinamicamente com animações e seleção de nós técnicos.
+  - **Ficha Técnica Expandida**: Ao clicar em qualquer componente da arquitetura (Analista SecOps, SPA Frontend, Edge Proxy / Rate Limit, Copiloto IA Multiagente, Supabase BaaS / Prisma v7, Security QA Engine, Portal IAM / SCIM ou Catálogo de Requisitos), abre-se uma modal detalhando responsabilidades, controles de segurança aplicados, resiliência, SLAs e a pilha de tecnologias associada.
 
 ### ✉️ Serviço de E-mail Transacional (Resend)
 

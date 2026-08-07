@@ -1,68 +1,101 @@
-import { streamText, type ModelMessage } from 'ai';
+import { streamText, type LanguageModel, type ModelMessage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createGroq } from '@ai-sdk/groq';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import requisitos from '../../../requisitos-sd.json';
 
 // ============================================================================
-// COPILOTO DE SECURITY QA — integração oficial do Vercel AI SDK + @ai-sdk/google.
+// COPILOTO DE IA GLOBAL — ESTEIRA MULTIAGENTE 100% GRATUITA (Zero Downtime).
 //
-// Pipeline: useChat (@ai-sdk/react) → POST /api/chat → streamText (Gemini).
-// Chave de API lida de GEMINI_API_KEY ou GOOGLE_GENERATIVE_AI_API_KEY.
+// Pipeline: useChat (@ai-sdk/react) → POST /api/chat → ROTEADOR DE AGENTES.
+//
+// Prioridade de execução (CUSTO ZERO):
+//   1. Groq        → llama-3.1-8b-instant          (Velocidade & Resposta Rápida)
+//   2. OpenRouter  → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
+//                    deepseek/deepseek-chat:free
+//   3. Google      → gemini-1.5-flash-8b            (Backup de Alta Capacidade)
+//                    gemini-2.0-flash-lite
+//
+// Se um provedor gratuito atingir o limite de requisições (429), o roteador
+// chaveia automaticamente para o próximo agente em milissegundos (try/catch
+// encadeado com disparo EAGER da requisição via `result.response`).
+//
+// Tokens lidos ESTRITAMENTE do ambiente do processo (nunca fixados no código):
+//   process.env.GROQ_API_KEY
+//   process.env.OPENROUTER_API_KEY
+//   process.env.GEMINI_API_KEY (ou GOOGLE_GENERATIVE_AI_API_KEY)
 // ============================================================================
 
-// Chave de API: suporta ambos os nomes. Se ausente, `getApiKey` lança um erro
-// DESCRITIVO no console do servidor em vez de quebrar silenciosamente
-// (a criação do provider com apiKey "undefined" costumava mascarar o 401).
-function getApiKey(): string {
-  const key =
-    process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!key || key.trim() === '' || key.includes('your_')) {
-    const names = ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'].join(' ou ');
-    throw new Error(
-      `[Copiloto IA] Chave de API do Google ausente/inválida. Defina ${names} nas variáveis de ambiente da Vercel e no .env.local.`
-    );
+// Lê a primeira chave de API válida dentre os nomes fornecidos. Retorna null se
+// nenhuma estiver configurada (o agente é simplesmente ignorado pelo roteador).
+function resolveApiKey(names: string[]): string | null {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value && value.trim() !== '' && !value.includes('your_')) {
+      return value.trim();
+    }
   }
-  return key.trim();
+  return null;
 }
 
-const google = createGoogleGenerativeAI({ apiKey: getApiKey() });
+// Fábrica de modelos: (apiKey) => (modelId) => LanguageModel.
+// Normaliza a assinatura dos provedores para permitir chamada uniforme no loop.
+type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
 
-// Modelo EXPLÍCITO da família Flash. O "gemini-1.5-flash" fixo foi retirado do
-// catálogo v1beta (404 - Model not found), então priorizamos o "gemini-2.0-flash"
-// (estável e coberto pelo Free Tier) com fallback automático para os demais
-// aliases caso o provedor os retire/descontinue.
-const MODEL_IDS = [
-  'gemini-2.0-flash', // mais recente e estável (Free Tier)
-  'gemini-2.5-flash', // fallback da família Flash atual
-  'gemini-1.5-flash-latest', // fallback do alias rolante legado
+const GROQ: ModelFactory = (apiKey) => {
+  const provider = createGroq({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+const OPENROUTER: ModelFactory = (apiKey) => {
+  const provider = createOpenRouter({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+const GOOGLE: ModelFactory = (apiKey) => {
+  const provider = createGoogleGenerativeAI({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
+interface AgentConfig {
+  id: string;
+  label: string;
+  envKeys: string[];
+  modelIds: string[];
+  createModel: ModelFactory;
+}
+
+// Esteira de agentes em ordem de prioridade (100% gratuita).
+const AGENTS: AgentConfig[] = [
+  {
+    id: 'groq',
+    label: 'Groq (Llama 3.1 8B Instant)',
+    envKeys: ['GROQ_API_KEY'],
+    modelIds: ['llama-3.1-8b-instant'],
+    createModel: GROQ,
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter (DeepSeek)',
+    envKeys: ['OPENROUTER_API_KEY'],
+    modelIds: ['deepseek/deepseek-r1:free', 'deepseek/deepseek-chat:free'],
+    createModel: OPENROUTER,
+  },
+  {
+    id: 'google',
+    label: 'Google (Gemini Flash)',
+    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
+    modelIds: ['gemini-1.5-flash-8b', 'gemini-2.0-flash-lite'],
+    createModel: GOOGLE,
+  },
 ];
-const MODEL_ID = MODEL_IDS[0];
-
-// Detecta o erro 404 "Model not found" retornado pelo endpoint v1beta quando o
-// identificador do modelo foi descontinuado ou não existe mais no provedor.
-function isModelNotFoundError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  const normalized = message.toUpperCase();
-  return (
-    message.includes('404') ||
-    normalized.includes('MODEL NOT FOUND') ||
-    normalized.includes('404 NOT_FOUND') ||
-    normalized.includes('MODELS/') ||
-    normalized.includes('NOT_FOUND')
-  );
-}
 
 // ============================================================================
-// PERSONA — escopo estrito do Copiloto de Security QA:
-//  a) FAQ da Plataforma: upload (.json/.xml/.txt), cruzamento com a base de
-//     requisitos normativos VIVO.SEGURA.*, cálculo de conformidade (%) e o
-//     arquivamento seguro em GZIP (Supabase buckets qa-temp-evidences /
-//     qa-logs-archive).
-//  b) Análise Técnica de Cibersegurança: SQLi, BOLA/IDOR, XSS, HSTS,
-//     Criptografia etc., com impacto operacional e remediação OWASP/NIST.
+// PERSONA — System Instruction UNIFICADA injetada em todos os agentes.
 // ============================================================================
-const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM. Auxilie o usuário em qualquer módulo do sistema (Quadro Kanban, Security QA, Portal IAM/IGA, Base de Conhecimento, Audit Logs e Arquitetura C4). 
-Além de tirar dúvidas operacionais, você atua como Especialista Sênior em AppSec e Engenharia de Segurança. Você possui capacidade avançada para realizar Modelagens de Ameaça (Threat Modeling) baseadas em frameworks como STRIDE e MITRE ATT&CK. 
-REGRA DE FORMATAÇÃO: Ao apresentar os resultados de uma Modelagem de Ameaças, estruture sua resposta EXCLUSIVAMENTE em tópicos diretos e objetivos (bullet points). Liste o vetor de ataque, o risco e imediatamente o plano de mitigação técnico. Não utilize tabelas de risco. Seja assertivo, foque na ação técnica corretiva e use formatação Markdown.`;
+const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM. Você auxilia o usuário em qualquer módulo (Quadro Kanban, Security QA, Portal IAM/IGA, Base de Conhecimento, Audit Logs e Arquitetura C4).
+Além de dúvidas de uso da plataforma, você atua como Especialista Sênior em DevSecOps e AppSec. 
+REGRA DE MODELAGEM DE AMEAÇAS: Ao analisar código ou arquiteturas (STRIDE, MITRE), responda EXCLUSIVAMENTE em tópicos (bullet points) objetivos, conectando o vetor de ataque, a vulnerabilidade e o plano técnico de mitigação. Nunca utilize tabelas. Seja assertivo e prestativo.`;
 
 interface Requisito {
   id: string | null;
@@ -151,6 +184,66 @@ function buildUserMessage(
   return `Contexto do Chamado: ${cleanContext}.${baseSection}\n\nPergunta: ${userMessage}`;
 }
 
+// ============================================================================
+// ROTEADOR MULTIAGENTE — fallback encadeado (try/catch) entre os provedores.
+//
+// O `streamResult.response` (Promise) dispara a requisição HTTP de forma EAGER,
+// permitindo capturar 404/429/5xx ANTES de devolver o stream ao cliente e
+// chavear imediatamente para o próximo agente da esteira.
+// ============================================================================
+type StreamResult = Awaited<ReturnType<typeof streamText>>;
+
+async function routeToAvailableAgent(
+  history: ModelMessage[]
+): Promise<{ result: StreamResult; agentLabel: string; modelId: string }> {
+  const failures: string[] = [];
+
+  for (const agent of AGENTS) {
+    const apiKey = resolveApiKey(agent.envKeys);
+    if (!apiKey) {
+      failures.push(`${agent.label}: chave de API ausente`);
+      continue;
+    }
+
+    const model = agent.createModel(apiKey);
+
+    for (const modelId of agent.modelIds) {
+      try {
+        const result = streamText({
+          model: model(modelId),
+          system: SYSTEM_PROMPT,
+          messages: history,
+          temperature: 0.2,
+          maxOutputTokens: 4096,
+          // Erros de streaming que ocorrem DEPOIS do retorno da Response são
+          // logados no servidor para troubleshooting.
+          onError({ error }) {
+            console.error('Erro no Copiloto IA (streaming):', error);
+          },
+        });
+
+        // Dispara a requisição EAGER — lança se o provedor rejeitar (404/429/5xx).
+        await result.response;
+
+        console.log(`[Copiloto IA] Agente ativo: ${agent.label} (${modelId})`);
+        return { result, agentLabel: agent.label, modelId };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        failures.push(`${agent.label} (${modelId}): ${message}`);
+        console.warn(
+          `[Copiloto IA] Falha no agente "${agent.label}" (${modelId}): ${message}. Tentando próximo...`
+        );
+      }
+    }
+  }
+
+  throw new Error(
+    failures.length > 0
+      ? failures.join(' | ')
+      : 'Nenhum agente de IA configurado. Defina GROQ_API_KEY, OPENROUTER_API_KEY ou GEMINI_API_KEY.'
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -158,10 +251,10 @@ export async function POST(req: Request) {
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
     const ticketContext = sanitizeText(body?.ticketContext);
 
-    // PROTEÇÃO DE ESTABILIDADE — context window enxuta: envia apenas as
-    // últimas 6 interações ao modelo, evitando consumo de tokens e esgotamento
-    // de cotas em conversas longas.
-    const historySource = rawMessages.slice(-6);
+    // PROTEÇÃO DE TOKENS — context window mínima: envia apenas as últimas 4
+    // mensagens ao modelo, reduzindo drasticamente o consumo no plano gratuito
+    // e prevenindo rejeições por tamanho de contexto.
+    const historySource = rawMessages.slice(-4);
 
     if (historySource.length === 0) {
       return Response.json(
@@ -205,52 +298,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // Inicia o stream com FALLBACK automático de modelo: o `result.response`
-    // (Promise) dispara a requisição HTTP de forma EAGER, permitindo capturar o
-    // 404 "Model not found" ANTES de devolver a resposta ao cliente e tentar o
-    // próximo identificador da família Flash.
-    let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
-    let lastModelError: unknown = null;
-
-    for (const modelId of MODEL_IDS) {
-      try {
-        streamResult = streamText({
-          model: google(modelId),
-          system: SYSTEM_PROMPT,
-          messages: history,
-          temperature: 0.2,
-          maxOutputTokens: 4096,
-          // Tratamento de erros ROBUSTO: erros de streaming que ocorrem DEPOIS
-          // do retorno da Response (comunicação com a API do Google, rede) são
-          // capturados aqui e logados no servidor para troubleshooting.
-          onError({ error }) {
-            console.error('Erro no Copiloto IA (streaming):', error);
-          },
-        });
-
-        await streamResult.response;
-        break;
-      } catch (err) {
-        lastModelError = err;
-        if (isModelNotFoundError(err) && modelId !== MODEL_IDS[MODEL_IDS.length - 1]) {
-          console.warn(
-            `[Copiloto IA] Modelo "${modelId}" indisponível (404). Tentando fallback...`
-          );
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    if (!streamResult) {
-      throw lastModelError ?? new Error('Nenhum modelo de IA disponível para o Copiloto.');
-    }
+    const { result } = await routeToAvailableAgent(history);
 
     // Retorna a resposta em streaming no formato consumido pelo useChat.
-    return streamResult.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.error('Erro no Copiloto IA:', error);
-    
+
     const errMessage = error instanceof Error ? error.message : String(error);
     const isRateLimit =
       errMessage.includes('429') ||
@@ -258,7 +312,7 @@ export async function POST(req: Request) {
       errMessage.toLowerCase().includes('rate limit');
 
     if (isRateLimit) {
-      const friendlyMessage = '⚠️ Limite de consultas gratuitas da IA atingido pelo provedor. Por favor, aguarde alguns instantes ou verifique as configurações de cota do projeto.';
+      const friendlyMessage = '⚠️ Todos os provedores gratuitos de IA atingiram o limite de requisições (429). Por favor, aguarde alguns instantes e tente novamente.';
       
       // Formata como um bloco de texto do protocolo de streaming da Vercel AI SDK (0:"texto"\n)
       const encoder = new TextEncoder();

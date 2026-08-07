@@ -76,7 +76,8 @@ graph TD
   - `components/kanban/` — `KanbanBoard`, `KanbanCard`, `KanbanColumn`, `ticket-modal`, `kanban-dashboard` (Quadro Kanban com drag-and-drop, comentários, e visualização integrada de volumetrias, previsões e calculadora de criticidade de vulnerabilidades).
   - `components/SecurityAgent.tsx` — FAB de chat de IA via `useChat` do `@ai-sdk/react` com `DefaultChatTransport`, enviando `ticketContext`.
   - `components/login-form.tsx` — fluxo de login em 3 passos (credenciais → onboarding MFA → verificação MFA).
-  - `components/architecture-diagram.tsx` — mapa de arquitetura interativo (admin).
+  - `components/architecture-diagram.tsx` — mapa de arquitetura C4 interativo com modal de fichas técnicas detalhadas por componente ao clicar.
+  - `components/knowledge-base/interactive-requirements.tsx` — catálogo interativo dos 314 requisitos de segurança (SD v4.1) com busca instantânea, filtros por criticidade/componente/STRIDE, volumetrias e fichas de teste.
   - `components/ui/` — primitivas acessíveis (button, card, input, label, select, separator, textarea).
 
 #### 2.2 Camada de Servidor (Vercel Serverless / Edge)

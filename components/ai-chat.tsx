@@ -50,10 +50,15 @@ export function AiChat() {
     setIsLoading(true);
 
     try {
+      // OTIMIZAÇÃO DE TOKENS — envia apenas as últimas 4 mensagens no payload,
+      // reduzindo o consumo no plano gratuito e prevenindo rejeições por
+      // tamanho de contexto (a rota re-truncada server-side como defesa extra).
+      const contextWindow = updatedMessages.slice(-4);
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ messages: contextWindow }),
       });
 
       if (response.ok) {

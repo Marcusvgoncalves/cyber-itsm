@@ -23,6 +23,7 @@ import {
   Sparkles,
   Workflow,
 } from "lucide-react";
+import { InteractiveRequirementsCatalog } from "@/components/knowledge-base/interactive-requirements";
 
 interface FaqEntry {
   question: string;
@@ -230,6 +231,9 @@ export default function KnowledgeBasePage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Catálogo Interativo dos 314 Requisitos de Segurança */}
+      <InteractiveRequirementsCatalog />
 
       {/* Categorias de FAQ */}
       <section className="mx-auto max-w-5xl px-6 py-12">

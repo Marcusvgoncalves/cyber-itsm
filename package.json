@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.37",
+    "@ai-sdk/groq": "^4.0.24",
     "@ai-sdk/openai": "^4.0.29",
     "@ai-sdk/react": "^4.0.54",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@radix-ui/react-dialog": "^1.1.23",
