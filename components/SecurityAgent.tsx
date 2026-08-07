@@ -21,10 +21,13 @@ export interface TicketData {
 /** Ação de navegação disparada pelos botões do chat. */
 export type AgentAction = "dashboard" | "new-ticket";
 
+import type { User } from "@/lib/types";
+
 interface SecurityAgentProps {
   ticketData: TicketData;
   isOpen: boolean;
   onClose: () => void;
+  currentUser?: User;
   /** Callback para o botão de ação navegar para outra área do painel. */
   onAction?: (action: AgentAction) => void;
 }
@@ -93,7 +96,7 @@ function getMessageText(message: { parts: Array<{ type: string; text?: string }>
   return textPart?.text ?? "";
 }
 
-export function SecurityAgent({ ticketData, isOpen, onClose, onAction }: SecurityAgentProps) {
+export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onAction }: SecurityAgentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -122,9 +125,40 @@ export function SecurityAgent({ ticketData, isOpen, onClose, onAction }: Securit
     [ticketContext]
   );
 
-  const { messages, status, sendMessage, error } = useChat({
+  // Histórico de chat persistido no localStorage (isolado por ID do usuário)
+  const localStorageKey = useMemo(() => {
+    return currentUser?.id 
+      ? `cyberitsm_secops_chat_messages_${currentUser.id}` 
+      : "cyberitsm_secops_chat_messages_guest";
+  }, [currentUser?.id]);
+
+  const { messages, status, sendMessage, error, setMessages } = useChat({
     transport,
   });
+
+  // Carrega o histórico ao montar o componente ou quando a chave mudar
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(localStorageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
+        } catch (e) {
+          console.error("Erro ao recuperar histórico do chat:", e);
+        }
+      }
+    }
+  }, [localStorageKey, setMessages]);
+
+  // Salva no localStorage sempre que as mensagens mudam
+  useEffect(() => {
+    if (typeof window !== "undefined" && messages && messages.length > 0) {
+      localStorage.setItem(localStorageKey, JSON.stringify(messages));
+    }
+  }, [messages, localStorageKey]);
 
   const isLoading = status === "streaming" || status === "submitted";
 

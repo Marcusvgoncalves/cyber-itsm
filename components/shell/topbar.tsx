@@ -153,6 +153,7 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
           ticketData={{}}
           isOpen={copilotOpen}
           onClose={() => setCopilotOpen(false)}
+          currentUser={user}
           onAction={(action) => {
             if (action === "dashboard" || action === "new-ticket") {
               router.push("/dashboard");

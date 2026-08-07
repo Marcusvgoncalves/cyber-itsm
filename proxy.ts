@@ -73,6 +73,75 @@ export default async function proxy(request: NextRequest) {
   // Get authenticated user
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Session activity & inactivity management (1 hour max total, 15 mins inactivity)
+  if (user) {
+    const now = Date.now();
+    const oneHourMs = 60 * 60 * 1000;
+    const fifteenMinutesMs = 15 * 60 * 1000;
+
+    const sessionStartCookie = request.cookies.get('session_start')?.value;
+    const lastActivityCookie = request.cookies.get('last_activity')?.value;
+
+    let sessionStart = sessionStartCookie ? parseInt(sessionStartCookie, 10) : null;
+    let lastActivity = lastActivityCookie ? parseInt(lastActivityCookie, 10) : null;
+
+    if (!sessionStart) {
+      sessionStart = now;
+      response.cookies.set('session_start', now.toString(), {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+      });
+    }
+
+    if (!lastActivity) {
+      lastActivity = now;
+      response.cookies.set('last_activity', now.toString(), {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+      });
+    }
+
+    const timeSinceStart = now - sessionStart;
+    const timeSinceLastActivity = now - lastActivity;
+
+    if (timeSinceStart > oneHourMs || timeSinceLastActivity > fifteenMinutesMs) {
+      console.log(`[Session Timeout] Logoff automático: total ${timeSinceStart}ms, inatividade ${timeSinceLastActivity}ms`);
+      
+      await supabase.auth.signOut();
+
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/login';
+      redirectUrl.searchParams.set('redirect', path);
+      redirectUrl.searchParams.set('session_expired', 'true');
+
+      const logoutResponse = NextResponse.redirect(redirectUrl);
+      logoutResponse.cookies.delete('mfa_verified');
+      logoutResponse.cookies.delete('session_start');
+      logoutResponse.cookies.delete('last_activity');
+      
+      const supabaseCookies = request.cookies.getAll();
+      for (const cookie of supabaseCookies) {
+        if (cookie.name.startsWith('sb-')) {
+          logoutResponse.cookies.delete(cookie.name);
+        }
+      }
+
+      return logoutResponse;
+    }
+
+    // Refresh last activity to extend the 15-minute inactivity window
+    response.cookies.set('last_activity', now.toString(), {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
+    });
+  }
+
   // If trying to access dashboard routes and not logged in
   if (path.startsWith('/dashboard') && !user) {
     const redirectUrl = request.nextUrl.clone();

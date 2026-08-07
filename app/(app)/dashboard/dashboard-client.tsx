@@ -1391,6 +1391,7 @@ export function DashboardClient({
         }}
         isOpen={showAgent}
         onClose={() => setShowAgent(false)}
+        currentUser={currentUser}
         onAction={handleAgentAction}
       />
     </div>

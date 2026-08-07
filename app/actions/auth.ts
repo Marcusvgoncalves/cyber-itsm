@@ -302,4 +302,6 @@ export async function logoutUser(): Promise<void> {
   
   const cookieStore = await cookies();
   cookieStore.delete('mfa_verified');
+  cookieStore.delete('session_start');
+  cookieStore.delete('last_activity');
 }
