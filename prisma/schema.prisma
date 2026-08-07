@@ -1,0 +1,59 @@
+// Este schema do Prisma é a FONTE DA VERDADE do banco de dados do módulo
+// Centro de Security QA (Bounded Context isolado). Migrações são geradas a
+// partir dele; em Supabase/PostgreSQL a tabela public.qa_results já é criada
+// aqui (e não mais via supabase-security-qa.sql manual).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// QaProject — um projeto avaliado (1 : N com QaResult).
+// ---------------------------------------------------------------------------
+model QaProject {
+  id            String      @id @default(uuid()) @db.Uuid
+  name          String      @unique
+  environmentUrl String     @map("environment_url")
+  requirements  String
+  createdBy     String?     @map("created_by") @db.Uuid
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  results       QaResult[]
+
+  @@map("qa_projects")
+}
+
+// ---------------------------------------------------------------------------
+// QaResult — resultado de uma avaliação de segurança de um projeto.
+// Mantém TODAS as colunas exigidas pela API /api/qa-engine.
+// ---------------------------------------------------------------------------
+model QaResult {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @map("project_id") @db.Uuid
+  project           QaProject @relation(fields: [projectId], references: [id])
+
+  originalFileName  String   @map("original_file_name")
+  tempStoragePath   String?  @map("temp_storage_path")
+  archivedFilePath  String   @map("archived_file_path")
+  archivedFileUrl   String?  @map("archived_file_url")
+  archivedSizeBytes BigInt   @map("archived_size_bytes")
+  originalSizeBytes BigInt   @map("original_size_bytes")
+  compressionRatio  Decimal? @map("compression_ratio") @db.Decimal(10, 4)
+  compliancePercent Decimal  @map("compliance_percent") @db.Decimal(5, 2)
+  overallRating     String   @map("overall_rating")
+  executiveSummary  String   @map("executive_summary")
+  findings          Json
+  status            String   @default("concluido")
+  errorMessage      String?  @map("error_message")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([projectId])
+  @@index([createdAt(sort: Desc)])
+  @@map("qa_results")
+}

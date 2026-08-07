@@ -25,7 +25,7 @@ O diagrama acima detalha **todos os contêineres, componentes, tabelas do banco,
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Lógica serverless na Vercel, proteção de rotas e RBAC/MFA. |
 | **IA Generativa** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | Agente SecOps com RAG sobre 314 requisitos. `streamText`, temperatura 0.2. |
 | **RAG / Conhecimento** | `requisitos-sd.json` | Recuperação por keywords com pesos (core×3, detail×2, light×1). |
-| **Banco de Dados** | Supabase PostgreSQL 15 | 9 tabelas com Row Level Security (RLS) ativa, buckets de Storage, triggers e seeds. |
+| **Banco de Dados / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 tabelas legadas + 2 tabelas (`qa_projects` e `qa_results`) no módulo de Security QA gerenciadas via Prisma com Driver Adapter. |
 | **Autenticação & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Sessão por cookies, MFA/TOTP obrigatório com onboarding por QR Code. |
 | **IAM / IGA** | Adaptadores simulados (Entra ID, Keycloak, OAM, Sailpoint) + criação local | Governança de identidade, fila de aprovação e gestão de usuários. |
 | **Relatórios PDF** | `@react-pdf/renderer` | Geração sob demanda de relatórios de segurança em PDF para download. |
@@ -233,7 +233,7 @@ The diagram details **every container, component, database table, authentication
 | **Backend** | Next.js Server Actions · Route Handlers · `proxy.ts` | Serverless logic on Vercel, route protection and RBAC/MFA. |
 | **Generative AI** | Vercel AI SDK v7 · `@ai-sdk/google` (`gemini-flash-latest`) | SecOps agent with RAG over 314 requirements. `streamText`, temperature 0.2. |
 | **RAG / Knowledge** | `requisitos-sd.json` | Weighted keyword retrieval (core×3, detail×2, light×1). |
-| **Database** | Supabase PostgreSQL 15 | 9 tables with Row Level Security (RLS) active, Storage buckets, triggers and seeds. |
+| **Database / ORM** | Supabase PostgreSQL 15 · Prisma ORM v7 | 9 legacy tables + 2 tables (`qa_projects` and `qa_results`) in the Security QA module managed via Prisma with Driver Adapter. |
 | **Auth & MFA** | Supabase Auth · TOTP RFC 6238 (HMAC-SHA1) | Cookie session, mandatory TOTP MFA with QR Code onboarding. |
 | **IAM / IGA** | Simulated adapters (Entra ID, Keycloak, OAM, Sailpoint) + local creation | Identity governance, approval queue and user management. |
 | **PDF Reporting** | `@react-pdf/renderer` | On-demand generation of downloadable PDF security reports. |

@@ -1,6 +1,6 @@
 import { streamObject, jsonSchema } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { QA_BUCKETS, QA_MODEL_ID } from '@/lib/security-qa/config';
+import { QA_MODEL_ID } from '@/lib/security-qa/config';
 import {
   ensureQaBuckets,
   downloadEvidenceText,
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     await ensureQaBuckets();
 
     // 1) Download do texto original a partir do bucket temporário.
-    const { text, bytes } = await downloadEvidenceText(storagePath);
+    const { text } = await downloadEvidenceText(storagePath);
 
     // Limite defensivo de contexto (evita estourar o prompt/token do modelo).
     const evidence = text.length > 200_000 ? text.slice(0, 200_000) : text;

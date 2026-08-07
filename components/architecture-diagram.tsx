@@ -27,9 +27,9 @@ export function ArchitectureDiagram() {
       color: "border-gray-800 bg-gray-100 text-gray-900"
     },
     database: {
-      title: "Supabase BaaS",
-      desc: "Banco de dados PostgreSQL com RLS para isolamento de tenants. Gerencia perfis (users_profiles), autenticação e MFA/TOTP habilitado para todos os usuários, além de chamados e logs de auditoria.",
-      tools: ["PostgreSQL", "RLS", "Supabase Auth", "Triggers"],
+      title: "Supabase BaaS & Prisma ORM",
+      desc: "Banco de dados PostgreSQL com RLS para isolamento de tenants. Gerencia perfis, autenticação, chamados e logs no Supabase, além dos modelos QaProject e QaResult do Centro de Security QA gerenciados via Prisma ORM v7.",
+      tools: ["PostgreSQL", "RLS", "Prisma ORM v7", "Driver Adapters"],
       color: "border-green-600 bg-green-50 text-green-700"
     },
     ai: {

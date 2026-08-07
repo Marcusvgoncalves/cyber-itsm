@@ -50,13 +50,12 @@ graph TD
   API_QA -->|Salvar resultado| DB
   API_QA -->|Upload .gz / Delete bruto| ST[("Supabase Storage Buckets")]
 
-  BE -->|Admin API (service role)| AUTH["auth.users (criação de usuários)"]
-  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 9 tabelas")]
+  BE -->|SQL + RLS| DB[("Supabase PostgreSQL (ITSM) + Prisma (QA)")]
 
   subgraph DB [Camada de Dados]
     P1["users_profiles · tickets · ticket_statuses · comments"]
     P2["audit_logs · iam_providers · iam_users · identity_requests"]
-    P3["qa_results"]
+    P3["qa_projects (nova) · qa_results (migrada para Prisma)"]
   end
 
   subgraph ST [Camada de Armazenamento]
@@ -289,13 +288,12 @@ graph TD
   API_QA -->|Save result| DB
   API_QA -->|Upload .gz / Delete raw| ST[("Supabase Storage Buckets")]
 
-  BE -->|Admin API (service role)| AUTH["auth.users (user creation)"]
-  BE -->|SQL + RLS| DB[("Supabase PostgreSQL — 9 tables")]
+  BE -->|SQL + RLS| DB[("Supabase PostgreSQL (ITSM) + Prisma (QA)")]
 
   subgraph DB [Data Layer]
     P1["users_profiles · tickets · ticket_statuses · comments"]
     P2["audit_logs · iam_providers · iam_users · identity_requests"]
-    P3["qa_results"]
+    P3["qa_projects (new) · qa_results (migrated to Prisma)"]
   end
 
   subgraph ST [Storage Layer]
