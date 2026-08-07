@@ -8,6 +8,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { gzipSync } from 'node:zlib';
 import { QA_BUCKETS, QA_GZIP_LEVEL, QA_SIGNED_URL_EXPIRES } from './config';
+import { parseFileContent } from './file-parser';
 
 function createServiceClient() {
   return createSupabaseClient(
@@ -25,13 +26,23 @@ export async function ensureQaBuckets(): Promise<void> {
   await Promise.all([
     ensureBucket(client, QA_BUCKETS.temp, {
       public: false,
-      allowedMimeTypes: ['application/json', 'application/xml', 'text/plain', 'application/x-www-form-urlencoded'],
-      fileSizeLimit: 5 * 1024 * 1024,
+      allowedMimeTypes: [
+        'application/json',
+        'application/xml',
+        'text/plain',
+        'application/x-www-form-urlencoded',
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+      ],
+      fileSizeLimit: 15 * 1024 * 1024,
     }),
     ensureBucket(client, QA_BUCKETS.archive, {
       public: false,
       allowedMimeTypes: ['application/gzip', 'application/x-gzip'],
-      fileSizeLimit: 25 * 1024 * 1024,
+      fileSizeLimit: 50 * 1024 * 1024,
     }),
   ]);
 }
@@ -49,19 +60,21 @@ async function ensureBucket(
   }
 }
 
-/** Baixa a evidência bruta do bucket temporário e devolve o texto decodificado. */
+/** Baixa a evidência bruta do bucket temporário e extrai o conteúdo textual/visual unificado. */
 export async function downloadEvidenceText(storagePath: string): Promise<{ text: string; bytes: number }> {
   const client = createServiceClient();
   const { data, error } = await client.storage.from(QA_BUCKETS.temp).download(storagePath);
   if (error) throw new Error(`Falha ao baixar evidência de '${QA_BUCKETS.temp}/${storagePath}': ${error.message}`);
-  const bytes = data.size;
-  const text = Buffer.from(await data.arrayBuffer()).toString('utf8');
-  if (!text.trim()) throw new Error('Evidência baixada está vazia.');
-  return { text, bytes };
+  
+  const buffer = Buffer.from(await data.arrayBuffer());
+  const { text, originalSizeBytes } = await parseFileContent(buffer, storagePath);
+
+  if (!text.trim()) throw new Error('Evidência baixada está vazia ou sem texto extraível.');
+  return { text, bytes: originalSizeBytes };
 }
 
 /**
- * Comprime o texto original em GZIP (zlib nativo) e envia ao bucket de
+ * Comprime o conteúdo original em GZIP (zlib nativo) e envia ao bucket de
  * arquivamento. Retorna o caminho do objeto e o tamanho comprimido.
  */
 export async function archiveGzippedEvidence(

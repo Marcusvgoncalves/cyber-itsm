@@ -13,10 +13,19 @@ export const QA_BUCKETS = {
 } as const;
 
 /** Extensões aceitas na ingestão de evidências. */
-export const QA_ALLOWED_EXTENSIONS = ['.json', '.xml', '.txt'] as const;
+export const QA_ALLOWED_EXTENSIONS = [
+  '.json',
+  '.xml',
+  '.txt',
+  '.pdf',
+  '.docx',
+  '.jpg',
+  '.jpeg',
+  '.png',
+] as const;
 
-/** Tamanho máximo do arquivo de evidência (5 MB, alinhado ao storage gratuito). */
-export const QA_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+/** Tamanho máximo do arquivo de evidência (15 MB). */
+export const QA_MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 /** Tabela do banco (isolada por schema implícito public.qa_results). */
 export const QA_TABLE = 'qa_results';

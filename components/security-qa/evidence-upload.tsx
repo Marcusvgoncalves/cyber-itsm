@@ -139,8 +139,10 @@ export function EvidenceUpload({ onUploaded, onCleared, disabled }: EvidenceUplo
               <UploadCloud className="h-7 w-7 text-gray-400" />
               <p className="text-sm font-semibold text-gray-700">Arraste o relatório de segurança ou clique para selecionar</p>
               <p className="text-xs text-gray-500">
-                Formatos aceitos: <code className="font-mono">.json</code>, <code className="font-mono">.xml</code>,{" "}
-                <code className="font-mono">.txt</code> · máx. 5 MB
+                Formatos aceitos: <code className="font-mono">.docx</code>, <code className="font-mono">.pdf</code>,{" "}
+                <code className="font-mono">.jpg</code>, <code className="font-mono">.png</code>,{" "}
+                <code className="font-mono">.json</code>, <code className="font-mono">.xml</code>,{" "}
+                <code className="font-mono">.txt</code> · máx. 15 MB
               </p>
             </div>
           )}
