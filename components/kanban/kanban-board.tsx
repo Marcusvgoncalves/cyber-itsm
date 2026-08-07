@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 import { Status, Ticket, User } from "@/lib/types";
 import { KanbanColumn } from "./kanban-column";
 import { TicketModal } from "./ticket-modal";
-import { PlusIcon, RefreshCw } from "lucide-react";
+import { PlusIcon, RefreshCw, BarChart3, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { KanbanDashboard } from "./kanban-dashboard";
 import { createTicket, moveTicket, getTickets, getStatuses, getUsers } from "@/app/actions/tickets";
 import { useTransition } from "react";
 
@@ -26,6 +27,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [newTicketStatusId, setNewTicketStatusId] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [_, startTransition] = useTransition();
 
   const handleTicketMove = useCallback((ticketId: string, newStatusId: string) => {
@@ -143,6 +145,24 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowDashboard(prev => !prev)}
+            className="gap-1.5"
+          >
+            {showDashboard ? (
+              <>
+                <LayoutGrid className="h-4 w-4" />
+                Visualizar Quadro
+              </>
+            ) : (
+              <>
+                <BarChart3 className="h-4 w-4" />
+                Dashboard Metrics
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleRefresh}
             disabled={isLoading}
             className="gap-1"
@@ -157,23 +177,33 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
         </div>
       </div>
 
-      {/* Kanban Columns */}
-      <div className="flex-1 overflow-x-auto p-4">
-        <div className="flex gap-4 min-w-max pb-4" role="list" aria-label="Colunas do Kanban">
-          {statuses.map((status) => (
-            <div key={status.id} style={{ minWidth: '300px', maxWidth: '340px' }} role="listitem">
-              <KanbanColumn
-                status={status}
-                tickets={ticketsByStatus[status.id] || []}
-                currentUserId={currentUser.id}
-                onTicketMove={handleTicketMove}
-                onTicketClick={handleTicketClick}
-                onAddTicket={handleAddTicket}
-              />
-            </div>
-          ))}
+      {/* Content Area */}
+      {showDashboard ? (
+        <div className="flex-1 overflow-y-auto">
+          <KanbanDashboard
+            tickets={tickets}
+            statuses={statuses}
+            onClose={() => setShowDashboard(false)}
+          />
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 overflow-x-auto p-4">
+          <div className="flex gap-4 min-w-max pb-4" role="list" aria-label="Colunas do Kanban">
+            {statuses.map((status) => (
+              <div key={status.id} style={{ minWidth: '300px', maxWidth: '340px' }} role="listitem">
+                <KanbanColumn
+                  status={status}
+                  tickets={ticketsByStatus[status.id] || []}
+                  currentUserId={currentUser.id}
+                  onTicketMove={handleTicketMove}
+                  onTicketClick={handleTicketClick}
+                  onAddTicket={handleAddTicket}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ticket Modal */}
       {selectedTicket || modalMode === 'create' ? (
