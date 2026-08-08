@@ -130,9 +130,9 @@ export function ArchitectureDiagram() {
       iconBg: "bg-green-600 text-white",
     },
     iam: {
-      title: "Portal IAM / IGA & SCIM v2.0 / SAML 2.0",
-      subtitle: "Governança de Identidade, SSO & Auditoria CSV",
-      desc: "Portal integrado de governança de acesso corporativo. Suporta provisionamento automatizado via SCIM v2.0, autenticação federada SAML 2.0, solicitações JIT via Sailpoint e registro transacional rigoroso para exportação imediata.",
+      title: "Portal IAM/IGA e Configurações",
+      subtitle: "Governança de Identidade, SSO & Preferências Locais",
+      desc: "Portal integrado de governança de acesso corporativo e gerenciamento de configurações. Suporta provisionamento automatizado via SCIM v2.0, autenticação federada SAML 2.0, solicitações JIT via Sailpoint, preferências locais do usuário e registro transacional rigoroso para exportação imediata.",
       details: [
         "Painel de Logs de Auditoria transacionais (HTTP, IP) com exportação imediata em CSV",
         "API SCIM v2.0 (/api/scim/v2/Users) para ciclo de vida de identidades",
@@ -158,7 +158,7 @@ export function ArchitectureDiagram() {
       iconBg: "bg-teal-600 text-white",
     },
     cadastros_sod: {
-      title: "Configurações & Cadastros (SoD Admin Panel)",
+      title: "Cadastros (SoD Admin Panel)",
       subtitle: "Governança de Sprints, Notificações & Requisitos Dinâmicos",
       desc: "Módulo de governança restrito ao perfil ADMIN com Matriz SoD (Separation of Duties). Permite o cadastro e gestão de Sprints de entrega, Preferências de Notificação por evento e canal, e uma Matriz Dinâmica de Requisitos de Segurança customizados que complementam a base estática dos 314 controles SD v4.1.",
       details: [
@@ -341,7 +341,7 @@ export function ArchitectureDiagram() {
                   <KeyRound className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-gray-900">Portal IAM / IGA</h4>
+                  <h4 className="font-bold text-sm text-gray-900">Portal IAM/IGA e Configurações</h4>
                   <p className="text-xs text-gray-500">SCIM v2.0 + SAML 2.0</p>
                 </div>
               </div>
@@ -361,7 +361,7 @@ export function ArchitectureDiagram() {
                   <Settings className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-gray-900">Cadastros &amp; SoD</h4>
+                  <h4 className="font-bold text-sm text-gray-900">Cadastros</h4>
                   <p className="text-xs text-gray-500">Sprints, Notif. &amp; Requisitos</p>
                 </div>
               </div>

@@ -35,7 +35,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { path: "/dashboard", tab: "kanban", label: "Quadro Kanban", icon: Kanban },
       { path: "/security-qa", label: "Security QA", icon: ShieldCheck, matchPrefix: true },
-      { path: "/dashboard", tab: "iam", label: "Portal IAM / IGA", icon: Users },
+      { path: "/dashboard", tab: "iam", label: "Portal IAM/IGA e Configurações", icon: Users },
       { path: "/knowledge-base", label: "Base de Conhecimento", icon: BookOpen },
     ],
   },
@@ -49,8 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Sistema",
     items: [
-      { path: "/dashboard", tab: "settings", label: "Configurações", icon: Settings },
-      { path: "/admin/cadastros", label: "Configurações e Cadastros", icon: Database, adminOnly: true },
+      { path: "/admin/cadastros", label: "Cadastros", icon: Database, adminOnly: true },
     ],
   },
 ];

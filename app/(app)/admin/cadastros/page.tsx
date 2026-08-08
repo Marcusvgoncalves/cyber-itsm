@@ -5,7 +5,7 @@ import { CadastrosClient } from "@/components/admin/cadastros-client";
 import type { Sprint, NotificationSetting, SecurityRequirement } from "@/lib/types";
 
 export const metadata = {
-  title: "Configurações e Cadastros - CyberITSM SPN",
+  title: "Cadastros - CyberITSM SPN",
   description: "Cadastros de sprints, matriz de requisitos e notificações",
 };
 

@@ -781,7 +781,7 @@ export function CadastrosClient({
   return (
     <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex flex-col">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configurações e Cadastros</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Cadastros</h1>
         <p className="text-sm text-gray-600 mt-1">
           Governança SoD · Painel restrito a <strong>Administradores (ADMIN)</strong>: gerencie Sprints, a Matriz de Requisitos SD e as Notificações.
         </p>

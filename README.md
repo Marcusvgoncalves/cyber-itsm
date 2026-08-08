@@ -4,10 +4,9 @@
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb?logo=react)](https://react.dev/)
 [![Prisma ORM 7](https://img.shields.io/badge/Prisma-7.9.1-2d3748?logo=prisma)](https://www.prisma.io/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%2016-3ecf8e?logo=supabase)](https://supabase.com/)
-[![Vercel AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-Multiagent-000000?logo=vercel)](https://sdk.vercel.ai/)
 [![License](https://img.shields.io/badge/License-Proprietary-660099.svg)](LICENSE)
 
-> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente, Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1 e **Painel de Configurações e Cadastros com Segregação de Funções (SoD)**.
+> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente, Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1, **Portal IAM/IGA e Configurações** e **Painel de Cadastros com Segregação de Funções (SoD)**.
 
 ---
 
@@ -63,7 +62,8 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash` e `gemini-2.0-flash-lite` para janelas longas de contexto.
 4. **Camada 4 — Motor Determinístico de Fallback**: Caso todas as APIs externas atinjam limites de cota (HTTP 429), o sistema executa um motor local por regras de expressão, garantindo que o usuário nunca receba tela branca ou erro 500.
 
-#### 4. 🔑 Portal IAM / IGA & SCIM v2.0 / SAML 2.0
+#### 4. 🔑 Portal IAM/IGA e Configurações
+- **Governança Integrada & Configurações**: Dashboard unificado que gerencia perfis de usuários, autenticação e preferências locais.
 - **Provisionamento SCIM v2.0 (`/api/scim/v2/Users`)**: Endpoint completo para integração com Azure Entra ID, Okta e Keycloak para ciclo de vida de usuários.
 - **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Suporte a Single Sign-On federado corporativo.
 - **Fila Sailpoint JIT (Just-In-Time)**: Solicitação e aprovação de acessos com segregação de funções (SoD) e controle RBAC (`admin`, `analista`, `solicitante`).
@@ -78,7 +78,7 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 - **Segurança MTLS (Mutual TLS)**: Suporte para exigência de certificados de cliente (Client Certificate `.pem/.crt` e Private Key `.key`) para conexões outbound seguras com outros ambientes.
 - **Auditoria Transacional e Exportação CSV**: Rastreabilidade imutável de eventos operacionais e transacionais (HTTP, IPs, Métodos API) com função front-end de geração instantânea e download de relatório estruturado em formato CSV.
 
-#### 7. ⚙️ Configurações e Cadastros (Painel SoD Admin)
+#### 7. ⚙️ Cadastros (Painel SoD Admin)
 - **Segregação de Funções (Matriz SoD)**: O módulo é protegido por uma **Matriz SoD (Separation of Duties)** com 3 perfis (`ADMIN`, `USUARIO`, `SOLICITANTE`) e **8 permissões granulares**. Apenas o perfil ADMIN possui acesso de escrita (criação, edição, exclusão) aos cadastros abaixo.
 - **Gestão de Sprints**: Cadastro completo de iterações de entrega com campos de nome, objetivo (goal), datas de início/fim e status (`Planejada`, `Ativa`, `Concluída`). Vinculação direta aos chamados do Kanban.
 - **Preferências de Notificação**: Configuração de gatilhos de notificação por evento (`chamado criado`, `chamado atualizado`, `vencimento de due date`, `início de sprint`) com canais (E-mail, In-App, SMS) e toggles de ativação.
@@ -150,7 +150,8 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash` and `gemini-2.0-flash-lite` models for extensive context windows.
 4. **Tier 4 — Deterministic Fallback Engine**: If all external AI providers hit quota limits (HTTP 429), the local token-matching engine executes, ensuring zero crashes or 500 errors.
 
-#### 4. 🔑 IAM / IGA Portal & SCIM v2.0 / SAML 2.0
+#### 4. 🔑 Portal IAM/IGA and Settings
+- **Unified Governance & Configurations**: Integrated panel to manage identity lifecycles, SSO, and user preferences.
 - **SCIM v2.0 Provisioning (`/api/scim/v2/Users`)**: Full RFC-compliant endpoint for Entra ID, Okta, and Keycloak user lifecycle automation.
 - **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Enterprise federated Single Sign-On support.
 - **Sailpoint JIT Queue**: Access request and approval workflows with Segregation of Duties (SoD) and RBAC (`admin`, `analista`, `solicitante`).
@@ -165,11 +166,12 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 - **MTLS Security (Mutual TLS)**: Support for client certificate requirement (Client Certificate `.pem/.crt` and Private Key `.key`) for secure outbound connections with other environments.
 - **Transactional Audit and CSV Export**: Immutable traceability of operational and transactional events (HTTP, APIs, IPs) with front-end function for instant generation and download of structured reports in CSV format.
 
-#### 7. ⚙️ Settings & Registration (SoD Admin Panel)
+#### 7. ⚙️ Registrations (SoD Admin Panel)
 - **Separation of Duties (SoD Matrix)**: The module is protected by a **SoD (Separation of Duties) Matrix** with 3 profiles (`ADMIN`, `USER`, `REQUESTER`) and **8 granular permissions**. Only the ADMIN profile has write access (create, edit, delete) to the registrations below.
 - **Sprint Management**: Full CRUD for delivery iterations with name, goal, start/end dates, and status (`Planned`, `Active`, `Completed`). Direct linkage to Kanban tickets.
 - **Notification Preferences**: Event-driven notification triggers (`ticket created`, `ticket updated`, `due date approaching`, `sprint start`) with channel selection (Email, In-App, SMS) and activation toggles.
 - **Dynamic Requirements Matrix**: Full CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
+- **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).l CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
 - **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).
 
 ---

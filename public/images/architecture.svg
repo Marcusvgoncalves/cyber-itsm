@@ -48,7 +48,7 @@
 
   <!-- Title -->
   <text x="40" y="46" font-family="'Outfit','Segoe UI',sans-serif" font-size="28" font-weight="bold" fill="#0f172a">CyberITSM SPN — Desenho de Arquitetura da Solução (C4 Nível 2)</text>
-  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Governança IAM (SCIM/SAML), Esteira DevSecOps Multiagente, RAG dos 314 Requisitos &amp; SoD Admin Panel</text>
+  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Portal IAM/IGA e Configurações, Esteira DevSecOps Multiagente, RAG dos 314 Requisitos &amp; Cadastros</text>
 
   <!-- LAYER 1: USER & PERIMETER -->
   <g transform="translate(40,100)">
@@ -103,7 +103,7 @@
 
     <g transform="translate(600,50)">
       <rect width="270" height="190" rx="8" fill="#fffbe5" stroke="#fef08a" />
-      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#d97706">Portal IAM / IGA</text>
+      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#d97706">Portal IAM/IGA e Configurações</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• API SCIM v2.0 (/api/scim/v2/Users)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Endpoints SAML 2.0 SSO / Metadata</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Solicitações JIT via Sailpoint</text>
@@ -121,7 +121,7 @@
     <!-- NEW: Cadastros & SoD -->
     <g transform="translate(890,150)">
       <rect width="290" height="90" rx="8" fill="#ecfeff" stroke="#a5f3fc" />
-      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0891b2">Configurações &amp; Cadastros (SoD)</text>
+      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0891b2">Cadastros (SoD)</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Gestão de Sprints (CRUD + Auditoria)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Preferências de Notificação (canais)</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Matriz Dinâmica de Requisitos (ADMIN)</text>

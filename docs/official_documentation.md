@@ -95,7 +95,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
   - Esquema estrito Zod para estruturação JSON de resposta.
   - RAG (*Retrieval-Augmented Generation*) integrado consultando o acervo dos 314 Requisitos Segura SD v4.1.
 
-### 3.4 Portal IAM / IGA & Logs Transacionais
+### 3.4 Portal IAM/IGA e Configurações
 - **Localização**: `app/api/scim/v2/Users/route.ts`, `app/api/saml/sso/route.ts`, `app/actions/iam.ts`
 - **Capacidades**:
   - Protocolo SCIM v2.0 para criação, leitura, atualização e inativação de identidades por Provedores de Identidade (IdP).
@@ -109,7 +109,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
   - **Conectores de Software**: Suporte e configuração de chaves para **Jira Software**, **ServiceNow** e **Microsoft 365**.
   - **Mutual TLS (MTLS)**: Toggle de segurança para injetar obrigatoriedade de apresentação de certificado cliente (`.pem` e `.key`) nas chamadas B2B externas.
 
-### 3.6 Configurações e Cadastros (Governança SoD Admin)
+### 3.6 Cadastros (Governança SoD Admin)
 - **Localização**: `app/(app)/admin/cadastros/page.tsx`, `components/admin/cadastros-client.tsx`, `app/actions/cadastros.ts`, `lib/rbac.ts`
 - **Capacidades**:
   - **Matriz SoD (Separation of Duties)** com 3 perfis (`ADMIN`, `USUARIO`, `SOLICITANTE`) e 8 permissões granulares (`sprints:view`, `sprints:manage`, `notifications:view`, `notifications:manage`, `requirements:view`, `requirements:manage`, `users:manage`, `tickets:all`).
@@ -216,11 +216,10 @@ Abaixo está o catálogo completo de rotas navegáveis do frontend (URLs) e endp
 - `/reset-password`: Recuperação autônoma de senha corporativa.
 - `/dashboard`: Painel principal unificado. Suporta as seguintes abas internas reativas:
   - `?tab=kanban` (padrão): Quadro Kanban Hierárquico e Dashboard Analytics.
-  - `?tab=iam`: Portal IAM / IGA para governança de identidades e acessos.
+  - `?tab=iam`: Portal IAM/IGA e Configurações (gerenciamento de acessos e preferências locais).
   - `?tab=audit`: Painel de Logs de Auditoria operacional e transacional (Restrito a `ADMIN`).
   - `?tab=architecture`: Visualizador dinâmico de arquitetura da solução C4 Nível 2 (Restrito a `ADMIN`).
-  - `?tab=settings`: Configurações gerais de usuário eMTLS.
-- `/admin/cadastros`: Painel Administrativo de Configurações e Cadastros (Restrito a `ADMIN` via SoD). Contém abas para gerenciamento de Sprints, Matriz de Requisitos customizados e Gatilhos de Notificação.
+- `/admin/cadastros`: Painel Administrativo de Cadastros (Restrito a `ADMIN` via SoD). Contém abas para gerenciamento de Sprints, Matriz de Requisitos customizados e Gatilhos de Notificação.
 - `/security-qa`: Centro de análise do Security QA.
 - `/security-qa/assess`: Sandbox de envio e ingestão rápida de relatórios de vulnerabilidade e OCR.
 - `/security-qa/project/[id]`: Laudo de conformidade e auditoria estruturada gerado de um projeto ou épico.
@@ -251,6 +250,6 @@ The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase Postgr
 - **4-Tier Multiagent AI Pipeline**: Seamless fallback routing with RAG over security requirements, Strict Cybersecurity persona, and automatic memory hygiene on login.
 - **IAM / IGA Portal**: SCIM v2.0 provisioning endpoints (`/api/scim/v2/Users`), SAML 2.0 federated SSO, CSV Audit Logs export, and Sailpoint JIT access request workflows.
 - **B2B Integrations & MTLS**: Native setup interfaces for Jira, ServiceNow, and M365 with Mutual TLS certificate handling.
-- **Settings & Registration (SoD Admin Panel)**: Governance module with **SoD Matrix** (3 profiles, 8 permissions), Sprint CRUD, Notification Preferences, and Dynamic Security Requirements Matrix. All write operations are server-side ADMIN-gated with full audit logging.
+- **Registrations (SoD Admin Panel)**: Governance module with **SoD Matrix** (3 profiles, 8 permissions), Sprint CRUD, Notification Preferences, and Dynamic Security Requirements Matrix. All write operations are server-side ADMIN-gated with full audit logging.
 - **Reactive Session & Security**: MFA/TOTP (RFC 6238) enforcement, 1-hour active session limit, 15-minute idle timeout, and per-user local chat history persistence.
-- **API & Route Coverage**: Unified routing structure providing 9 user interface paths and 14 backend service/integration API endpoints.
+- **API & Route Coverage**: Unified routing structure providing 8 user interface paths and 14 backend service/integration API endpoints.
