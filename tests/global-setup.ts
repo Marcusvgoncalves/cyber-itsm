@@ -23,10 +23,10 @@ dotenv.config({ path: path.resolve(process.cwd(), "tests", ".env") });
  * configurados (MFA_VERIFICATION), tentando os códigos candidatos em ordem.
  */
 const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
-const E2E_USER = process.env.E2E_USER ?? "marcus.goncalves";
-const E2E_PASSWORD = process.env.E2E_PASSWORD ?? "CyberItsm@2026!";
+const E2E_USER = process.env.E2E_USER ?? "";
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? "";
 const E2E_MFA_TOTP_SECRET = process.env.E2E_MFA_TOTP_SECRET;
-const E2E_MFA_CODE = process.env.E2E_MFA_CODE ?? "123456";
+const E2E_MFA_CODE = process.env.E2E_MFA_CODE ?? "";
 
 const AUTH_DIR = path.join(__dirname, ".auth");
 const AUTH_STATE_PATH = path.join(AUTH_DIR, "user.json");

@@ -207,7 +207,43 @@ model NotificationSetting {
 
 ---
 
-## 6. English Architecture & Specification Summary
+## 7. Mapeamento de APIs e URLs (Catálogo de Rotas)
+
+Abaixo está o catálogo completo de rotas navegáveis do frontend (URLs) e endpoints REST/serviços expostos (APIs) da plataforma.
+
+### 7.1 Rotas Frontend (Páginas / URLs)
+- `/login`: Portal de autenticação corporativa (`nome.sobrenome`) e segundo fator MFA/TOTP obrigatório.
+- `/reset-password`: Recuperação autônoma de senha corporativa.
+- `/dashboard`: Painel principal unificado. Suporta as seguintes abas internas reativas:
+  - `?tab=kanban` (padrão): Quadro Kanban Hierárquico e Dashboard Analytics.
+  - `?tab=iam`: Portal IAM / IGA para governança de identidades e acessos.
+  - `?tab=audit`: Painel de Logs de Auditoria operacional e transacional (Restrito a `ADMIN`).
+  - `?tab=architecture`: Visualizador dinâmico de arquitetura da solução C4 Nível 2 (Restrito a `ADMIN`).
+  - `?tab=settings`: Configurações gerais de usuário eMTLS.
+- `/admin/cadastros`: Painel Administrativo de Configurações e Cadastros (Restrito a `ADMIN` via SoD). Contém abas para gerenciamento de Sprints, Matriz de Requisitos customizados e Gatilhos de Notificação.
+- `/security-qa`: Centro de análise do Security QA.
+- `/security-qa/assess`: Sandbox de envio e ingestão rápida de relatórios de vulnerabilidade e OCR.
+- `/security-qa/project/[id]`: Laudo de conformidade e auditoria estruturada gerado de um projeto ou épico.
+- `/knowledge-base`: Base de Conhecimento interativa dos 314 Requisitos Segura SD v4.1.
+
+### 7.2 APIs e Endpoints do Backend (Serviços REST)
+- `POST /api/chat`: Copiloto IA global com esteira de 4 camadas e resiliência a timeouts/erros.
+- `POST /api/qa-engine`: Motor do Security QA que realiza OCR, parsing de relatórios e retorna streaming SSE de análise.
+- `POST /api/emails/notify`: API interna para envio de e-mails transacionais com encapsulamento síncrono para o Resend.
+- `POST /api/oauth/token`: Endpoint de emissão de tokens OAuth 2.0.
+- `GET /api/oauth/userinfo`: Endpoint OAuth 2.0 UserInfo para federação de identidades.
+- `GET /api/saml/metadata`: Exportação de metadados XML SAML 2.0 da plataforma.
+- `POST /api/saml/sso`: Endpoint receptor de asserções SAML 2.0 (Single Sign-On).
+- `GET /api/scim/v2/Users`: Listagem paginada e busca de usuários integrada pelo barramento SCIM v2.0.
+- `POST /api/scim/v2/Users`: Criação/provisionamento de identidades via SCIM.
+- `GET/PUT/PATCH/DELETE /api/scim/v2/Users/[id]`: Operações individuais e atualizações parciais do ciclo de vida SCIM.
+- `GET /api/tickets`: Acesso programático a dados básicos de chamados.
+- `GET /api/tickets/[id]/pdf`: Compilação e exportação nativa sob demanda de chamado/requisitos em formato PDF.
+- `GET /api/security-qa/[id]/pdf`: Exportação nativa do laudo estruturado de conformidade de QA em PDF.
+
+---
+
+## 8. English Architecture & Specification Summary
 
 The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase PostgreSQL, and Prisma ORM v7. It features:
 - **Hierarchical Kanban Board & Volumetric Analytics**: Jira/Trello-style demand management (`Epic`, `Activity`, `Task`), strict status state machine (`ABERTO`, `EM_ANDAMENTO`, `BLOQUEADO`, `FECHADO`, `CANCELADO`), type immutability, Epic closure dependency guardrail, interactive checklist component, **Sprint management** and **Due Date** tracking.
@@ -217,3 +253,4 @@ The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase Postgr
 - **B2B Integrations & MTLS**: Native setup interfaces for Jira, ServiceNow, and M365 with Mutual TLS certificate handling.
 - **Settings & Registration (SoD Admin Panel)**: Governance module with **SoD Matrix** (3 profiles, 8 permissions), Sprint CRUD, Notification Preferences, and Dynamic Security Requirements Matrix. All write operations are server-side ADMIN-gated with full audit logging.
 - **Reactive Session & Security**: MFA/TOTP (RFC 6238) enforcement, 1-hour active session limit, 15-minute idle timeout, and per-user local chat history persistence.
+- **API & Route Coverage**: Unified routing structure providing 9 user interface paths and 14 backend service/integration API endpoints.
