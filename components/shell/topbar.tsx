@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { User } from "@/lib/types";
-import { Menu, Bell, Bot, ChevronDown, LogOut, ShieldCheck } from "lucide-react";
+import { Menu, Bell, Bot, ChevronDown, LogOut, ShieldCheck, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SecurityAgent = dynamic(
@@ -28,9 +28,37 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Aplica o tema salvo no <html> (o script no <head> do layout já evita flash).
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem("cyberitsm-theme");
+    } catch {
+      stored = null;
+    }
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const initial = stored === "dark" || (stored === null && prefersDark) ? "dark" : "light";
+    setTheme(initial);
+    document.documentElement.classList.toggle("dark", initial === "dark");
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("cyberitsm-theme", next);
+      } catch {
+        // armazenamento indisponível — segue apenas com a classe no <html>
+      }
+      document.documentElement.classList.toggle("dark", next === "dark");
+      return next;
+    });
+  }, []);
 
   // Fecha os menus ao clicar fora.
   useEffect(() => {
@@ -82,6 +110,21 @@ export function Topbar({ user, onOpenMobile }: TopbarProps) {
         >
           <Bot className="h-[18px] w-[18px]" />
           <span className="hidden md:inline">Copiloto IA</span>
+        </button>
+
+        {/* Tema claro/escuro */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+          title={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-600 hover:bg-gray-50"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-[18px] w-[18px]" />
+          ) : (
+            <Moon className="h-[18px] w-[18px]" />
+          )}
         </button>
 
         {/* Notificações */}
