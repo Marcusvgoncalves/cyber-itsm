@@ -67,20 +67,12 @@ enum TicketType {
   TAREFA
 }
 
-enum TicketStatus {
-  ABERTO
-  EM_ANDAMENTO
-  BLOQUEADO
-  FECHADO
-  CANCELADO
-}
-
 model Ticket {
   id              String       @id @default(uuid()) @db.Uuid
   title           String
   description     String?
   type            TicketType
-  status          TicketStatus @default(ABERTO)
+  status          String       @default("ABERTO")
   priority        String       @default("media")
   assignee        String       @map("assignee")
   parentEpicId    String?      @map("parent_epic_id") @db.Uuid
