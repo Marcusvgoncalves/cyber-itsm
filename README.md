@@ -48,19 +48,20 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
 - **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento de forma assíncrona em background via **Inngest**, mitigando problemas de timeout de requisições.
+- **Pipeline Multiagente Reordenado (Gemini 2.0 em 1º lugar)**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter Free** → **Groq**, com fallback determinístico. Cada chamada de IA (sucesso, falha ou fallback) é registrada em `llm_call_logs` com provedor, modelo, latência, tokens e custo estimado.
 - **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise em segundo plano via worker assíncrono, permitindo que a interface acompanhe o progresso em tempo real e redirecione ao laudo finalizado.
 - **Security QA Analytics Dashboard**:
   - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
   - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
 - **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados (até 10MB) e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) para máximo aproveitamento do espaço físico e realizando o expurgo da evidência descomprimida temporária (Zero Data Leak).
 - **Relatórios Executivos em PDF**: Exportação integral de relatórios de auditoria, projetos avaliados e laudos estruturados em PDF compilados nativamente via `@react-pdf/renderer`.
+- **Exclusão de Análises (ADMIN)**: Laudos podem ser excluídos definitivamente por ADMIN — remove os artefatos forenses (GZIP + PDF) do Storage, o registro e o projeto órfão, sempre registrando a ação na trilha de auditoria.
 
 #### 3. 🤖 Copiloto de IA Multiagente (Zero Downtime)
-Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 314 Requisitos. O Copiloto opera com uma persona **Especialista Sênior Estrita em Cibersegurança** e possui higiene automática do contexto a cada novo login (limpeza local).
-1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (< 2s) utilizando `llama-3.3-70b-versatile` com validação de esquema estrito em Zod.
-2. **Camada 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Roteamento secundário para modelos abertos gratuitos (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
-3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash` e `gemini-2.0-flash-lite` para janelas longas de contexto.
-4. **Camada 4 — Motor Determinístico de Fallback**: Caso todas as APIs externas atinjam limites de cota (HTTP 429), o sistema executa um motor local por regras de expressão, garantindo que o usuário nunca receba tela branca ou erro 500.
+Esteira de resiliência encadeada com suporte a RAG sobre os 314 Requisitos. O Copiloto opera com uma persona **Especialista Sênior Estrita em Cibersegurança** e possui higiene automática do contexto a cada novo login (limpeza local). O roteamento é dinâmico por agente (fallback automático ao primeiro provedor disponível):
+1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (< 2s) utilizando `llama-3.1-8b-instant`, `llama-3.3-70b-versatile` e `mixtral-8x7b-32768`.
+2. **Camada 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Roteamento secundário para modelos abertos gratuitos (`deepseek/deepseek-r1:free`, `deepseek/deepseek-chat:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`).
+3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash`, `gemini-2.0-flash-lite` e `gemini-2.5-flash` para janelas longas de contexto.
 
 #### 4. 🔑 Portal IAM/IGA e Configurações
 - **Governança Integrada & Configurações**: Dashboard unificado que gerencia perfis de usuários, autenticação e preferências locais.
@@ -84,6 +85,15 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 - **Preferências de Notificação**: Configuração de gatilhos de notificação por evento (`chamado criado`, `chamado atualizado`, `vencimento de due date`, `início de sprint`) com canais (E-mail, In-App, SMS) e toggles de ativação.
 - **Matriz Dinâmica de Requisitos**: CRUD completo de requisitos customizados de segurança complementares à base estática dos 314 controles SD v4.1. Inclui campos de controle, criticidade, componente, STRIDE, OWASP, detalhamento e como testar.
 - **Auditoria de Operações**: Toda operação de criação, edição e exclusão nos cadastros gera um registro imutável na trilha de auditoria (`audit_logs`).
+- **Painel de Consumo de LLM**: Aba dedicada com métricas reais por provedor (Google Gemini, OpenAI, OpenRouter, Groq) — chamadas, taxa de falhas, tokens consumidos, custo estimado e histórico das últimas transações de IA.
+
+#### 8. 🛡️ Trilha de Auditoria & Política de Retenção (Governança SecOps)
+- **Trilha de Auditoria Imutável (`audit_logs`)**: Registro em tempo real de eventos operacionais e transacionais — logins/logouts, CRUD de chamados, movimentações no Kanban, cadastros, consentimentos e requisições de QA — com metadados diferenciais (`old_data`/`new_data`).
+- **Ciclo de Vida em 3 Estágios**:
+  - **HOT (0–7 dias)**: Logs recentes consultáveis na aba **Auditoria** do Dashboard e exportáveis em CSV.
+  - **ARCHIVE (7–90 dias)**: Job diário do **Inngest** (03:00 UTC) comprime os logs em **GZIP por dia** (`node:zlib`, nível 9) para `audit_logs_archive` — storage mínimo sem perda de rastreabilidade forense.
+  - **PURGE (>90 dias)**: Expurgo definitivo do arquivo **somente com consentimento explícito** do aprovador `marcus.goncalves` (`audit_purge_consent`, validade de 30 dias renovável). Sem consentimento vigente o job retém tudo e reporta pendência.
+- **Ações administrativas (ADMIN)**: Consultar o status da política, executar a rotina manualmente e conceder/revogar o consentimento de expurgo diretamente na aba Auditoria.
 
 ---
 
@@ -136,19 +146,20 @@ The architecture is designed for high availability and zero single points of fai
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
 - **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine registers the report and enqueues it for asynchronous background processing via **Inngest**, mitigating request timeout limitations.
+- **Reordered Multiagent Pipeline (Gemini 2.0 first)**: Cascading router prioritizing **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter Free** → **Groq**, with a deterministic fallback. Every AI call (success, failure, or fallback) is recorded in `llm_call_logs` with provider, model, latency, tokens, and estimated cost.
 - **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic (tags, origin framework) and runs the analysis in the background via asynchronous worker queues, updating progress in real-time before redirecting to the finalized audit report.
 - **Security QA Analytics Dashboard**:
   - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
   - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.
 - **GZIP Cold Storage & Purge**: Compresses attached artifacts (up to 10MB) and raw evidence into GZIP (.gz), storing them in Supabase Storage (`qa-logs-archive`), and purging temporary uncompressed files (Zero Data Leak).
 - **PDF Executive Reports**: Full export of audit reports, evaluated projects, and structured PDF reports natively compiled via `@react-pdf/renderer`.
+- **Analysis Deletion (ADMIN)**: Reports can be permanently deleted by ADMIN — removes the forensic artifacts (GZIP + PDF) from Storage, the database record, and orphaned projects, always logging the action to the audit trail.
 
 #### 3. 🤖 Multiagent AI Copilot (Zero Downtime)
-A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 security requirements. The Copilot operates with a **Strict Senior Cybersecurity Expert** persona and features automatic context hygiene on every new login (local memory wipe).
-1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (< 2s) utilizing `llama-3.3-70b-versatile` with Zod structured output validation.
-2. **Tier 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Secondary routing to free open-weight models (`gemini-2.0-flash-lite-preview:free`, `nvidia/llama-3.1-nemotron-70b:free`).
-3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash` and `gemini-2.0-flash-lite` models for extensive context windows.
-4. **Tier 4 — Deterministic Fallback Engine**: If all external AI providers hit quota limits (HTTP 429), the local token-matching engine executes, ensuring zero crashes or 500 errors.
+A resilient fallback pipeline with RAG capabilities over the 314 security requirements. The Copilot operates with a **Strict Senior Cybersecurity Expert** persona and features automatic context hygiene on every new login (local memory wipe). Routing is dynamic per agent (automatic fallback to the first available provider):
+1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (< 2s) utilizing `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`, and `mixtral-8x7b-32768`.
+2. **Tier 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Secondary routing to free open-weight models (`deepseek/deepseek-r1:free`, `deepseek/deepseek-chat:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`).
+3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash`, `gemini-2.0-flash-lite`, and `gemini-2.5-flash` models for extensive context windows.
 
 #### 4. 🔑 Portal IAM/IGA and Settings
 - **Unified Governance & Configurations**: Integrated panel to manage identity lifecycles, SSO, and user preferences.
@@ -171,8 +182,16 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 - **Sprint Management**: Full CRUD for delivery iterations with name, goal, start/end dates, and status (`Planned`, `Active`, `Completed`). Direct linkage to Kanban tickets.
 - **Notification Preferences**: Event-driven notification triggers (`ticket created`, `ticket updated`, `due date approaching`, `sprint start`) with channel selection (Email, In-App, SMS) and activation toggles.
 - **Dynamic Requirements Matrix**: Full CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
-- **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).l CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
 - **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).
+- **LLM Consumption Panel**: Dedicated tab with real per-provider metrics (Google Gemini, OpenAI, OpenRouter, Groq) — call counts, failure rate, tokens used, estimated cost, and a history of the latest AI transactions.
+
+#### 8. 🛡️ Audit Trail & Retention Policy (SecOps Governance)
+- **Immutable Audit Trail (`audit_logs`)**: Real-time recording of operational and transactional events — logins/logouts, ticket CRUD, Kanban moves, registrations, consents, and QA requests — with differential metadata (`old_data`/`new_data`).
+- **3-Stage Lifecycle**:
+  - **HOT (0–7 days)**: Recent logs queryable in the **Audit** tab of the Dashboard and exportable to CSV.
+  - **ARCHIVE (7–90 days)**: A daily **Inngest** job (03:00 UTC) compresses logs into per-day **GZIP** (`node:zlib`, level 9) stored in `audit_logs_archive` — minimal storage without losing forensic traceability.
+  - **PURGE (>90 days)**: Permanent archive deletion **only with explicit consent** from approver `marcus.goncalves` (`audit_purge_consent`, renewable 30-day validity). Without a valid consent the job retains everything and reports pending status.
+- **Admin actions (ADMIN)**: View policy status, run the routine manually, and grant/revoke purge consent directly from the Audit tab.
 
 ---
 
@@ -180,7 +199,7 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 
 - **Framework Core**: Next.js 16.3 (App Router, Turbopack) & React 19
 - **ORM / Database**: Prisma ORM 7.9 with `SqlDriverAdapter` + Supabase PostgreSQL 16
-- **AI Infrastructure**: Vercel AI SDK 3.3, Groq, OpenRouter, Google Gemini, Zod Schemas
+- **AI Infrastructure**: Vercel AI SDK 3.3, Groq, OpenRouter, Google Gemini, OpenAI GPT-4o Mini, Zod Schemas
 - **UI & Styling**: Tailwind CSS v4, Recharts, Lucide Icons, Radix UI
 - **Storage & PDF**: Supabase Storage (`qa-logs-archive`), `@react-pdf/renderer`
 - **Security & Governance**: RBAC/SoD Matrix, SCIM v2.0, SAML 2.0, MTLS, MFA/TOTP (RFC 6238)
