@@ -44,6 +44,11 @@ export async function ensureQaBuckets(): Promise<void> {
       allowedMimeTypes: ['application/gzip', 'application/x-gzip'],
       fileSizeLimit: 50 * 1024 * 1024,
     }),
+    ensureBucket(client, QA_BUCKETS.pdf, {
+      public: false,
+      allowedMimeTypes: ['application/pdf'],
+      fileSizeLimit: 10 * 1024 * 1024,
+    }),
   ]);
 }
 
@@ -114,4 +119,35 @@ export async function getArchivedSignedUrl(archivedPath: string): Promise<string
     .createSignedUrl(archivedPath, QA_SIGNED_URL_EXPIRES);
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
+}
+
+/**
+ * Salva o laudo PDF (gerado pelo worker via @react-pdf/renderer) no bucket
+ * qa-pdf-reports. Caminho determinístico por resultado (idempotente sob retry
+ * do Inngest: upsert no mesmo objeto). Retorna o caminho e a URL assinada.
+ */
+export async function uploadQaPdfReport(
+  pdfBuffer: Buffer,
+  resultId: string
+): Promise<{ pdfFilePath: string; pdfFileUrl: string | null }> {
+  const client = createServiceClient();
+  const pdfFilePath = `reports/${resultId}.pdf`;
+
+  const { error } = await client.storage.from(QA_BUCKETS.pdf).upload(pdfFilePath, pdfBuffer, {
+    contentType: 'application/pdf',
+    cacheControl: '3600',
+    upsert: true,
+  });
+  if (error) {
+    throw new Error(`Falha no upload do laudo PDF para '${QA_BUCKETS.pdf}/${pdfFilePath}': ${error.message}`);
+  }
+
+  const { data, error: urlError } = await client.storage
+    .from(QA_BUCKETS.pdf)
+    .createSignedUrl(pdfFilePath, QA_SIGNED_URL_EXPIRES);
+
+  return {
+    pdfFilePath,
+    pdfFileUrl: urlError || !data?.signedUrl ? null : data.signedUrl,
+  };
 }

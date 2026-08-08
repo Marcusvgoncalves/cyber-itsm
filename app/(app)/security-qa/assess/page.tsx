@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,21 +8,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EvidenceUpload, type UploadedEvidence } from "@/components/security-qa/evidence-upload";
-import type { QaAnalysis, QaStreamEvent } from "@/lib/security-qa/types";
-import { Play, Loader2, CheckCircle2, XCircle, ChevronRight, Bot } from "lucide-react";
+import { useQaResult } from "@/lib/security-qa/use-qa-result";
+import { Play, Loader2, CheckCircle2, XCircle, ChevronRight, Bot, FileDown, Hourglass } from "lucide-react";
 
-const PHASE_LABELS: Record<string, string> = {
-  download: "Baixando evidência bruta",
-  analysis: "Análise via Gemini",
-  archive: "Compressão GZIP + arquivamento",
-  purge: "Expurgo do dado bruto",
+const RATING_LABEL: Record<string, string> = {
+  baixo: "Baixo",
+  medio: "Médio",
+  alto: "Alto",
+  critico: "Crítico",
 };
 
-interface StreamState {
-  phase: string | null;
-  message: string | null;
-  partial: Partial<QaAnalysis> | null;
-}
+const RATING_COLOR: Record<string, string> = {
+  baixo: "text-green-700",
+  medio: "text-amber-700",
+  alto: "text-orange-700",
+  critico: "text-red-700",
+};
 
 export default function AssessPage() {
   const router = useRouter();
@@ -31,12 +32,16 @@ export default function AssessPage() {
   const [requirements, setRequirements] = useState("");
   const [evidence, setEvidence] = useState<UploadedEvidence | null>(null);
 
-  const [running, setRunning] = useState(false);
-  const [streamState, setStreamState] = useState<StreamState>({ phase: null, message: null, partial: null });
-  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const abortRef = useRef<AbortController | null>(null);
+  // Realtime: PROCESSANDO -> CONCLUIDO/FALHA via Supabase Realtime.
+  const { phase, completion, error: realtimeError } = useQaResult(resultId);
+
+  const running = submitting || phase === "processing";
+  const error = submitError ?? realtimeError;
+  const done = phase === "done" && completion !== null;
 
   const canRun =
     projectName.trim().length > 0 &&
@@ -47,13 +52,9 @@ export default function AssessPage() {
 
   const handleRun = useCallback(async () => {
     if (!evidence) return;
-    setRunning(true);
-    setError(null);
+    setSubmitting(true);
+    setSubmitError(null);
     setResultId(null);
-    setStreamState({ phase: null, message: null, partial: null });
-
-    const controller = new AbortController();
-    abortRef.current = controller;
 
     try {
       const res = await fetch("/api/qa-engine", {
@@ -66,81 +67,33 @@ export default function AssessPage() {
           fileName: evidence.fileName,
           storagePath: evidence.storagePath,
         }),
-        signal: controller.signal,
       });
 
+      const payload = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const payload = await res.json().catch(() => null);
         throw new Error(payload?.error ?? `Falha na requisição (HTTP ${res.status}).`);
       }
 
-      if (!res.body) throw new Error("Stream vazio.");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let doneId: string | null = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex;
-        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-          if (!line) continue;
-
-          let event: QaStreamEvent;
-          try {
-            event = JSON.parse(line) as QaStreamEvent;
-          } catch {
-            continue;
-          }
-
-          if (event.type === "status") {
-            setStreamState((prev) => ({ ...prev, phase: event.phase, message: event.message }));
-          } else if (event.type === "delta") {
-            setStreamState((prev) => ({
-              ...prev,
-              phase: "analysis",
-              message: "Recebendo resultado parcial do modelo...",
-              partial: { ...prev.partial, ...event.partial },
-            }));
-          } else if (event.type === "done") {
-            doneId = event.result.id;
-            setResultId(event.result.id);
-            setStreamState((prev) => ({
-              ...prev,
-              phase: null,
-              message: "Análise concluída e evidência arquivada com sucesso.",
-              partial: null,
-            }));
-          } else if (event.type === "error") {
-            setError(event.message);
-          }
-        }
+      if (typeof payload?.id !== "string") {
+        throw new Error("Resposta inesperada do motor: id ausente.");
       }
 
-      if (doneId) router.push(`/security-qa/project/${doneId}`);
+      setResultId(payload.id);
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setError(err instanceof Error ? err.message : "Erro ao executar o motor de IA.");
-      }
+      setSubmitError(err instanceof Error ? err.message : "Erro ao enfileirar o Security QA.");
     } finally {
-      setRunning(false);
-      abortRef.current = null;
+      setSubmitting(false);
     }
-  }, [evidence, projectName, environmentUrl, requirements, router]);
+  }, [evidence, projectName, environmentUrl, requirements]);
 
   return (
     <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Nova Avaliação de Segurança</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Envie o relatório de segurança, informe os requisitos e o motor cruza tudo via Gemini. O relatório original é
-            comprimido (GZIP), arquivado e expurgado do bucket temporário automaticamente.
+            Envie o relatório de segurança e os requisitos. O motor cruza tudo em background (multiagente via Inngest);
+            o resultado chega automaticamente por WebSocket e o laudo em PDF é gerado e arquivado no storage.
           </p>
         </div>
 
@@ -208,80 +161,90 @@ export default function AssessPage() {
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-gray-500">
                 {canRun
-                  ? "Pronto para iniciar a análise."
+                  ? "Pronto para iniciar a análise em background."
                   : running
-                    ? "Processando pipeline de QA..."
+                    ? "Processando Análise em Background..."
                     : "Preencha todos os campos e envie a evidência."}
               </p>
               <Button onClick={handleRun} disabled={!canRun} className="gap-2">
                 {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                {running ? "Analisando..." : "Executar Análise"}
+                {running ? "Processando..." : "Executar Análise"}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {(running || streamState.partial || resultId || error) && (
+        {running && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary" /> Console do Motor de IA
+                <Hourglass className="h-5 w-5 text-primary animate-pulse" /> Security QA em Background
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm font-medium text-gray-800">Processando Análise em Background...</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Os agentes de IA (Groq/OpenRouter/Gemini) estão cruzando os requisitos com a evidência.
+                O score e o PDF aparecerão automaticamente assim que o worker concluir (Supabase Realtime).
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {done && completion && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Bot className="h-5 w-5 text-primary" /> Resultado do Motor de IA
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(streamState.phase || streamState.message) && (
-                <div className="flex items-center gap-2 text-sm">
-                  {running ? (
-                    <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  )}
-                  <span className="font-medium text-gray-800">
-                    {streamState.phase ? PHASE_LABELS[streamState.phase] ?? streamState.message : streamState.message}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <p className="text-sm font-semibold text-gray-900">
+                  Análise concluída em background e evidência arquivada.
+                </p>
+              </div>
 
-              {streamState.partial && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3 animate-fadeIn">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Conformidade parcial</span>
-                    <span className="text-2xl font-bold text-primary">
-                      {typeof streamState.partial.compliancePercent === "number"
-                        ? `${streamState.partial.compliancePercent.toFixed(1)}%`
-                        : "..."}
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${Math.min(streamState.partial.compliancePercent ?? 0, 100)}%` }}
-                    />
-                  </div>
-                  {streamState.partial.findings && streamState.partial.findings.length > 0 && (
-                    <p className="text-xs text-gray-500">
-                      {streamState.partial.findings.length} requisito(s) avaliado(s) até o momento.
-                    </p>
-                  )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Score de Conformidade</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {completion.compliancePercent !== null ? `${completion.compliancePercent.toFixed(1)}%` : "—"}
+                  </p>
                 </div>
-              )}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Classificação de Risco</p>
+                  <p className={`text-2xl font-bold ${completion.overallRating ? RATING_COLOR[completion.overallRating] ?? "" : ""}`}>
+                    {completion.overallRating ? (RATING_LABEL[completion.overallRating] ?? completion.overallRating) : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Requisitos Avaliados</p>
+                  <p className="text-2xl font-bold text-gray-900">{completion.findings.length}</p>
+                </div>
+              </div>
 
-              {resultId && (
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Análise concluída e evidência arquivada.</p>
-                      <p className="text-xs text-gray-500">
-                        O relatório original foi comprimido em GZIP, arquivado em qa-logs-archive e expurgado do bucket temporário.
-                      </p>
-                    </div>
-                  </div>
-                  <Button size="sm" onClick={() => router.push(`/security-qa/project/${resultId}`)} className="gap-1.5 shrink-0">
-                    Abrir Dashboard <ChevronRight className="h-4 w-4" />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <a
+                  href={completion.pdfFileUrl ?? `/api/security-qa/${completion.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex"
+                >
+                  <Button size="sm" className="gap-1.5 shrink-0">
+                    <FileDown className="h-4 w-4" /> Download PDF
                   </Button>
-                </div>
-              )}
+                </a>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push(`/security-qa/project/${completion.id}`)}
+                  className="gap-1.5 shrink-0"
+                >
+                  Abrir Dashboard <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

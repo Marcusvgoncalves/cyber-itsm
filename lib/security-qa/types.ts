@@ -6,6 +6,14 @@ export type QaFindingStatus = 'conforme' | 'parcial' | 'nao_conforme';
 
 export type QaOverallRating = 'baixo' | 'medio' | 'alto' | 'critico';
 
+/**
+ * Ciclo de vida de um laudo:
+ *   PROCESSANDO — criado pelo publisher, aguardando o worker de background;
+ *   CONCLUIDO   — análise, arquivamento e PDF finalizados pelo worker;
+ *   FALHA       — falha não recuperável (após esgotar os retries do Inngest).
+ */
+export type QaStatus = 'PROCESSANDO' | 'CONCLUIDO' | 'FALHA';
+
 /** Hallucination guardrail: a IA só aponta requisitos que estejam no escopo. */
 export interface QaFinding {
   /** ID/identificador do requisito citado pelo dono do escopo (ex.: VIVO.SEGURA.*). */
@@ -33,6 +41,7 @@ export interface QaResult {
   requirements: string;
   original_file_name: string;
   temp_storage_path: string | null;
+  /** Preenchido pelo worker apenas na conclusão (status CONCLUIDO). */
   archived_file_path: string;
   archived_file_url: string | null;
   archived_size_bytes: number;
@@ -42,8 +51,11 @@ export interface QaResult {
   overall_rating: QaOverallRating;
   executive_summary: string;
   findings: QaFinding[];
-  status: 'concluido' | 'falha';
+  status: QaStatus;
   error_message: string | null;
+  /** PDF do laudo gerado pelo worker e salvo no Supabase Storage. */
+  pdf_file_path: string | null;
+  pdf_file_url: string | null;
   created_by: string | null;
   created_at: string;
 }

@@ -30,7 +30,11 @@ model QaProject {
 
 // ---------------------------------------------------------------------------
 // QaResult — resultado de uma avaliação de segurança de um projeto.
-// Mantém TODAS as colunas exigidas pela API /api/qa-engine.
+// Mantém TODAS as colunas exigidas pelo motor /api/qa-engine.
+//
+// Lifecycle de background (Inngest): o publisher cria a linha apenas com
+// status 'PROCESSANDO'; os campos de conformidade/arquivamento/PDF são
+// preenchidos pelo worker ao concluir (UPDATE status -> 'CONCLUIDO').
 // ---------------------------------------------------------------------------
 model QaResult {
   id                String   @id @default(uuid()) @db.Uuid
@@ -39,22 +43,25 @@ model QaResult {
 
   originalFileName  String   @map("original_file_name")
   tempStoragePath   String?  @map("temp_storage_path")
-  archivedFilePath  String   @map("archived_file_path")
+  archivedFilePath  String?  @map("archived_file_path")
   archivedFileUrl   String?  @map("archived_file_url")
-  archivedSizeBytes BigInt   @map("archived_size_bytes")
-  originalSizeBytes BigInt   @map("original_size_bytes")
+  archivedSizeBytes BigInt?  @map("archived_size_bytes")
+  originalSizeBytes BigInt?  @map("original_size_bytes")
   compressionRatio  Decimal? @map("compression_ratio") @db.Decimal(10, 4)
-  compliancePercent Decimal  @map("compliance_percent") @db.Decimal(5, 2)
-  overallRating     String   @map("overall_rating")
-  executiveSummary  String   @map("executive_summary")
-  findings          Json
-  status            String   @default("concluido")
+  compliancePercent Decimal? @map("compliance_percent") @db.Decimal(5, 2)
+  overallRating     String?  @map("overall_rating")
+  executiveSummary  String?  @map("executive_summary")
+  findings          Json     @default("[]")
+  status            String   @default("PROCESSANDO") // PROCESSANDO | CONCLUIDO | FALHA
   errorMessage      String?  @map("error_message")
+  pdfFilePath       String?  @map("pdf_file_path")
+  pdfFileUrl        String?  @map("pdf_file_url")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   @@index([projectId])
   @@index([createdAt(sort: Desc)])
+  @@index([status])
   @@map("qa_results")
 }
 

@@ -227,7 +227,8 @@ Abaixo está o catálogo completo de rotas navegáveis do frontend (URLs) e endp
 
 ### 7.2 APIs e Endpoints do Backend (Serviços REST)
 - `POST /api/chat`: Copiloto IA global com esteira de 4 camadas e resiliência a timeouts/erros.
-- `POST /api/qa-engine`: Motor do Security QA que realiza OCR, parsing de relatórios e retorna streaming SSE de análise.
+- `POST /api/qa-engine`: Endpoint de submissão do Security QA que registra o laudo em status `PROCESSANDO` e publica o evento no Inngest, retornando resposta imediata de forma assíncrona.
+- `GET/POST /api/inngest`: Endpoint do servidor Inngest que gerencia a fila e executa o processamento em background da esteira de análise (OCR, IA e compilação de PDF).
 - `POST /api/emails/notify`: API interna para envio de e-mails transacionais com encapsulamento síncrono para o Resend.
 - `POST /api/oauth/token`: Endpoint de emissão de tokens OAuth 2.0.
 - `GET /api/oauth/userinfo`: Endpoint OAuth 2.0 UserInfo para federação de identidades.
@@ -246,10 +247,10 @@ Abaixo está o catálogo completo de rotas navegáveis do frontend (URLs) e endp
 
 The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase PostgreSQL, and Prisma ORM v7. It features:
 - **Hierarchical Kanban Board & Volumetric Analytics**: Jira/Trello-style demand management (`Epic`, `Activity`, `Task`), strict status state machine (`ABERTO`, `EM_ANDAMENTO`, `BLOQUEADO`, `FECHADO`, `CANCELADO`), type immutability, Epic closure dependency guardrail, interactive checklist component, **Sprint management** and **Due Date** tracking.
-- **Security QA Center**: Automated vulnerability report evaluation against the **314 SD v4.1 Requirements**, GZIP cold storage archiving, Zero Data Leak purge, extensive native PDF generation, and **Epic QA integration** (direct Kanban-to-QA engine pipeline with SSE streaming).
+- **Security QA Center**: Automated vulnerability report evaluation against the **314 SD v4.1 Requirements** processed asynchronously via **Inngest** background jobs, GZIP cold storage archiving, Zero Data Leak purge, extensive native PDF generation, and **Epic QA integration** (direct Kanban-to-QA engine pipeline).
 - **4-Tier Multiagent AI Pipeline**: Seamless fallback routing with RAG over security requirements, Strict Cybersecurity persona, and automatic memory hygiene on login.
 - **IAM / IGA Portal**: SCIM v2.0 provisioning endpoints (`/api/scim/v2/Users`), SAML 2.0 federated SSO, CSV Audit Logs export, and Sailpoint JIT access request workflows.
 - **B2B Integrations & MTLS**: Native setup interfaces for Jira, ServiceNow, and M365 with Mutual TLS certificate handling.
 - **Registrations (SoD Admin Panel)**: Governance module with **SoD Matrix** (3 profiles, 8 permissions), Sprint CRUD, Notification Preferences, and Dynamic Security Requirements Matrix. All write operations are server-side ADMIN-gated with full audit logging.
 - **Reactive Session & Security**: MFA/TOTP (RFC 6238) enforcement, 1-hour active session limit, 15-minute idle timeout, and per-user local chat history persistence.
-- **API & Route Coverage**: Unified routing structure providing 8 user interface paths and 14 backend service/integration API endpoints.
+- **API & Route Coverage**: Unified routing structure providing 8 user interface paths and 15 backend service/integration API endpoints.

@@ -47,8 +47,8 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
   - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework * SLA`.
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
-- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor aplica OCR e parsing avançado, cruzando cada evidência com o escopo de requisitos de arquitetura e devolvendo um laudo de conformidade %.
-- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise com stream SSE em tempo real, exibindo barra de progresso de conformidade e redirecionando ao laudo finalizado.
+- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento de forma assíncrona em background via **Inngest**, mitigando problemas de timeout de requisições.
+- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise em segundo plano via worker assíncrono, permitindo que a interface acompanhe o progresso em tempo real e redirecione ao laudo finalizado.
 - **Security QA Analytics Dashboard**:
   - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
   - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
@@ -135,8 +135,8 @@ The architecture is designed for high availability and zero single points of fai
   - **Interactive Criticality Calculator**: Technical impact evaluation using `Priority * Framework * SLA Window`.
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
-- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine applies OCR and advanced parsing, cross-referencing evidence line-by-line against security requirements and outputs a compliance % audit report.
-- **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic (tags, origin framework) and runs the analysis with real-time SSE streaming, displaying a compliance progress bar and redirecting to the finalized audit report.
+- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine registers the report and enqueues it for asynchronous background processing via **Inngest**, mitigating request timeout limitations.
+- **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic (tags, origin framework) and runs the analysis in the background via asynchronous worker queues, updating progress in real-time before redirecting to the finalized audit report.
 - **Security QA Analytics Dashboard**:
   - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
   - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.

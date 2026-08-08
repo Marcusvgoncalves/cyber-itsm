@@ -10,6 +10,8 @@ export const QA_BUCKETS = {
   temp: process.env.QA_TEMP_BUCKET ?? 'qa-temp-evidences',
   /** Bucket imutável de arquivamento forense (apenas service role, server-side). */
   archive: process.env.QA_ARCHIVE_BUCKET ?? 'qa-logs-archive',
+  /** Bucket de laudos PDF gerados pelo worker de background (service role). */
+  pdf: process.env.QA_PDF_BUCKET ?? 'qa-pdf-reports',
 } as const;
 
 /** Extensões aceitas na ingestão de evidências. */
@@ -41,3 +43,6 @@ export const QA_MODEL_ID = 'gemini-2.0-flash';
 
 /** Limite de execução da função na plataforma (Vercel Pro: 60s em Hobby). */
 export const QA_MAX_DURATION = 60;
+
+/** Duração máxima do worker de background na rota /api/inngest (segundos). */
+export const QA_WORKER_MAX_DURATION = 300;
