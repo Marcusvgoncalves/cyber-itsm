@@ -21,8 +21,14 @@ DROP TRIGGER IF EXISTS trigger_ticket_closed ON public.tickets;
 DROP TRIGGER IF EXISTS trigger_sprints_updated_at ON public.sprints;
 DROP TRIGGER IF EXISTS trigger_notification_settings_updated_at ON public.notification_settings;
 DROP TRIGGER IF EXISTS trigger_security_requirements_updated_at ON public.security_requirements;
+DROP TRIGGER IF EXISTS trigger_integration_connections_updated_at ON public.integration_connections;
+DROP TRIGGER IF EXISTS trigger_mtls_configs_updated_at ON public.mtls_configs;
+DROP TRIGGER IF EXISTS trigger_enterprise_tools_updated_at ON public.enterprise_tools;
 
 -- Drop tables if they exist to ensure clean state (in order of dependencies)
+DROP TABLE IF EXISTS public.enterprise_tools CASCADE;
+DROP TABLE IF EXISTS public.integration_connections CASCADE;
+DROP TABLE IF EXISTS public.mtls_configs CASCADE;
 DROP TABLE IF EXISTS public.notification_settings CASCADE;
 DROP TABLE IF EXISTS public.sprints CASCADE;
 DROP TABLE IF EXISTS public.security_requirements CASCADE;
@@ -347,7 +353,79 @@ CREATE TRIGGER trigger_identity_requests_updated_at
 
 
 -- ============================================
--- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- 9. INTEGRATION_CONNECTIONS TABLE (OAuth / SAML / SCIM)
+-- ============================================
+
+CREATE TABLE public.integration_connections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  protocol TEXT NOT NULL CHECK (protocol IN ('oauth2', 'saml', 'scim')),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  last_status TEXT,
+  last_tested_at TIMESTAMPTZ,
+  created_by UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_integration_connections_protocol ON public.integration_connections(protocol);
+
+CREATE TRIGGER trigger_integration_connections_updated_at
+  BEFORE UPDATE ON public.integration_connections
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 10. MTLS_CONFIGS TABLE (Mutual TLS global config)
+-- ============================================
+
+CREATE TABLE public.mtls_configs (
+  id TEXT PRIMARY KEY DEFAULT 'global',
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  ca_cert TEXT,
+  client_cert TEXT,
+  client_key TEXT,
+  require_client_cert BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_by UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER trigger_mtls_configs_updated_at
+  BEFORE UPDATE ON public.mtls_configs
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 11. ENTERPRISE_TOOLS TABLE (Jira / ServiceNow / Office 365)
+-- ============================================
+
+CREATE TABLE public.enterprise_tools (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  tool_type TEXT NOT NULL CHECK (tool_type IN ('jira', 'servicenow', 'office365')),
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  last_status TEXT,
+  last_tested_at TIMESTAMPTZ,
+  created_by UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_enterprise_tools_type ON public.enterprise_tools(tool_type);
+
+CREATE TRIGGER trigger_enterprise_tools_updated_at
+  BEFORE UPDATE ON public.enterprise_tools
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 12. ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================
 
 ALTER TABLE public.users_profiles ENABLE ROW LEVEL SECURITY;
@@ -361,6 +439,9 @@ ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.iam_providers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.iam_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.identity_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integration_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mtls_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enterprise_tools ENABLE ROW LEVEL SECURITY;
 
 -- users_profiles policies
 CREATE POLICY "Users can view own profile" ON public.users_profiles FOR SELECT USING (auth.uid() = id);
@@ -422,9 +503,21 @@ CREATE POLICY "Authenticated can view identity requests" ON public.identity_requ
 CREATE POLICY "Authenticated can create identity requests" ON public.identity_requests FOR INSERT TO authenticated WITH CHECK (auth.uid() = requester_id);
 CREATE POLICY "Only admins/analistas can update requests" ON public.identity_requests FOR UPDATE TO authenticated USING (public.is_admin_or_analista());
 
+-- integration_connections policies
+CREATE POLICY "Authenticated can view connections" ON public.integration_connections FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage connections" ON public.integration_connections FOR ALL TO authenticated USING (public.is_admin());
+
+-- mtls_configs policies
+CREATE POLICY "Authenticated can view mtls config" ON public.mtls_configs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage mtls config" ON public.mtls_configs FOR ALL TO authenticated USING (public.is_admin());
+
+-- enterprise_tools policies
+CREATE POLICY "Authenticated can view enterprise tools" ON public.enterprise_tools FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage enterprise tools" ON public.enterprise_tools FOR ALL TO authenticated USING (public.is_admin());
+
 
 -- ============================================
--- 10. HELPER FUNCTIONS & TRIGGERS
+-- 13. HELPER FUNCTIONS & TRIGGERS
 -- ============================================
 
 -- Function to automatically create user profile on signup
@@ -488,7 +581,7 @@ CREATE TRIGGER trigger_ticket_closed
 
 
 -- ============================================
--- 11. INITIAL SEED DATA
+-- 14. INITIAL SEED DATA
 -- ============================================
 
 -- Seed default ticket statuses
@@ -516,9 +609,64 @@ INSERT INTO public.notification_settings (event_type, channel, enabled, descript
   ('sprint_start', 'email', true, 'Notificação por e-mail quando uma sprint entra em execução')
 ON CONFLICT (event_type, channel) DO NOTHING;
 
+-- Seed default integration connections (OAuth / SAML / SCIM)
+INSERT INTO public.integration_connections (name, protocol, config, is_active, last_status) VALUES
+  (
+    'Microsoft Entra ID (OAuth 2.0)',
+    'oauth2',
+    '{"authorization_url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize", "token_url": "https://login.microsoftonline.com/organizations/oauth2/v2.0/token", "client_id": "", "scopes": ["openid", "profile", "email"], "grant_type": "authorization_code"}'::jsonb,
+    true,
+    'nunca testado'
+  ),
+  (
+    'Microsoft Entra ID (SAML 2.0)',
+    'saml',
+    '{"idp_entity_id": "https://sts.windows.net/cyberitsm/", "sso_url": "https://login.microsoftonline.com/cyberitsm/saml2", "sp_entity_id": "https://cyber-itsm.vercel.app/api/saml/metadata", "acs_url": "https://cyber-itsm.vercel.app/api/saml/sso", "name_id_format": "emailAddress"}'::jsonb,
+    true,
+    'nunca testado'
+  ),
+  (
+    'SCIM v2.0 Provisioning',
+    'scim',
+    '{"base_url": "https://cyber-itsm.vercel.app/api/scim/v2/Users", "provisioning_direction": "inbound", "group_sync": true, "bearer_token": ""}'::jsonb,
+    true,
+    'nunca testado'
+  )
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed default global mTLS config (single row singleton)
+INSERT INTO public.mtls_configs (id, enabled, require_client_cert) VALUES
+  ('global', false, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed default enterprise tool integrations
+INSERT INTO public.enterprise_tools (name, tool_type, config, is_active, last_status) VALUES
+  (
+    'Jira Software (Gestão de Demandas)',
+    'jira',
+    '{"base_url": "", "email": "", "api_token": "", "project_key": "", "issue_type": "Task"}'::jsonb,
+    true,
+    'nunca testado'
+  ),
+  (
+    'ServiceNow (ITSM)',
+    'servicenow',
+    '{"instance_url": "", "client_id": "", "client_secret": "", "table": "incident"}'::jsonb,
+    true,
+    'nunca testado'
+  ),
+  (
+    'Microsoft 365 / Office 365',
+    'office365',
+    '{"tenant_id": "", "client_id": "", "client_secret": "", "graph_endpoint": "https://graph.microsoft.com/v1.0"}'::jsonb,
+    true,
+    'nunca testado'
+  )
+ON CONFLICT (id) DO NOTHING;
+
 
 -- ============================================
--- 12. GRANTS
+-- 15. GRANTS
 -- ============================================
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
@@ -537,6 +685,9 @@ GRANT SELECT, INSERT ON public.audit_logs TO authenticated;
 GRANT SELECT ON public.iam_providers TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.iam_users TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.identity_requests TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.integration_connections TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.mtls_configs TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.enterprise_tools TO authenticated;
 
 -- ============================================
 -- END OF SCHEMA

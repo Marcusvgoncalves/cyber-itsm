@@ -37,6 +37,7 @@ export type TicketPriority = 'baixa' | 'media' | 'alta' | 'critica';
 export type FrameworkOrigem = 'NIST' | 'CIS' | 'SABSA' | 'ISO' | 'LGPD' | 'PCI-DSS';
 export type SprintStatus = 'PLANEJADA' | 'ATIVA' | 'CONCLUIDA';
 export type NotificationChannel = 'email' | 'in_app' | 'sms';
+export type IntegrationProtocol = 'oauth2' | 'saml' | 'scim';
 
 export const FRAMEWORK_OPTIONS: FrameworkOrigem[] = ['NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS'];
 
@@ -61,6 +62,70 @@ export interface NotificationSetting {
   created_at: string;
   updated_at: string;
 }
+
+export interface IntegrationConnection {
+  id: string;
+  name: string;
+  protocol: IntegrationProtocol;
+  config: Record<string, unknown>;
+  is_active: boolean;
+  last_status: string | null;
+  last_tested_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MtlsConfig {
+  id: string;
+  enabled: boolean;
+  ca_cert: string | null;
+  client_cert: string | null;
+  client_key: string | null;
+  require_client_cert: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const INTEGRATION_PROTOCOL_LABELS: Record<IntegrationProtocol, string> = {
+  oauth2: 'OAuth 2.0',
+  saml: 'SAML 2.0',
+  scim: 'SCIM 2.0',
+};
+
+export const INTEGRATION_PROTOCOL_DESCRIPTIONS: Record<IntegrationProtocol, string> = {
+  oauth2: 'Conexões via protocolo OAuth 2.0 / OIDC para integração de identidades.',
+  saml: 'Federation via protocolo SAML 2.0 (IdP corporativo).',
+  scim: 'Provisionamento de identidades via protocolo SCIM 2.0.',
+};
+
+export type EnterpriseToolType = 'jira' | 'servicenow' | 'office365';
+
+export interface EnterpriseTool {
+  id: string;
+  name: string;
+  tool_type: EnterpriseToolType;
+  config: Record<string, unknown>;
+  is_active: boolean;
+  last_status: string | null;
+  last_tested_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const ENTERPRISE_TOOL_LABELS: Record<EnterpriseToolType, string> = {
+  jira: 'Jira Software',
+  servicenow: 'ServiceNow',
+  office365: 'Microsoft 365 / Office 365',
+};
+
+export const ENTERPRISE_TOOL_DESCRIPTIONS: Record<EnterpriseToolType, string> = {
+  jira: 'Gestão de demandas e quadros ágeis da Atlassian.',
+  servicenow: 'Plataforma de Service Management e ITSM.',
+  office365: 'M365 e Microsoft Graph (identidades, e-mail, arquivos).',
+};
 
 export interface SecurityRequirement {
   id: string;

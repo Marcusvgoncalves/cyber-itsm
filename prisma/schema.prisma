@@ -95,6 +95,62 @@ model NotificationSetting {
 }
 
 // ---------------------------------------------------------------------------
+// IntegrationConnection — Conexões de integração IAM via OAuth2/SAML/SCIM.
+// (Espelha a tabela public.integration_connections do Supabase.)
+// ---------------------------------------------------------------------------
+model IntegrationConnection {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  protocol     String // oauth2 | saml | scim
+  config       Json     @default("{}")
+  isActive     Boolean  @default(true) @map("is_active")
+  lastStatus   String?  @map("last_status")
+  lastTestedAt DateTime? @map("last_tested_at")
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([protocol])
+  @@map("integration_connections")
+}
+
+// ---------------------------------------------------------------------------
+// MtlsConfig — Configuração global de Mutual TLS (singleton id = 'global').
+// ---------------------------------------------------------------------------
+model MtlsConfig {
+  id                String   @id @default("global")
+  enabled           Boolean  @default(false)
+  caCert            String?  @map("ca_cert")
+  clientCert        String?  @map("client_cert")
+  clientKey         String?  @map("client_key")
+  requireClientCert Boolean  @default(true) @map("require_client_cert")
+  updatedBy         String?  @map("updated_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("mtls_configs")
+}
+
+// ---------------------------------------------------------------------------
+// EnterpriseTool — Integrações com ferramentas enterprise (Jira/ServiceNow/O365).
+// ---------------------------------------------------------------------------
+model EnterpriseTool {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  toolType     String   @map("tool_type") // jira | servicenow | office365
+  config       Json     @default("{}")
+  isActive     Boolean  @default(true) @map("is_active")
+  lastStatus   String?  @map("last_status")
+  lastTestedAt DateTime? @map("last_tested_at")
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([toolType])
+  @@map("enterprise_tools")
+}
+
+// ---------------------------------------------------------------------------
 // Ticket — Módulo de Gestão de Demandas (Estrutura Hierárquica Jira/Trello).
 // ---------------------------------------------------------------------------
 enum TicketType {

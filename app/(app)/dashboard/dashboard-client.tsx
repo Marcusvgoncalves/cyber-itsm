@@ -9,13 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KanbanBoard } from "@/components/kanban/kanban-board";
+import { IntegrationConnections } from "@/components/iam/integration-connections";
+import { EnterpriseTools } from "@/components/iam/enterprise-tools";
 import type { AgentAction } from "@/components/SecurityAgent";
 import { ArchitectureDiagram } from "@/components/architecture-diagram";
 import { 
   Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
   KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers,
-  Trash2, Key, Download, Plug, UploadCloud
+  Trash2, Key, Download, UploadCloud
 } from "lucide-react";
 import { changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
@@ -798,6 +800,12 @@ export function DashboardClient({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Integrações de identidade (mTLS + OAuth/SAML/SCIM) */}
+            <IntegrationConnections currentUser={currentUser} />
+
+            {/* Integrações enterprise (Jira / ServiceNow / Office 365) */}
+            <EnterpriseTools currentUser={currentUser} />
           </div>
         )}
 
@@ -1119,119 +1127,15 @@ export function DashboardClient({
                 </CardContent>
               </Card>
 
-              {/* Connectors / MTLS */}
-              <Card className="md:col-span-2 mt-2">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <Plug className="h-5 w-5 text-primary" />
-                    Conectores de Integração & MTLS
-                  </CardTitle>
-                  <CardDescription>
-                    Configure conexões seguras com Jira, ServiceNow e Microsoft 365, incluindo suporte a Mutual TLS (MTLS).
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* MTLS Config */}
-                  <div className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-bold text-gray-900">Autenticação MTLS (Mutual TLS)</h4>
-                        <p className="text-xs text-gray-500">Exigir certificado de cliente para todas as integrações outbound</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
-                        <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-xs">Client Certificate (.pem / .crt)</Label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Input type="file" className="text-xs h-9 cursor-pointer bg-white" accept=".pem,.crt" />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Private Key (.key)</Label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Input type="file" className="text-xs h-9 cursor-pointer bg-white" accept=".key" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+              {/* Integrações de identidade (mTLS + OAuth/SAML/SCIM) */}
+              <div className="md:col-span-2 mt-2">
+                <IntegrationConnections currentUser={currentUser} />
+              </div>
 
-                  {/* Connectors Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Jira */}
-                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
-                      <div className="font-bold text-gray-900 flex items-center gap-2">
-                        <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-[10px]">JR</div>
-                        Jira Software
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Base URL</Label>
-                          <Input className="h-8 text-xs" placeholder="https://empresa.atlassian.net" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">E-mail</Label>
-                          <Input className="h-8 text-xs" placeholder="admin@empresa.com" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">API Token</Label>
-                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
-                        </div>
-                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
-                      </div>
-                    </div>
-
-                    {/* ServiceNow */}
-                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
-                      <div className="font-bold text-gray-900 flex items-center gap-2">
-                        <div className="w-6 h-6 bg-green-600 rounded flex items-center justify-center text-white text-[10px]">SN</div>
-                        ServiceNow
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Instance URL</Label>
-                          <Input className="h-8 text-xs" placeholder="https://dev00000.service-now.com" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Client ID (OAuth)</Label>
-                          <Input className="h-8 text-xs" placeholder="Client ID" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Client Secret</Label>
-                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
-                        </div>
-                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
-                      </div>
-                    </div>
-
-                    {/* MS 365 */}
-                    <div className="p-4 border border-gray-200 rounded-lg space-y-3 bg-white">
-                      <div className="font-bold text-gray-900 flex items-center gap-2">
-                        <div className="w-6 h-6 bg-orange-600 rounded flex items-center justify-center text-white text-[10px]">O365</div>
-                        Microsoft 365
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Tenant ID</Label>
-                          <Input className="h-8 text-xs" placeholder="0000-0000-0000-0000" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Client ID</Label>
-                          <Input className="h-8 text-xs" placeholder="Client ID" />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-gray-500">Client Secret</Label>
-                          <Input type="password" className="h-8 text-xs" placeholder="••••••••" />
-                        </div>
-                        <Button className="w-full h-8 text-xs bg-gray-900 text-white hover:bg-gray-800">Salvar Conector</Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Integrações enterprise (Jira / ServiceNow / Office 365) */}
+              <div className="md:col-span-2 mt-2">
+                <EnterpriseTools currentUser={currentUser} />
+              </div>
             </div>
           </div>
         )}
