@@ -1,17 +1,17 @@
 import { z } from 'zod';
+import { after } from 'next/server';
 import { inngest } from '@/lib/inngest/client';
-import { createPendingQaResult, failQaResult } from '@/lib/security-qa/qaRepository';
+import { createPendingQaResult } from '@/lib/security-qa/qaRepository';
 import { sanitizeText } from '@/lib/security-qa/analysis-engine';
+import { runLocalQaProcess } from '@/lib/security-qa/local-worker';
 
 // ============================================================================
-// Centro de Security QA — Publisher (Monolito Orientado a Eventos).
+// Centro de Security QA — Publisher (Monolito Orientado a Eventos com Resilience).
 //
-// Esta rota NÃO executa mais IA/PDF de forma síncrona. Fluxo:
-//   1. Recebe os metadados + caminho da evidência (já no bucket temporário);
-//   2. Cria o registro em public.qa_results com status 'PROCESSANDO';
-//   3. Publica o evento `qa/process.report` no Inngest (worker de background);
-//   4. Retorna 200 imediato com o id do registro.
-// A UI acompanha a conclusão via Supabase Realtime (postgres_changes).
+// Esta rota registra o laudo em status PROCESSANDO e retorna 200 de imediato.
+// Se o Inngest estiver configurado (INNGEST_EVENT_KEY), publica o evento.
+// Caso contrário (ou em falha de conexão), utiliza o `after()` do Next.js 16 para
+// executar o `runLocalQaProcess` no ciclo de vida Serverless sem travar a UI.
 // ============================================================================
 
 export const runtime = 'nodejs';
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
   const { projectName, environmentUrl, requirements, fileName, storagePath } = parsed.data;
 
-  // 2) Registro pendente (status PROCESSANDO) — retorno imediato, sem IA.
+  // 1) Registro pendente (status PROCESSANDO) — retorno imediato
   const pending = await createPendingQaResult({
     projectName: sanitizeText(projectName),
     environmentUrl: sanitizeText(environmentUrl),
@@ -54,30 +54,36 @@ export async function POST(req: Request) {
     createdBy: null,
   });
 
-  // 3) Publica o evento para o worker de background (Inngest).
-  try {
-    await inngest.send({
-      name: 'qa/process.report',
-      data: {
-        qaResultId: pending.id,
-        fileUrl: pending.temp_storage_path ?? storagePath,
-      },
-    });
-    console.log(`[Security QA Publisher] Laudo ${pending.id} enfileirado no Inngest (PROCESSANDO).`);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(
-      `[Security QA Publisher] Falha ao disparar evento Inngest: ${message}. Ativando worker assíncrono local de fallback (Zero Downtime)...`
-    );
-    
-    // Executa em segundo plano in-memory de forma assíncrona para não atrasar a resposta HTTP.
-    import('@/lib/security-qa/local-worker')
-      .then(({ runLocalQaProcess }) => runLocalQaProcess(pending.id, pending.temp_storage_path ?? storagePath))
-      .catch((localErr) => {
-        console.error('[Security QA Publisher] Falha fatal no worker assíncrono local:', localErr);
+  const hasInngestKey = !!process.env.INNGEST_EVENT_KEY;
+
+  if (hasInngestKey) {
+    try {
+      await inngest.send({
+        name: 'qa/process.report',
+        data: {
+          qaResultId: pending.id,
+          fileUrl: pending.temp_storage_path ?? storagePath,
+        },
       });
+      console.log(`[Security QA Publisher] Laudo ${pending.id} enfileirado no Inngest (PROCESSANDO).`);
+    } catch (err) {
+      console.warn(
+        `[Security QA Publisher] Falha ao enviar para Inngest, executando worker local via after()...`,
+        err
+      );
+      after(async () => {
+        await runLocalQaProcess(pending.id, pending.temp_storage_path ?? storagePath);
+      });
+    }
+  } else {
+    console.log(
+      `[Security QA Publisher] INNGEST_EVENT_KEY ausente. Executando worker local via after()...`
+    );
+    after(async () => {
+      await runLocalQaProcess(pending.id, pending.temp_storage_path ?? storagePath);
+    });
   }
 
-  // 4) Sucesso imediato: o frontend assina o Realtime pelo id.
+  // 2) Sucesso imediato: o frontend assina a atualização via Realtime ou Polling
   return Response.json({ id: pending.id, status: 'PROCESSANDO' });
 }

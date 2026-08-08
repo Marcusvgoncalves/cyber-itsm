@@ -88,6 +88,38 @@ export function useQaResult(resultId: string | null): UseQaResultReturn {
     setError(null);
 
     const supabase = createClient();
+
+    let isCancelled = false;
+    const checkStatus = async () => {
+      try {
+        const { data, error: fetchErr } = await supabase
+          .from("qa_results")
+          .select("*")
+          .eq("id", resultId)
+          .maybeSingle();
+
+        if (isCancelled || fetchErr || !data) return;
+
+        const snapshot = mapRealtimeRow(data as RealtimeRow);
+
+        if (snapshot.status === "CONCLUIDO") {
+          setCompletion(snapshot);
+          setPhase("done");
+        } else if (snapshot.status === "FALHA") {
+          setError(
+            typeof data.error_message === "string" && data.error_message.trim().length > 0
+              ? data.error_message
+              : "O processamento em background falhou."
+          );
+          setPhase("error");
+        }
+      } catch {}
+    };
+
+    // Verificação inicial rápida + polling leve a cada 2.5s
+    checkStatus();
+    const intervalId = setInterval(checkStatus, 2500);
+
     const channel = supabase
       .channel(`qa-result:${resultId}`)
       .on(
@@ -118,6 +150,8 @@ export function useQaResult(resultId: string | null): UseQaResultReturn {
       .subscribe();
 
     return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
       supabase.removeChannel(channel);
     };
   }, [resultId]);
