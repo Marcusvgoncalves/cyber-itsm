@@ -120,157 +120,194 @@ export async function getTicketById(id: string): Promise<Ticket | null> {
   return ticket;
 }
 
-export async function createTicket(formData: Partial<Ticket> & { reporter_id: string }): Promise<Ticket> {
+export type TicketActionResult = Ticket | { error: string };
+
+export async function createTicket(
+  formData: Partial<Ticket> & { reporter_id: string }
+): Promise<TicketActionResult> {
   const supabase = await createClient();
 
-  const creationValidation = validateTicketCreation({
-    type: formData.type,
-    status: formData.status,
-    assignee: formData.assignee,
-    parentEpicId: formData.parentEpicId || formData.parent_epic_id,
-  });
+  try {
+    const creationValidation = validateTicketCreation({
+      type: formData.type,
+      status: formData.status,
+      assignee: formData.assignee,
+      parentEpicId: formData.parentEpicId || formData.parent_epic_id,
+    });
 
-  if (!creationValidation.valid) {
-    throw new Error(creationValidation.error);
+    if (!creationValidation.valid) {
+      return { error: creationValidation.error ?? 'Falha ao criar o chamado. Validação de domínio falhou.' };
+    }
+
+    const ticketType = formData.type || 'TAREFA';
+    const parentEpicId = (ticketType === 'ATIVIDADE' || ticketType === 'TAREFA')
+      ? (formData.parentEpicId || formData.parent_epic_id || null)
+      : null;
+
+    const { data, error } = await supabase
+      .from('tickets')
+      .insert({
+        title: formData.title,
+        description: formData.description || null,
+        type: ticketType,
+        status: 'ABERTO',
+        priority: normalizePriority(formData.priority || 'media'),
+        assignee: formData.assignee!.trim(),
+        parent_epic_id: parentEpicId,
+        framework_origem: formData.framework_origem || null,
+        assignee_id: formData.assignee_id || null,
+        reporter_id: formData.reporter_id,
+        tags: formData.tags || [],
+      })
+      .select(`
+        *,
+        assignee_user:users_profiles!tickets_assignee_id_fkey(id, email, full_name, role, avatar_url),
+        reporter:users_profiles!tickets_reporter_id_fkey(id, email, full_name, role, avatar_url)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Erro do banco de dados ao criar chamado:', error);
+      return { error: `Falha ao criar o chamado. Detalhes do banco de dados: ${error.message}` };
+    }
+
+    const newTicket: Ticket = {
+      ...data,
+      type: data.type || ticketType,
+      status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
+      assignee: data.assignee || formData.assignee,
+      parentEpicId: data.parent_epic_id || parentEpicId,
+    };
+
+    try {
+      await notifyTicketCreated(newTicket);
+    } catch (emailErr) {
+      console.error('Falha ao enviar notificação de criação:', emailErr);
+    }
+
+    revalidatePath('/dashboard');
+    return newTicket;
+  } catch (err) {
+    console.error('Erro inesperado ao criar chamado:', err);
+    return {
+      error: err instanceof Error
+        ? `Falha ao criar o chamado. ${err.message}`
+        : 'Falha ao criar o chamado. Detalhes do banco de dados.',
+    };
   }
-
-  const ticketType = formData.type || 'TAREFA';
-  const parentEpicId = (ticketType === 'ATIVIDADE' || ticketType === 'TAREFA')
-    ? (formData.parentEpicId || formData.parent_epic_id || null)
-    : null;
-
-  const { data, error } = await supabase
-    .from('tickets')
-    .insert({
-      title: formData.title,
-      description: formData.description || null,
-      type: ticketType,
-      status: 'ABERTO',
-      priority: normalizePriority(formData.priority || 'media'),
-      assignee: formData.assignee!.trim(),
-      parent_epic_id: parentEpicId,
-      framework_origem: formData.framework_origem || null,
-      assignee_id: formData.assignee_id || null,
-      reporter_id: formData.reporter_id,
-      tags: formData.tags || [],
-    })
-    .select(`
-      *,
-      assignee_user:users_profiles!tickets_assignee_id_fkey(id, email, full_name, role, avatar_url),
-      reporter:users_profiles!tickets_reporter_id_fkey(id, email, full_name, role, avatar_url)
-    `)
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  const newTicket: Ticket = {
-    ...data,
-    type: data.type || ticketType,
-    status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
-    assignee: data.assignee || formData.assignee,
-    parentEpicId: data.parent_epic_id || parentEpicId,
-  };
-
-  await notifyTicketCreated(newTicket);
-  revalidatePath('/dashboard/kanban');
-  return newTicket;
 }
 
-export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<Ticket> {
+export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<TicketActionResult> {
   const supabase = await createClient();
 
-  const { data: previous, error: fetchErr } = await supabase
-    .from('tickets')
-    .select('id, title, type, status, priority, assignee, parent_epic_id, assignee_id')
-    .eq('id', id)
-    .single();
-
-  if (fetchErr || !previous) {
-    throw new Error('Chamado não encontrado.');
-  }
-
-  const prevStatus = (previous.status ? previous.status.toUpperCase() : 'ABERTO') as TicketStatus;
-  const updateValidation = validateTicketUpdate(
-    { type: previous.type, status: prevStatus },
-    { type: updates.type, status: updates.status ? updates.status.toUpperCase() : undefined }
-  );
-
-  if (!updateValidation.valid) {
-    throw new Error(updateValidation.error);
-  }
-
-  const newStatus = updates.status ? (updates.status.toUpperCase() as TicketStatus) : prevStatus;
-
-  // Guardrail de fechamento de Épicos
-  if (previous.type === 'EPICO' && newStatus === 'FECHADO') {
-    const { data: children } = await supabase
+  try {
+    const { data: previous, error: fetchErr } = await supabase
       .from('tickets')
-      .select('id, status')
-      .eq('parent_epic_id', id);
+      .select('id, title, type, status, priority, assignee, parent_epic_id, assignee_id')
+      .eq('id', id)
+      .single();
 
-    const childTickets = (children || []).map((c: any) => ({
-      status: (c.status ? c.status.toUpperCase() : 'ABERTO') as TicketStatus,
-    }));
-
-    const epicGuardrail = canCloseEpic(childTickets);
-    if (!epicGuardrail.allowed) {
-      throw new Error(epicGuardrail.reason);
+    if (fetchErr || !previous) {
+      return { error: 'Chamado não encontrado.' };
     }
-  }
 
-  const sanitized: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  };
+    const prevStatus = (previous.status ? previous.status.toUpperCase() : 'ABERTO') as TicketStatus;
+    const updateValidation = validateTicketUpdate(
+      { type: previous.type, status: prevStatus },
+      { type: updates.type, status: updates.status ? updates.status.toUpperCase() : undefined }
+    );
 
-  if (updates.title !== undefined) sanitized.title = updates.title;
-  if (updates.description !== undefined) sanitized.description = updates.description;
-  if (updates.status !== undefined) sanitized.status = newStatus;
-  if (updates.priority !== undefined && isAllowedPriority(updates.priority)) sanitized.priority = updates.priority;
-  if (updates.assignee !== undefined && updates.assignee.trim()) sanitized.assignee = updates.assignee.trim();
-  if (updates.tags !== undefined) sanitized.tags = updates.tags;
-  if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
-
-  const { data, error } = await supabase
-    .from('tickets')
-    .update(sanitized)
-    .eq('id', id)
-    .select(`
-      *,
-      assignee_user:users_profiles!tickets_assignee_id_fkey(id, email, full_name, role, avatar_url),
-      reporter:users_profiles!tickets_reporter_id_fkey(id, email, full_name, role, avatar_url)
-    `)
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  const updatedTicket: Ticket = {
-    ...data,
-    type: data.type || previous.type,
-    status: (data.status ? data.status.toUpperCase() : newStatus) as TicketStatus,
-    assignee: data.assignee || previous.assignee,
-    parentEpicId: data.parent_epic_id || previous.parent_epic_id,
-  };
-
-  const changes = buildTicketChanges(
-    {
-      status: prevStatus,
-      priority: previous.priority,
-      assigneeId: previous.assignee_id,
-    },
-    {
-      status: updatedTicket.status,
-      priority: updatedTicket.priority,
-      assigneeId: updatedTicket.assignee_id || null,
-      assigneeName: updatedTicket.assignee,
+    if (!updateValidation.valid) {
+      return { error: updateValidation.error ?? 'Falha ao atualizar o chamado. Validação de domínio falhou.' };
     }
-  );
 
-  if (changes.length > 0) {
-    await notifyTicketUpdated(updatedTicket, changes);
+    const newStatus = updates.status ? (updates.status.toUpperCase() as TicketStatus) : prevStatus;
+
+    // Guardrail de fechamento de Épicos
+    if (previous.type === 'EPICO' && newStatus === 'FECHADO') {
+      const { data: children } = await supabase
+        .from('tickets')
+        .select('id, status')
+        .eq('parent_epic_id', id);
+
+      const childTickets = (children || []).map((c: any) => ({
+        status: (c.status ? c.status.toUpperCase() : 'ABERTO') as TicketStatus,
+      }));
+
+      const epicGuardrail = canCloseEpic(childTickets);
+      if (!epicGuardrail.allowed) {
+        return { error: epicGuardrail.reason ?? 'Um Épico não pode ser fechado com itens filhos em aberto.' };
+      }
+    }
+
+    const sanitized: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (updates.title !== undefined) sanitized.title = updates.title;
+    if (updates.description !== undefined) sanitized.description = updates.description;
+    if (updates.status !== undefined) sanitized.status = newStatus;
+    if (updates.priority !== undefined && isAllowedPriority(updates.priority)) sanitized.priority = updates.priority;
+    if (updates.assignee !== undefined && updates.assignee.trim()) sanitized.assignee = updates.assignee.trim();
+    if (updates.tags !== undefined) sanitized.tags = updates.tags;
+    if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
+
+    const { data, error } = await supabase
+      .from('tickets')
+      .update(sanitized)
+      .eq('id', id)
+      .select(`
+        *,
+        assignee_user:users_profiles!tickets_assignee_id_fkey(id, email, full_name, role, avatar_url),
+        reporter:users_profiles!tickets_reporter_id_fkey(id, email, full_name, role, avatar_url)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Erro do banco de dados ao atualizar chamado:', error);
+      return { error: `Falha ao atualizar o chamado. Detalhes do banco de dados: ${error.message}` };
+    }
+
+    const updatedTicket: Ticket = {
+      ...data,
+      type: data.type || previous.type,
+      status: (data.status ? data.status.toUpperCase() : newStatus) as TicketStatus,
+      assignee: data.assignee || previous.assignee,
+      parentEpicId: data.parent_epic_id || previous.parent_epic_id,
+    };
+
+    const changes = buildTicketChanges(
+      {
+        status: prevStatus,
+        priority: previous.priority,
+        assigneeId: previous.assignee_id,
+      },
+      {
+        status: updatedTicket.status,
+        priority: updatedTicket.priority,
+        assigneeId: updatedTicket.assignee_id || null,
+        assigneeName: updatedTicket.assignee,
+      }
+    );
+
+    if (changes.length > 0) {
+      try {
+        await notifyTicketUpdated(updatedTicket, changes);
+      } catch (emailErr) {
+        console.error('Falha ao enviar notificação de atualização:', emailErr);
+      }
+    }
+
+    revalidatePath('/dashboard');
+    return updatedTicket;
+  } catch (err) {
+    console.error('Erro inesperado ao atualizar chamado:', err);
+    return {
+      error: err instanceof Error
+        ? `Falha ao atualizar o chamado. ${err.message}`
+        : 'Falha ao atualizar o chamado. Detalhes do banco de dados.',
+    };
   }
-
-  revalidatePath('/dashboard/kanban');
-  return updatedTicket;
 }
 
 export async function moveTicket(ticketId: string, newStatusId: string): Promise<void> {
@@ -320,7 +357,7 @@ export async function moveTicket(ticketId: string, newStatusId: string): Promise
 
   if (error) throw new Error(error.message);
 
-  revalidatePath('/dashboard/kanban');
+  revalidatePath('/dashboard');
 }
 
 export async function deleteTicket(id: string): Promise<void> {
@@ -333,7 +370,7 @@ export async function deleteTicket(id: string): Promise<void> {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath('/dashboard/kanban');
+  revalidatePath('/dashboard');
 }
 
 export async function getStatuses() {

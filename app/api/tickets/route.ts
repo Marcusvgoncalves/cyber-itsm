@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ticket = await createTicket({
+    const result = await createTicket({
       title,
       description: typeof body.description === 'string' ? body.description : null,
       type,
@@ -64,7 +64,11 @@ export async function POST(request: Request) {
       tags: Array.isArray(body.tags) ? (body.tags as string[]) : [],
     });
 
-    return NextResponse.json(ticket, { status: 201 });
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    return NextResponse.json(result, { status: 201 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Erro ao criar chamado.' }, { status: 400 });
   }

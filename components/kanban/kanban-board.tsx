@@ -114,8 +114,12 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     startTransition(async () => {
       setIsLoading(true);
       try {
-        const newTicket = await createTicket({ ...ticketData, reporter_id: currentUser.id });
-        setTickets((prev) => [newTicket, ...prev]);
+        const result = await createTicket({ ...ticketData, reporter_id: currentUser.id });
+        if ('error' in result) {
+          setValidationError(result.error);
+          return;
+        }
+        setTickets((prev) => [result, ...prev]);
         handleCloseModal();
       } catch (error: any) {
         console.error('Erro ao criar ticket:', error);
@@ -131,8 +135,12 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     startTransition(async () => {
       setIsLoading(true);
       try {
-        const updated = await updateTicket(ticketId, updates);
-        setTickets((prev) => prev.map((t) => (t.id === ticketId ? updated : t)));
+        const result = await updateTicket(ticketId, updates);
+        if ('error' in result) {
+          setValidationError(result.error);
+          return;
+        }
+        setTickets((prev) => prev.map((t) => (t.id === ticketId ? result : t)));
         handleCloseModal();
       } catch (error: any) {
         console.error('Erro ao atualizar ticket:', error);
