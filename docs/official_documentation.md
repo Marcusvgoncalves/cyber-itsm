@@ -75,8 +75,10 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Capacidades**:
   - Ingestão de relatórios brutos e anexos documentais de vulnerabilidade (.json, .xml, .txt, .docx, .pdf, .jpg, .png).
   - OCR e parsing de anexos (limite 10MB) cruzando automaticamente os achados com os requisitos de arquitetura via Zod e IA.
-  - **Pipeline Multiagente Reordenado**: roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter Free** → **Groq**, com fallback determinístico. Cada chamada (sucesso, falha ou fallback) é persistida em `llm_call_logs` (provedor, modelo, latência, tokens, custo estimado) para o Painel de Consumo de LLM.
-  - Security QA Analytics Dashboard com vereditos (`conforme`, `parcial`, `nao_conforme`) e calculadora SecOps: `Score = Severidade * Escopo do Sistema * Exposição de Rede`.
+  - **Prompt Calibrado & Cobertura 100% de Escopo**: System Prompt orientado a Engenheiro de AppSec Sênior (recomendações técnicas acionáveis com comandos e configs diretas) e pós-processador de backfill que garante que 100% dos requisitos fornecidos no escopo (ex: 30 de 30) estejam presentes no laudo sem omissões.
+  - **Pipeline Multiagente & Resiliência Inngest**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter** → **Groq** (via OpenAI-compatible endpoint). Em falha de cota (429), lança `QaRateLimitError` forçando 5 retentativas com exponential backoff no Inngest.
+  - **Motor Determinístico de Contingência**: Parser estruturado de JSON e XML com extração direta das tags `<Details>` / campos `details` e recomendações com instrução explícita SecOps.
+  - Security QA Analytics Dashboard com vereditos (`conforme`, `parcial`, `nao_conforme`), botão de navegação "Voltar" (`ArrowLeft`) e calculadora SecOps.
   - Cold Storage em GZIP (.gz) no bucket `qa-logs-archive` e expurgo automático da evidência bruta descomprimida (Zero Data Leak).
   - Exportação nativa de relatórios executivos e auditorias completas em formato PDF compilados via `@react-pdf/renderer`.
   - **Exclusão de análises (ADMIN)**: Server Action `deleteQaAnalysis` remove os artefatos forenses (GZIP + PDF) do Storage, o registro em `qa_results` e projetos órfãos, registrando a ação em `audit_logs`.
@@ -86,7 +88,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Capacidades**:
   - Modal dedicado para submeter Épicos do Kanban ao motor Security QA diretamente.
   - Pré-carregamento inteligente de requisitos SD v4.1 baseado nas tags, framework de origem e título do épico.
-  - Execução em stream SSE com barra de progresso de conformidade % em tempo real.
+  - Execução em background com sinalização de status `"Processando Análise em Background..."` e Supabase Realtime.
   - Associação automática da sprint vinculada ao épico no laudo gerado.
   - Redirecionamento automático para a página do laudo (`.../project/{id}`) após conclusão.
 
@@ -94,10 +96,10 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Localização**: `app/api/chat/route.ts` & `app/api/qa-engine/route.ts`
 - **Capacidades**:
   - Persona Especialista Sênior Estrita em Cibersegurança que higieniza o próprio contexto/memória localmente a cada novo login.
-  - Roteamento transparente em cascata entre Groq, OpenRouter e Google Gemini (fallback automático ao primeiro provedor disponível).
+  - Roteamento transparente em cascata entre Google Gemini, OpenAI, OpenRouter e Groq (com limite de 6s via `AbortSignal.timeout(6000)` e `maxRetries: 0` para evitar estouros de tempo limite na Vercel).
   - Esquema estrito Zod para estruturação JSON de resposta.
   - RAG (*Retrieval-Augmented Generation*) integrado consultando o acervo dos 314 Requisitos Segura SD v4.1.
-  - **Métricas de Consumo**: chamadas de IA no QA Engine registradas em `llm_call_logs` e consolidadas no Painel de Consumo de LLM (Cadastros).
+  - **Métricas de Consumo & Contador de Cotas**: Chamadas registradas em `llm_call_logs`, consolidadas no Painel de Consumo com contador dinâmico e tempo real (`useQuotaCountdown`) para os ciclos diários (Google 04:00 BRT, OpenRouter/Groq 21:00 BRT) e mensal (OpenAI Dia 1).
 
 ### 3.4 Portal IAM/IGA e Configurações
 - **Localização**: `app/api/scim/v2/Users/route.ts`, `app/api/saml/sso/route.ts`, `app/actions/iam.ts`

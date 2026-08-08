@@ -47,17 +47,15 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
   - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework * SLA`.
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
-- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento em background de forma assíncrona via **Next.js `after()`** e **Inngest**, garantindo execução contínua no ecossistema Serverless sem congelamento da requisição HTTP.
-- **Esteira Multiagente de 5 Camadas de Resiliência**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** ➔ **OpenAI GPT-4o Mini** ➔ **OpenRouter Free** ➔ **Groq Engine** ➔ **Motor Determinístico por Regras de Contingência**. Cada chamada de IA é registrada na tabela física `llm_call_logs` com provedor, modelo, rota, latência ms, tokens e custo estimado.
-- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise em segundo plano via worker assíncrono.
-- **Security QA Analytics Dashboard**:
-  - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
-  - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
+- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento em background via **Inngest** (`retries: 5` com exponential backoff) e fallback local via **Next.js `after()`**.
+- **Prompt Calibrado & Cobertura 100% do Escopo**: System Prompt com persona de Engenheiro de AppSec Sênior (recomendações acionáveis com comandos e configs técnicas diretas) e pós-processador de backfill que garante 100% dos requisitos do escopo presentes no laudo sem omissões.
+- **Esteira Multiagente & Resiliência**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** ➔ **OpenAI GPT-4o Mini** ➔ **OpenRouter** ➔ **Groq Engine** (via OpenAI-compatible endpoint). Limite de 6s por chamada via `AbortSignal.timeout(6000)` e `maxRetries: 0` para evitar estouros de tempo limite na Vercel.
+- **Motor Determinístico de Contingência**: Parser estruturado de JSON e XML com extração nativa de tags `<Details>` / campos `details` e recomendações com instrução explícita SecOps.
+- **Security QA Analytics Dashboard**: Botão "Voltar" (`ArrowLeft`) na UI, gráficos Recharts (`Conforme`, `Parcial`, `Não Conforme`), calculadora SecOps e exportação executiva em PDF (`@react-pdf/renderer`).
 - **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) e realizando o expurgo da evidência temporária.
-- **Relatórios Executivos em PDF**: Exportação de relatórios compilados nativamente via `@react-pdf/renderer` com importação nomeada `renderToBuffer` para estabilidade no bundler Serverless.
 
 #### 3. 🤖 Copiloto de IA Multiagente & Contingência (Zero Downtime)
-Esteira de resiliência encadeada com RAG sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com a **Camada 5 — Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma (total de chamados, projetos e índice de compliance médio histórico) para gerar análises contextualizadas caso todas as APIs externas estejam indisponíveis.
+Esteira de resiliência encadeada com RAG sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis.
 
 #### 4. 🔑 Portal IAM/IGA e Configurações (Reorganizado & UX Aprimorada)
 - **Sub-Navegação por Abas Dinâmicas (`iamSubTab`)**: Interface responsiva e compacta dividida em 4 categorias operacionais que eliminam espaços vazios:
