@@ -78,8 +78,21 @@ function buildMfaCandidates(): string[] {
   return candidates;
 }
 
+import { ensureTestUser } from "./helpers/supabase-admin";
+
 export default async function globalSetup(): Promise<void> {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+  const userEmail = E2E_USER || "marcus.e2e@cyberitsm.local";
+  const userPassword = E2E_PASSWORD || "CyberITSM@2026!Password";
+
+  // Garante de forma idempotente que o usuário admin de teste exista no Supabase com MFA habilitado
+  await ensureTestUser({
+    email: userEmail,
+    full_name: "Marcus E2E Admin",
+    role: "admin",
+    password: userPassword,
+  });
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -89,8 +102,8 @@ export default async function globalSetup(): Promise<void> {
     // dev server (que compila a rota /login) antes de interagir com o form.
     await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle" });
 
-    await page.locator("#email").fill(E2E_USER);
-    await page.locator("#password").fill(E2E_PASSWORD);
+    await page.locator("#email").fill(userEmail);
+    await page.locator("#password").fill(userPassword);
     await page.getByRole("button", { name: "Entrar" }).click();
 
     // Passo MFA (onboarding ou verificação) — ambos expõem #mfaCode.

@@ -253,6 +253,14 @@ export async function createTicket(
 export async function updateTicket(id: string, updates: Partial<Ticket>): Promise<TicketActionResult> {
   const supabase = await createClient();
 
+  // FASE 2 / SANEAMENTO SOD: Validação rigorosa de Matriz SoD (RBAC).
+  // Apenas perfis 'admin' e 'analista' possuem a permissão 'tickets:all'.
+  // O perfil 'solicitante' tem permissão apenas de leitura/abertura, não podendo alterar chamados no Kanban.
+  const canManage = await getAuthService().checkRole(['admin', 'analista']);
+  if (!canManage) {
+    return { error: 'Movimento bloqueado! O perfil Solicitante não possui permissão para alterar o status ou editar chamados (Matriz SoD).' };
+  }
+
   try {
     const { data: previous, error: fetchErr } = await supabase
       .from('tickets')
@@ -405,6 +413,14 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
 
 export async function moveTicket(ticketId: string, newStatusId: string): Promise<void> {
   const supabase = await createClient();
+
+  // FASE 2 / SANEAMENTO SOD: Validação rigorosa de Matriz SoD (RBAC).
+  // Garante que apenas usuários autorizados (admin/analista) possam alterar status no Kanban.
+  const canManage = await getAuthService().checkRole(['admin', 'analista']);
+  if (!canManage) {
+    throw new Error('Movimento bloqueado! O perfil Solicitante não possui permissão para alterar o status do chamado (Matriz SoD).');
+  }
+
   const normalizedStatus = newStatusId.toUpperCase() as TicketStatus;
 
   const { data: previous, error: fetchErr } = await supabase
