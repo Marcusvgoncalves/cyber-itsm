@@ -49,6 +49,8 @@ export async function getTickets(): Promise<Ticket[]> {
     parentEpicId: t.parent_epic_id || t.parentEpicId || null,
     attachmentName: t.attachment_name || null,
     attachmentUrl: t.attachment_url || null,
+    dueDate: t.due_date || null,
+    sprintId: t.sprint_id || null,
   }));
 
   // Popula os títulos dos Épicos Pais nos objetos filhos
@@ -64,6 +66,21 @@ export async function getTickets(): Promise<Ticket[]> {
       t.parentEpic = { id: t.parentEpicId, title: epicsMap.get(t.parentEpicId)! };
     }
   });
+
+  // Popula as sprints associadas (lookup único para evitar N+1)
+  const sprintIds = [...new Set(ticketsList.map((t: Ticket) => t.sprintId).filter(Boolean))] as string[];
+  if (sprintIds.length > 0) {
+    const { data: sprints } = await supabase
+      .from('sprints')
+      .select('*')
+      .in('id', sprintIds);
+    const sprintsMap = new Map((sprints || []).map((s: any) => [s.id, s]));
+    ticketsList.forEach((t: Ticket) => {
+      if (t.sprintId && sprintsMap.has(t.sprintId)) {
+        t.sprint = sprintsMap.get(t.sprintId)!;
+      }
+    });
+  }
 
   return ticketsList;
 }
@@ -97,6 +114,8 @@ export async function getTicketById(id: string): Promise<Ticket | null> {
     parentEpicId: data.parent_epic_id || data.parentEpicId || null,
     attachmentName: data.attachment_name || null,
     attachmentUrl: data.attachment_url || null,
+    dueDate: data.due_date || null,
+    sprintId: data.sprint_id || null,
   };
 
   if (ticket.parentEpicId) {
@@ -107,6 +126,17 @@ export async function getTicketById(id: string): Promise<Ticket | null> {
       .single();
     if (parentData) {
       ticket.parentEpic = parentData;
+    }
+  }
+
+  if (ticket.sprintId) {
+    const { data: sprintData } = await supabase
+      .from('sprints')
+      .select('*')
+      .eq('id', ticket.sprintId)
+      .single();
+    if (sprintData) {
+      ticket.sprint = sprintData;
     }
   }
 
@@ -164,6 +194,8 @@ export async function createTicket(
         tags: formData.tags || [],
         attachment_name: formData.attachmentName || null,
         attachment_url: formData.attachmentUrl || null,
+        due_date: formData.dueDate || null,
+        sprint_id: formData.sprintId || null,
       })
       .select(`
         *,
@@ -185,6 +217,8 @@ export async function createTicket(
       parentEpicId: data.parent_epic_id || parentEpicId,
       attachmentName: data.attachment_name,
       attachmentUrl: data.attachment_url,
+      dueDate: data.due_date || null,
+      sprintId: data.sprint_id || null,
     };
 
     if (newTicket.parentEpicId) {
@@ -272,6 +306,8 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
     if (updates.attachmentName !== undefined) sanitized.attachment_name = updates.attachmentName;
     if (updates.attachmentUrl !== undefined) sanitized.attachment_url = updates.attachmentUrl;
+    if (updates.dueDate !== undefined) sanitized.due_date = updates.dueDate || null;
+    if (updates.sprintId !== undefined) sanitized.sprint_id = updates.sprintId || null;
 
     const parentEpicVal = updates.parentEpicId !== undefined ? updates.parentEpicId : updates.parent_epic_id;
     if (parentEpicVal !== undefined) {
@@ -316,6 +352,8 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
       parentEpicId: data.parent_epic_id || previous.parent_epic_id,
       attachmentName: data.attachment_name,
       attachmentUrl: data.attachment_url,
+      dueDate: data.due_date || null,
+      sprintId: data.sprint_id || null,
     };
 
     if (updatedTicket.parentEpicId) {

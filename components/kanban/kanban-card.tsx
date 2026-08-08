@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Ticket, TicketPriority, TYPE_COLORS, TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
-import { GripVertical, User, Clock, Layers } from "lucide-react";
+import { GripVertical, User, Clock, Layers, ShieldCheck } from "lucide-react";
 
 interface KanbanCardProps {
   ticket: Ticket;
@@ -10,9 +10,10 @@ interface KanbanCardProps {
   onClick: () => void;
   onDragStart: (e: React.DragEvent, ticketId: string) => void;
   onDragEnd: () => void;
+  onQaRequest?: (ticket: Ticket) => void;
 }
 
-export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd }: KanbanCardProps) {
+export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd, onQaRequest }: KanbanCardProps) {
   const typeKey = ticket.type || 'TAREFA';
   const typeStyle = TYPE_COLORS[typeKey] || TYPE_COLORS.TAREFA;
   const typeLabel = TYPE_LABELS[typeKey] || typeKey;
@@ -82,6 +83,20 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {typeKey === 'EPICO' && onQaRequest && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onQaRequest(ticket);
+              }}
+              className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10"
+              title="Testar Épico com o Security QA Engine"
+            >
+              <ShieldCheck className="h-3 w-3" />
+              Testar QA
+            </button>
+          )}
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <Clock className="h-3 w-3" />
             <time dateTime={ticket.updated_at}>

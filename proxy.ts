@@ -143,7 +143,7 @@ export default async function proxy(request: NextRequest) {
   }
 
   // If trying to access dashboard routes and not logged in
-  if (path.startsWith('/dashboard') && !user) {
+  if ((path.startsWith('/dashboard') || path.startsWith('/admin')) && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
     redirectUrl.searchParams.set('redirect', path);
@@ -151,7 +151,7 @@ export default async function proxy(request: NextRequest) {
   }
 
   // If logged in, perform MFA and RBAC checks
-  if (user && path.startsWith('/dashboard')) {
+  if (user && (path.startsWith('/dashboard') || path.startsWith('/admin'))) {
     try {
       // Get user profile role and MFA status
       const { data: profile } = await supabase
@@ -172,7 +172,7 @@ export default async function proxy(request: NextRequest) {
 
         // 2. RBAC check for architecture (Admin-only)
         // Check if path is architecture or if we are requesting admin-only segments
-        if (path.includes('/architecture') || path.includes('/reports') || path.includes('/audit')) {
+        if (path.includes('/architecture') || path.includes('/reports') || path.includes('/audit') || path.startsWith('/admin')) {
           if (profile.role !== 'admin') {
             // Redirect unauthorized profiles to dashboard index
             const redirectUrl = request.nextUrl.clone();

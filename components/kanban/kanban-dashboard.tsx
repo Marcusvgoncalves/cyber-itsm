@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Ticket, Status } from "@/lib/types";
+import { Ticket, Status, Sprint } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,8 @@ import {
   Tooltip,
   Cell,
   PieChart,
-  Pie
+  Pie,
+  Legend
 } from "recharts";
 import {
   X,
@@ -27,12 +28,14 @@ import {
   Clock,
   CheckCircle2,
   Calendar,
-  Zap
+  Zap,
+  AlarmClock
 } from "lucide-react";
 
 interface KanbanDashboardProps {
   tickets: Ticket[];
   statuses: Status[];
+  sprints?: Sprint[];
   onClose: () => void;
 }
 
@@ -60,29 +63,39 @@ const FRAMEWORK_FACTORS: Record<string, number> = {
   "Nenhum/Outro": 1.0
 };
 
-export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardProps) {
+export function KanbanDashboard({ tickets, statuses, sprints = [], onClose }: KanbanDashboardProps) {
   // Calculadora de Criticidade State
   const [calcPriority, setCalcPriority] = useState<string>("media");
   const [calcFramework, setCalcFramework] = useState<string>("NIST");
   const [calcSla, setCalcSla] = useState<string>("72h");
 
+  // Filtro de Sprint do Analytics
+  const [sprintFilter, setSprintFilter] = useState<string>("all");
+
+  // Tickets filtrados pela Sprint selecionada (mantém 'all' e 'sem-sprint')
+  const filteredTickets = useMemo(() => {
+    if (sprintFilter === "all") return tickets;
+    if (sprintFilter === "sem-sprint") return tickets.filter((t) => !t.sprintId);
+    return tickets.filter((t) => t.sprintId === sprintFilter);
+  }, [tickets, sprintFilter]);
+
   // 1. Volumetrics Calculations
-  const totalTickets = tickets.length;
-  
+  const totalTickets = filteredTickets.length;
+
   const statusData = useMemo(() => {
     return statuses.map(status => {
-      const count = tickets.filter(t => t.status === status.id).length;
+      const count = filteredTickets.filter(t => t.status === status.id).length;
       return {
         name: status.name,
         Quantidade: count,
         color: status.color || "#3b82f6"
       };
     });
-  }, [tickets, statuses]);
+  }, [filteredTickets, statuses]);
 
   const priorityData = useMemo(() => {
     const counts = { baixa: 0, media: 0, alta: 0, critica: 0 };
-    tickets.forEach(t => {
+    filteredTickets.forEach(t => {
       const p = t.priority?.toLowerCase();
       if (p in counts) {
         counts[p as keyof typeof counts]++;
@@ -95,11 +108,11 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
       Quantidade: value,
       color: PRIORITY_COLORS[key] || "#94a3b8"
     }));
-  }, [tickets]);
+  }, [filteredTickets]);
 
   const frameworkData = useMemo(() => {
     const counts: Record<string, number> = {};
-    tickets.forEach(t => {
+    filteredTickets.forEach(t => {
       const f = t.framework_origem || "Nenhum/Outro";
       counts[f] = (counts[f] || 0) + 1;
     });
@@ -107,7 +120,7 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
       name,
       value
     }));
-  }, [tickets]);
+  }, [filteredTickets]);
 
   // 2. Interactive Criticality Score Calculation
   const calculatedScore = useMemo(() => {
@@ -129,15 +142,15 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
 
   // 3. Forecasts
   const forecasts = useMemo(() => {
-    const openTickets = tickets.filter(t => t.status?.toUpperCase() !== "FECHADO" && t.status?.toUpperCase() !== "CANCELADO").length;
-    const closedTickets = tickets.filter(t => t.status?.toUpperCase() === "FECHADO").length;
+    const openTickets = filteredTickets.filter(t => t.status?.toUpperCase() !== "FECHADO" && t.status?.toUpperCase() !== "CANCELADO").length;
+    const closedTickets = filteredTickets.filter(t => t.status?.toUpperCase() === "FECHADO").length;
     
     // Vazão média simulada de 1.5 chamados por dia útil
     const resolutionDays = openTickets > 0 ? Math.ceil(openTickets / 1.5) : 0;
     
     // Framework com maior tendência
     const frameworkCounts: Record<string, number> = {};
-    tickets.forEach(t => {
+    filteredTickets.forEach(t => {
       if (t.framework_origem) frameworkCounts[t.framework_origem] = (frameworkCounts[t.framework_origem] || 0) + 1;
     });
     const topFramework = Object.entries(frameworkCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "NIST";
@@ -149,7 +162,50 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
       topRiskFramework: topFramework,
       trendDirection: "+12%" // Tendência simulada
     };
-  }, [tickets]);
+  }, [filteredTickets]);
+
+  // Chamados ATRASADOS (due_date < hoje E não fechado/cancelado)
+  const overdueTickets = useMemo(() => {
+    const now = new Date();
+    return filteredTickets.filter((t) => {
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      const done = t.status?.toUpperCase() === "FECHADO" || t.status?.toUpperCase() === "CANCELADO";
+      return due < now && !done;
+    });
+  }, [filteredTickets]);
+
+  // Vencendo em 7 dias
+  const dueSoonTickets = useMemo(() => {
+    const now = new Date();
+    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return filteredTickets.filter((t) => {
+      if (!t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      const done = t.status?.toUpperCase() === "FECHADO" || t.status?.toUpperCase() === "CANCELADO";
+      return due >= now && due <= in7Days && !done;
+    });
+  }, [filteredTickets]);
+
+  // Vazão (Throughput) por Sprint: chamados fechados agrupados por sprint
+  const throughputData = useMemo(() => {
+    const counts: Record<string, { fechados: number; abertos: number }> = {};
+    tickets.forEach((t) => {
+      const sprintId = t.sprintId;
+      if (!sprintId) return;
+      if (!counts[sprintId]) counts[sprintId] = { fechados: 0, abertos: 0 };
+      const isClosed = t.status?.toUpperCase() === "FECHADO";
+      if (isClosed) counts[sprintId].fechados += 1;
+      else if (t.status?.toUpperCase() !== "CANCELADO") counts[sprintId].abertos += 1;
+    });
+    const sprintName = (id: string) => sprints.find((s) => s.id === id)?.name || id.slice(0, 8);
+    return Object.entries(counts).map(([id, v]) => ({
+      name: sprintName(id),
+      Fechados: v.fechados,
+      Abertos: v.abertos,
+      color: "#10b981"
+    }));
+  }, [tickets, sprints]);
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -166,9 +222,32 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
             <p className="text-xs text-gray-500 mt-1">Volumetrias, previsões de demanda e calculadora de impacto de cibersegurança.</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-100">
-          <X className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="w-56">
+            <Select value={sprintFilter} onValueChange={setSprintFilter}>
+              <SelectTrigger id="sprintFilter" className="h-9 text-xs">
+                <SelectValue placeholder="Filtrar por sprint" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Sprints</SelectItem>
+                {sprints.some((s) => s.status === 'ATIVA') && (
+                  <SelectItem value={sprints.find((s) => s.status === 'ATIVA')!.id}>
+                    Sprint Ativa ({sprints.find((s) => s.status === 'ATIVA')!.name})
+                  </SelectItem>
+                )}
+                <SelectItem value="sem-sprint">Sem Sprint</SelectItem>
+                {sprints.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} {s.status === 'ATIVA' ? '(Ativa)' : s.status === 'CONCLUIDA' ? '(Concluída)' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-100">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full">
@@ -230,6 +309,27 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
               <div className="mt-2">
                 <h3 className="text-3xl font-bold tracking-tight text-slate-900">{forecasts.topRiskFramework}</h3>
                 <p className="text-xs text-slate-500 mt-1">maior volume de chamados ({forecasts.trendDirection})</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`shadow-sm border-gray-200 hover:shadow-md transition-shadow ${overdueTickets.length > 0 ? "border-red-300" : ""}`}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-slate-500">Chamados Atrasados</p>
+                <div className="h-8 w-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                  <AlarmClock className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <h3 className={`text-3xl font-bold tracking-tight ${overdueTickets.length > 0 ? "text-red-600" : "text-slate-900"}`}>
+                  {overdueTickets.length}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  {dueSoonTickets.length > 0
+                    ? `${dueSoonTickets.length} vence(m) em até 7 dias`
+                    : "nenhum chamado além do prazo"}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -311,6 +411,30 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
             </CardContent>
           </Card>
         </div>
+
+        {/* Throughput por Sprint */}
+        {throughputData.length > 0 && (
+          <Card className="shadow-sm border-gray-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" /> Vazão por Sprint (Throughput)
+              </CardTitle>
+              <CardDescription>Chamados fechados (Fechados) versus em aberto (Abertos) agrupados por sprint.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={throughputData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} />
+                  <Legend />
+                  <Bar dataKey="Fechados" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Abertos" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Lower Row: Interactive Criticality Calculator & Forecast Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

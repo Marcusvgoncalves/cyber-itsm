@@ -35,8 +35,51 @@ export type TicketType = 'EPICO' | 'ATIVIDADE' | 'TAREFA';
 export type TicketStatus = 'ABERTO' | 'EM_ANDAMENTO' | 'BLOQUEADO' | 'FECHADO' | 'CANCELADO';
 export type TicketPriority = 'baixa' | 'media' | 'alta' | 'critica';
 export type FrameworkOrigem = 'NIST' | 'CIS' | 'SABSA' | 'ISO' | 'LGPD' | 'PCI-DSS';
+export type SprintStatus = 'PLANEJADA' | 'ATIVA' | 'CONCLUIDA';
+export type NotificationChannel = 'email' | 'in_app' | 'sms';
 
 export const FRAMEWORK_OPTIONS: FrameworkOrigem[] = ['NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS'];
+
+export interface Sprint {
+  id: string;
+  name: string;
+  goal: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: SprintStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationSetting {
+  id: string;
+  event_type: string;
+  channel: NotificationChannel;
+  enabled: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SecurityRequirement {
+  id: string;
+  controle: string;
+  detalhamento: string | null;
+  componente: string | null;
+  propriedade: string | null;
+  stride_lm: string | null;
+  riscos: string | null;
+  owasp: string | null;
+  categoria: string | null;
+  criticidade: string;
+  tipo_controle: string | null;
+  evidencia: string | null;
+  como_testar: string | null;
+  custom: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Ticket {
   id: string;
@@ -58,6 +101,9 @@ export interface Ticket {
   compliance_frameworks?: string[];
   attachmentName?: string | null;
   attachmentUrl?: string | null;
+  dueDate?: string | null;
+  sprintId?: string | null;
+  sprint?: Sprint | null;
   created_at: string;
   updated_at: string;
   closed_at?: string | null;
@@ -198,4 +244,29 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   admin: ['*'],
   analista: ['tickets:read', 'tickets:write', 'tickets:assign', 'status:read', 'comments:write'],
   solicitante: ['tickets:read', 'tickets:create', 'comments:write'],
+};
+
+export const SPRINT_STATUS_LABELS: Record<SprintStatus, string> = {
+  PLANEJADA: 'Planejada',
+  ATIVA: 'Ativa',
+  CONCLUIDA: 'Concluída',
+};
+
+export const SPRINT_STATUS_COLORS: Record<SprintStatus, string> = {
+  PLANEJADA: 'bg-blue-50 text-blue-700 border-blue-200',
+  ATIVA: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  CONCLUIDA: 'bg-slate-100 text-slate-600 border-slate-200',
+};
+
+export const NOTIFICATION_EVENT_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: 'ticket_created', label: 'Chamado Criado', description: 'Notificação por e-mail quando um novo chamado é criado' },
+  { value: 'ticket_updated', label: 'Chamado Atualizado', description: 'Notificação por e-mail quando um chamado é atualizado' },
+  { value: 'due_date', label: 'Vencimento (Due Date)', description: 'Alerta por e-mail de proximidade/estouro da data de vencimento (due date)' },
+  { value: 'sprint_start', label: 'Início de Sprint', description: 'Notificação por e-mail quando uma sprint entra em execução' },
+];
+
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  email: 'E-mail',
+  in_app: 'In-App',
+  sms: 'SMS',
 };

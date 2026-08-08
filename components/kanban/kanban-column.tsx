@@ -15,9 +15,10 @@ interface KanbanColumnProps {
   onTicketMove: (ticketId: string, newStatusId: string) => void;
   onTicketClick: (ticket: Ticket) => void;
   onAddTicket: (statusId: string) => void;
+  onQaRequest?: (ticket: Ticket) => void;
 }
 
-export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket }: KanbanColumnProps) {
+export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket, onQaRequest }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -98,6 +99,7 @@ export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onT
               onClick={() => onTicketClick(ticket)}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onQaRequest={onQaRequest}
             />
           ))
         )}

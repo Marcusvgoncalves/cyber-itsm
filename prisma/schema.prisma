@@ -59,6 +59,42 @@ model QaResult {
 }
 
 // ---------------------------------------------------------------------------
+// Sprint — Iteração de entrega do módulo de Gestão de Demandas (1 : N Ticket).
+// ---------------------------------------------------------------------------
+model Sprint {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  goal      String?
+  startDate DateTime? @map("start_date")
+  endDate   DateTime? @map("end_date")
+  status    String    @default("PLANEJADA") // PLANEJADA | ATIVA | CONCLUIDA
+  createdBy String?   @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  tickets   Ticket[]
+
+  @@index([status])
+  @@index([startDate])
+  @@map("sprints")
+}
+
+// ---------------------------------------------------------------------------
+// NotificationSetting — Preferências de notificação (e-mail/SMS/in-app).
+// ---------------------------------------------------------------------------
+model NotificationSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventType   String   @map("event_type") // ticket_created | ticket_updated | due_date | sprint_start
+  channel     String   @default("email") // email | in_app | sms
+  enabled     Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventType, channel])
+  @@map("notification_settings")
+}
+
+// ---------------------------------------------------------------------------
 // Ticket — Módulo de Gestão de Demandas (Estrutura Hierárquica Jira/Trello).
 // ---------------------------------------------------------------------------
 enum TicketType {
@@ -88,8 +124,14 @@ model Ticket {
   attachmentName  String?      @map("attachment_name")
   attachmentUrl   String?      @map("attachment_url")
 
+  dueDate         DateTime?    @map("due_date")
+  sprintId        String?      @map("sprint_id") @db.Uuid
+  sprint          Sprint?      @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+
   @@index([status])
   @@index([type])
   @@index([parentEpicId])
+  @@index([sprintId])
+  @@index([dueDate])
   @@map("tickets")
 }

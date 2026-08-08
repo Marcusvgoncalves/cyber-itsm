@@ -6,6 +6,7 @@ import {
   ScrollText,
   Network,
   Settings,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +48,10 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Sistema",
-    items: [{ path: "/dashboard", tab: "settings", label: "Configurações", icon: Settings }],
+    items: [
+      { path: "/dashboard", tab: "settings", label: "Configurações", icon: Settings },
+      { path: "/admin/cadastros", label: "Configurações e Cadastros", icon: Database, adminOnly: true },
+    ],
   },
 ];
 

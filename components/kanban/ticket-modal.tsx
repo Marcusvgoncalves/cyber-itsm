@@ -72,11 +72,14 @@ export function TicketModal({
     tags: '',
     attachmentName: '',
     attachmentUrl: '',
+    dueDate: '',
+    sprintId: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showTypeHelp, setShowTypeHelp] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [sprints, setSprints] = useState<any[]>([]);
   const [epicSearch, setEpicSearch] = useState("");
   const [isEpicDropdownOpen, setIsEpicDropdownOpen] = useState(false);
 
@@ -86,9 +89,15 @@ export function TicketModal({
   const [requirementOpinion, setRequirementOpinion] = useState<string | null>(null);
 
   useEffect(() => {
-    import("@/app/actions/tickets").then(({ getUsers }) => {
-      getUsers().then(setUsers).catch(console.error);
-    });
+    Promise.all([
+      import("@/app/actions/tickets").then(({ getUsers }) => getUsers()),
+      import("@/app/actions/cadastros").then(({ getSprints }) => getSprints()),
+    ])
+      .then(([usersList, sprintsList]) => {
+        setUsers(usersList);
+        setSprints(sprintsList);
+      })
+      .catch(console.error);
   }, []);
 
   // Lista de Épicos disponíveis para relacionamento pai
@@ -147,6 +156,8 @@ export function TicketModal({
         tags: ticket.tags?.join(', ') || '',
         attachmentName: ticket.attachmentName || '',
         attachmentUrl: ticket.attachmentUrl || '',
+        dueDate: ticket.dueDate ? new Date(ticket.dueDate).toISOString().slice(0, 10) : '',
+        sprintId: ticket.sprintId || '',
       });
 
       if (ticket.attachmentName) {
@@ -172,6 +183,8 @@ export function TicketModal({
         tags: '',
         attachmentName: '',
         attachmentUrl: '',
+        dueDate: '',
+        sprintId: '',
       });
       setAttachedFile(null);
     }
@@ -268,6 +281,8 @@ export function TicketModal({
       reporter_id: currentUser.id,
       attachmentName: formData.attachmentName || null,
       attachmentUrl: formData.attachmentUrl || null,
+      dueDate: formData.dueDate ? new Date(formData.dueDate + 'T12:00:00').toISOString() : null,
+      sprintId: formData.sprintId || null,
     };
 
     onSubmit(submitData);
@@ -576,6 +591,44 @@ export function TicketModal({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          {/* Sprint & Due Date Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="sprintId" className="block text-sm font-medium text-gray-700 mb-1">
+                Sprint
+              </Label>
+              <Select value={formData.sprintId || 'none'} onValueChange={(v: string) => handleChange('sprintId', v === 'none' ? '' : v)} disabled={isLoading}>
+                <SelectTrigger id="sprintId">
+                  <SelectValue placeholder="Selecione a sprint" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem sprint</SelectItem>
+                  {sprints.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <span className="font-semibold">{s.name}</span>
+                      <span className="ml-2 text-xs text-gray-400">
+                        {s.status === 'ATIVA' ? '· Ativa' : s.status === 'CONCLUIDA' ? '· Concluída' : ''}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Data de Vencimento (Due Date)
+              </Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => handleChange('dueDate', e.target.value)}
+                disabled={isLoading}
+              />
             </div>
           </div>
 

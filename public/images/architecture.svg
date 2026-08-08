@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1440" width="100%" height="100%">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#fafafa" />
@@ -32,6 +32,10 @@
       <stop offset="0%" stop-color="#f59e0b" />
       <stop offset="100%" stop-color="#d97706" />
     </linearGradient>
+    <linearGradient id="gSoD" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0891b2" />
+      <stop offset="100%" stop-color="#0e7490" />
+    </linearGradient>
     <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
     </marker>
@@ -40,18 +44,18 @@
     </filter>
   </defs>
 
-  <rect width="1280" height="1280" fill="url(#bg)" rx="16" />
+  <rect width="1280" height="1440" fill="url(#bg)" rx="16" />
 
   <!-- Title -->
   <text x="40" y="46" font-family="'Outfit','Segoe UI',sans-serif" font-size="28" font-weight="bold" fill="#0f172a">CyberITSM SPN — Desenho de Arquitetura da Solução (C4 Nível 2)</text>
-  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Governança IAM (SCIM/SAML), Esteira DevSecOps Multiagente &amp; RAG dos 314 Requisitos</text>
+  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Governança IAM (SCIM/SAML), Esteira DevSecOps Multiagente, RAG dos 314 Requisitos &amp; SoD Admin Panel</text>
 
   <!-- LAYER 1: USER & PERIMETER -->
   <g transform="translate(40,100)">
     <rect width="1200" height="110" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#shadow)" />
     <rect x="0" y="0" width="1200" height="30" rx="12" fill="#f1f5f9" />
     <rect x="0" y="18" width="1200" height="12" fill="#f1f5f9" />
-    <text x="16" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#334155">PERÍMETRO DE CLIENTE &amp; ACESSO REATIVO (Sessão 1h / 15m Idle Timeout · TOTP MFA)</text>
+    <text x="16" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#334155">PERÍMETRO DE CLIENTE &amp; ACESSO REATIVO (Sessão 1h / 15m Idle Timeout · TOTP MFA · Matriz SoD)</text>
     
     <g transform="translate(20,42)">
       <circle cx="18" cy="18" r="14" fill="url(#gUser)" />
@@ -61,7 +65,7 @@
     <g transform="translate(340,42)">
       <circle cx="18" cy="18" r="14" fill="url(#gMistica)" />
       <text x="42" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#1f2937">Admin / Gestor IAM</text>
-      <text x="42" y="34" font-family="'Outfit',sans-serif" font-size="10" fill="#64748b">SCIM, SAML, RBAC &amp; Auditoria</text>
+      <text x="42" y="34" font-family="'Outfit',sans-serif" font-size="10" fill="#64748b">SCIM, SAML, RBAC, Cadastros SoD</text>
     </g>
     <g transform="translate(680,42)">
       <circle cx="18" cy="18" r="14" fill="url(#gSupabase)" />
@@ -72,23 +76,24 @@
 
   <!-- LAYER 2: FRONTEND & DASHBOARDS -->
   <g transform="translate(40,240)">
-    <rect width="1200" height="230" rx="12" fill="#ffffff" stroke="#660099" stroke-width="2" filter="url(#shadow)" />
+    <rect width="1200" height="260" rx="12" fill="#ffffff" stroke="#660099" stroke-width="2" filter="url(#shadow)" />
     <rect width="1200" height="34" rx="12" fill="url(#gMistica)" />
     <rect y="18" width="1200" height="16" fill="url(#gMistica)" />
     <text x="16" y="22" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#ffffff">CAMADA FRONTEND — Next.js 16 App Router · SPA (React 19, Tailwind CSS v4, Recharts)</text>
 
     <g transform="translate(20,50)">
-      <rect width="270" height="160" rx="8" fill="#fcf7ff" stroke="#e9d5ff" />
+      <rect width="270" height="190" rx="8" fill="#fcf7ff" stroke="#e9d5ff" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#660099">Módulo Kanban &amp; Dashboard</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Drag-and-drop de chamados e anexos</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Volumetria em gráficos Recharts</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de criticidade de tickets</text>
-      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Previsões de SLA e demanda</text>
-      <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Compressão nativa de anexos &lt; 10MB</text>
+      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Sprints, Due Date e badges visuais</text>
+      <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Epic QA: Kanban ↔ Security QA Engine</text>
+      <text x="12" y="122" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Compressão nativa de anexos &lt; 10MB</text>
     </g>
 
     <g transform="translate(310,50)">
-      <rect width="270" height="160" rx="8" fill="#fef2f2" stroke="#fecaca" />
+      <rect width="270" height="190" rx="8" fill="#fef2f2" stroke="#fecaca" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#dc2626">Centro de Security QA &amp; Dashboard</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Ingestão de relatórios e anexos (OCR)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Security QA Analytics Dashboard</text>
@@ -97,7 +102,7 @@
     </g>
 
     <g transform="translate(600,50)">
-      <rect width="270" height="160" rx="8" fill="#fffbe5" stroke="#fef08a" />
+      <rect width="270" height="190" rx="8" fill="#fffbe5" stroke="#fef08a" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#d97706">Portal IAM / IGA</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• API SCIM v2.0 (/api/scim/v2/Users)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Endpoints SAML 2.0 SSO / Metadata</text>
@@ -106,40 +111,55 @@
     </g>
 
     <g transform="translate(890,50)">
-      <rect width="290" height="160" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+      <rect width="290" height="90" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#16a34a">Base de Conhecimento SD v4.1</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Catálogo interativo dos 314 requisitos</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Mapeamentos NIST, CIS, OWASP, STRIDE</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Guia de Uso Oficial em PDF</text>
-      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Fonte de contexto para o RAG de IA</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Fonte de contexto para o RAG de IA</text>
+    </g>
+
+    <!-- NEW: Cadastros & SoD -->
+    <g transform="translate(890,150)">
+      <rect width="290" height="90" rx="8" fill="#ecfeff" stroke="#a5f3fc" />
+      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0891b2">Configurações &amp; Cadastros (SoD)</text>
+      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Gestão de Sprints (CRUD + Auditoria)</text>
+      <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Preferências de Notificação (canais)</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Matriz Dinâmica de Requisitos (ADMIN)</text>
     </g>
   </g>
 
   <!-- LAYER 3: BACKEND API & MULTIAGENT AI PIPELINE -->
-  <g transform="translate(40,490)">
-    <rect width="1200" height="350" rx="12" fill="#ffffff" stroke="#1f2937" stroke-width="2" filter="url(#shadow)" />
+  <g transform="translate(40,520)">
+    <rect width="1200" height="380" rx="12" fill="#ffffff" stroke="#1f2937" stroke-width="2" filter="url(#shadow)" />
     <rect width="1200" height="34" rx="12" fill="url(#gVercel)" />
     <rect y="18" width="1200" height="16" fill="url(#gVercel)" />
-    <text x="16" y="22" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#ffffff">CAMADA BACKEND — Edge Proxy, Security QA Engine &amp; Esteira Multiagente de IA</text>
+    <text x="16" y="22" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#ffffff">CAMADA BACKEND — Edge Proxy, Security QA Engine, Cadastros SoD &amp; Esteira Multiagente de IA</text>
 
     <!-- Edge Proxy -->
     <g transform="translate(20,50)">
-      <rect width="360" height="280" rx="8" fill="#f8fafc" stroke="#e2e8f0" />
+      <rect width="360" height="310" rx="8" fill="#f8fafc" stroke="#e2e8f0" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Edge Proxy &amp; Middleware (proxy.ts)</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Validação síncrona de sessão e RBAC</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Interceptação contra estouro de cotas (HTTP 429)</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• SCIM, OAuth e Connectors B2B (MTLS)</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Server Actions para Kanban e Identidades</text>
+      <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Módulo Cadastros (cadastros.ts)</text>
+      <text x="12" y="132" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• CRUD Sprints com auditoria granular</text>
+      <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Upsert notificações (evento×canal)</text>
+      <text x="12" y="164" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• CRUD requisitos dinâmicos (custom=true)</text>
+      <text x="12" y="188" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Matriz RBAC/SoD (rbac.ts)</text>
+      <text x="12" y="206" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 3 perfis: ADMIN, USUARIO, SOLICITANTE</text>
+      <text x="12" y="222" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 8 permissões granulares com SoD check</text>
     </g>
 
     <!-- Multiagent AI Pipeline -->
     <g transform="translate(400,50)">
-      <rect width="780" height="280" rx="8" fill="#eeefbe" fill-opacity="0.2" stroke="#6366f1" stroke-width="1.5" />
+      <rect width="780" height="310" rx="8" fill="#eeefbe" fill-opacity="0.2" stroke="#6366f1" stroke-width="1.5" />
       <text x="16" y="24" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#4338ca">Esteira Multiagente de IA de 4 Camadas (Zero Downtime / Free Tier Focus)</text>
       
       <!-- Agente 1 -->
       <g transform="translate(16,40)">
-        <rect width="170" height="215" rx="6" fill="#ffffff" stroke="#818cf8" />
+        <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
         <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 1: Groq Engine</text>
         <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.3 70B Versatile</text>
         <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.1 8B Instant</text>
@@ -149,7 +169,7 @@
 
       <!-- Agente 2 -->
       <g transform="translate(200,40)">
-        <rect width="170" height="215" rx="6" fill="#ffffff" stroke="#818cf8" />
+        <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
         <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 2: OpenRouter</text>
         <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash Free</text>
         <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.3 70B Free</text>
@@ -159,7 +179,7 @@
 
       <!-- Agente 3 -->
       <g transform="translate(384,40)">
-        <rect width="170" height="215" rx="6" fill="#ffffff" stroke="#818cf8" />
+        <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
         <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 3: Google Gemini</text>
         <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash</text>
         <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash-Lite</text>
@@ -169,7 +189,7 @@
 
       <!-- Agente 4 -->
       <g transform="translate(568,40)">
-        <rect width="190" height="215" rx="6" fill="#f0fdf4" stroke="#4ade80" />
+        <rect width="190" height="245" rx="6" fill="#f0fdf4" stroke="#4ade80" />
         <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#166534">Camada 4: Fallback Regras</text>
         <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#15803d">• Análise Determinística</text>
         <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#15803d">• Correspondência de Tokens</text>
@@ -180,35 +200,41 @@
   </g>
 
   <!-- LAYER 4: DATABASE & STORAGE -->
-  <g transform="translate(40,860)">
-    <rect width="1200" height="360" rx="12" fill="#ffffff" stroke="#10b981" stroke-width="2" filter="url(#shadow)" />
+  <g transform="translate(40,920)">
+    <rect width="1200" height="460" rx="12" fill="#ffffff" stroke="#10b981" stroke-width="2" filter="url(#shadow)" />
     <rect width="1200" height="34" rx="12" fill="url(#gSupabase)" />
     <rect y="18" width="1200" height="16" fill="url(#gSupabase)" />
     <text x="16" y="22" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#ffffff">CAMADA DE PERSISTÊNCIA, STORAGE FORENSE &amp; GERADOR DE PDF</text>
 
     <!-- Supabase DB -->
     <g transform="translate(20,50)">
-      <rect width="360" height="280" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
+      <rect width="360" height="380" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#166534">Supabase PostgreSQL 16 &amp; Prisma ORM v7</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• PostgreSQL 16 com RLS (Row Level Security)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Prisma Client v7 com SqlDriverAdapter</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Tabelas: tickets, iam_users, audit_logs, qa_results</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Tabelas: tickets, qa_results, audit_logs</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Isolação multi-tenant e hash forense</text>
+      <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Novos Models (Cadastros SoD)</text>
+      <text x="12" y="132" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• sprints (id, name, goal, datas, status)</text>
+      <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• notification_settings (evento×canal)</text>
+      <text x="12" y="164" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• tickets.sprint_id FK + tickets.due_date</text>
+      <text x="12" y="180" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• security_requirements (custom=true)</text>
     </g>
 
     <!-- Supabase Storage -->
     <g transform="translate(400,50)">
-      <rect width="360" height="280" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
+      <rect width="360" height="380" rx="8" fill="#f8fafc" stroke="#cbd5e1" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Storage Forense (Supabase Storage)</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Bucket qa-temp-evidences: Ingestão bruta temporária</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Bucket qa-logs-archive: Cold storage em GZIP (.gz)</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Expurgo automático do dado bruto descomprimido</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• URLs assinados com tempo de expiração curto</text>
+      <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Bucket ticket-attachments: Anexos de chamados</text>
     </g>
 
     <!-- PDF Generator -->
     <g transform="translate(780,50)">
-      <rect width="400" height="280" rx="8" fill="#faf5ff" stroke="#e9d5ff" />
+      <rect width="400" height="380" rx="8" fill="#faf5ff" stroke="#e9d5ff" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#6b21a8">Gerador de Relatórios e Manual em PDF</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Componentes em React (@react-pdf/renderer)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Compilação em public/docs/guia-uso.pdf</text>

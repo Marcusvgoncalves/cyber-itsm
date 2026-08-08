@@ -2,13 +2,15 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Status, Ticket, TicketStatus, User, DEFAULT_STATUSES } from "@/lib/types";
+import { Status, Ticket, TicketStatus, User, DEFAULT_STATUSES, Sprint } from "@/lib/types";
 import { KanbanColumn } from "./kanban-column";
 import { TicketModal } from "./ticket-modal";
 import { PlusIcon, RefreshCw, BarChart3, LayoutGrid, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanDashboard } from "./kanban-dashboard";
+import { EpicQaModal } from "./epic-qa-modal";
 import { createTicket, moveTicket, updateTicket, getTickets, getStatuses } from "@/app/actions/tickets";
+import { getSprints } from "@/app/actions/cadastros";
 import { isAllowedTransition, ALLOWED_TRANSITIONS, canCloseEpic } from "@/lib/domain/ticketRules";
 import { useTransition } from "react";
 
@@ -32,7 +34,9 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
   const [newTicketStatusId, setNewTicketStatusId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [_, startTransition] = useTransition();
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [qaTicket, setQaTicket] = useState<Ticket | null>(null);
+  const [, startTransition] = useTransition();
 
   const handleTicketMove = useCallback((ticketId: string, newStatusId: string) => {
     setValidationError(null);
@@ -163,9 +167,14 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     setIsLoading(true);
     setValidationError(null);
     try {
-      const [freshTickets, freshStatuses] = await Promise.all([getTickets(), getStatuses()]);
+      const [freshTickets, freshStatuses, freshSprints] = await Promise.all([
+        getTickets(),
+        getStatuses(),
+        getSprints().catch(() => [] as Sprint[]),
+      ]);
       setTickets(freshTickets);
       setStatuses(freshStatuses.length > 0 ? freshStatuses : DEFAULT_STATUSES);
+      setSprints(freshSprints);
     } catch (error: any) {
       console.error('Erro ao atualizar:', error);
       setValidationError(error.message || 'Erro ao atualizar lista.');
@@ -174,10 +183,19 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     }
   }, []);
 
+  // Carrega as sprints na montagem para o filtro do Analytics e o modal QA.
+  useEffect(() => {
+    getSprints().then(setSprints).catch(() => setSprints([]));
+  }, []);
+
   const ticketsByStatus = statuses.reduce((acc, status) => {
     acc[status.id] = tickets.filter((t) => t.status === status.id);
     return acc;
   }, {} as Record<string, Ticket[]>);
+
+  const handleQaTicket = useCallback((ticket: Ticket) => {
+    setQaTicket(ticket);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -244,6 +262,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           <KanbanDashboard
             tickets={tickets}
             statuses={statuses}
+            sprints={sprints}
             onClose={() => setShowDashboard(false)}
           />
         </div>
@@ -259,6 +278,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
                   onTicketMove={handleTicketMove}
                   onTicketClick={handleTicketClick}
                   onAddTicket={handleAddTicket}
+                  onQaRequest={handleQaTicket}
                 />
               </div>
             ))}
@@ -280,6 +300,15 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           isLoading={isLoading}
         />
       ) : null}
+
+      {/* Modal de Teste de Segurança de Épicos */}
+      {qaTicket && (
+        <EpicQaModal
+          ticket={qaTicket}
+          sprints={sprints}
+          onClose={() => setQaTicket(null)}
+        />
+      )}
     </div>
   );
 }

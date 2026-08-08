@@ -7,7 +7,7 @@
 [![Vercel AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-Multiagent-000000?logo=vercel)](https://sdk.vercel.ai/)
 [![License](https://img.shields.io/badge/License-Proprietary-660099.svg)](LICENSE)
 
-> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente e Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1.
+> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente, Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1 e **Painel de Configurações e Cadastros com Segregação de Funções (SoD)**.
 
 ---
 
@@ -15,7 +15,7 @@
 
 ### 🌐 Visão Geral da Arquitetura (C4 Nível 2)
 
-A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resiliência sem ponto único de falha (*Zero Downtime*), combinando execução Serverless Edge na Vercel com banco PostgreSQL no Supabase, inteligência multiagente e barramento SCIM v2.0 / SAML 2.0.
+A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resiliência sem ponto único de falha (*Zero Downtime*), combinando execução Serverless Edge na Vercel com banco PostgreSQL no Supabase, inteligência multiagente e barramento SCIM v2.0 / SAML 2.0. A camada de governança conta com **Matriz SoD (Separation of Duties)** granular para segregação de funções entre perfis ADMIN, USUARIO e SOLICITANTE.
 
 ![Desenho de Arquitetura CyberITSM SPN](public/images/architecture.svg)
 
@@ -38,6 +38,10 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
   - **Guardrail de Fechamento de Épicos**: Um Épico SÓ PODE ser movido para `FECHADO` se todas as suas filhas (Atividades/Tarefas) estiverem em `FECHADO` ou `CANCELADO`.
 - **Componente de Checklist Integrado**:
   - Inserção dinâmica, alternância de conclusão e remoção de itens de validação com barra de progresso visual % em tempo real.
+- **Sprint & Due Date Management**:
+  - Associação de chamados a **Sprints** cadastradas (Planejada, Ativa, Concluída).
+  - Campo **Due Date** (data de vencimento) com alertas visuais de proximidade/estouro.
+  - Badges de sprint e data limite diretamente nos cards do Kanban.
 - **Visualização & Dashboard Analytics**:
   - Badges coloridos por tipo (Épico: Roxo, Atividade: Azul, Tarefa: Verde) e tag com título do Épico Pai.
   - **Alerta Visual de Drag-and-Drop**: Bloqueio imediato com aviso amigável ao tentar arrastar card para coluna cujo fluxo de status seja inválido.
@@ -45,6 +49,7 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
 - **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor aplica OCR e parsing avançado, cruzando cada evidência com o escopo de requisitos de arquitetura e devolvendo um laudo de conformidade %.
+- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise com stream SSE em tempo real, exibindo barra de progresso de conformidade e redirecionando ao laudo finalizado.
 - **Security QA Analytics Dashboard**:
   - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
   - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
@@ -73,6 +78,13 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 - **Segurança MTLS (Mutual TLS)**: Suporte para exigência de certificados de cliente (Client Certificate `.pem/.crt` e Private Key `.key`) para conexões outbound seguras com outros ambientes.
 - **Auditoria Transacional e Exportação CSV**: Rastreabilidade imutável de eventos operacionais e transacionais (HTTP, IPs, Métodos API) com função front-end de geração instantânea e download de relatório estruturado em formato CSV.
 
+#### 7. ⚙️ Configurações e Cadastros (Painel SoD Admin)
+- **Segregação de Funções (Matriz SoD)**: O módulo é protegido por uma **Matriz SoD (Separation of Duties)** com 3 perfis (`ADMIN`, `USUARIO`, `SOLICITANTE`) e **8 permissões granulares**. Apenas o perfil ADMIN possui acesso de escrita (criação, edição, exclusão) aos cadastros abaixo.
+- **Gestão de Sprints**: Cadastro completo de iterações de entrega com campos de nome, objetivo (goal), datas de início/fim e status (`Planejada`, `Ativa`, `Concluída`). Vinculação direta aos chamados do Kanban.
+- **Preferências de Notificação**: Configuração de gatilhos de notificação por evento (`chamado criado`, `chamado atualizado`, `vencimento de due date`, `início de sprint`) com canais (E-mail, In-App, SMS) e toggles de ativação.
+- **Matriz Dinâmica de Requisitos**: CRUD completo de requisitos customizados de segurança complementares à base estática dos 314 controles SD v4.1. Inclui campos de controle, criticidade, componente, STRIDE, OWASP, detalhamento e como testar.
+- **Auditoria de Operações**: Toda operação de criação, edição e exclusão nos cadastros gera um registro imutável na trilha de auditoria (`audit_logs`).
+
 ---
 
 ### 🔐 Política de Sessão & Autenticação
@@ -90,7 +102,7 @@ Esteira de resiliência encadeada em **4 Camadas** com suporte a RAG sobre os 31
 
 ### 🌐 Architecture Overview (C4 Level 2)
 
-The architecture is designed for high availability and zero single points of failure (*Zero Downtime*). It combines Serverless Edge execution on Vercel with PostgreSQL database on Supabase, multiagent LLM resiliency, and a SCIM v2.0 / SAML 2.0 governance bus.
+The architecture is designed for high availability and zero single points of failure (*Zero Downtime*). It combines Serverless Edge execution on Vercel with PostgreSQL database on Supabase, multiagent LLM resiliency, and a SCIM v2.0 / SAML 2.0 governance bus. The governance layer includes a granular **SoD (Separation of Duties) Matrix** for function segregation across ADMIN, USER, and REQUESTER profiles.
 
 ![CyberITSM SPN Architecture Diagram](public/images/architecture.svg)
 
@@ -113,6 +125,10 @@ The architecture is designed for high availability and zero single points of fai
   - **Epic Closing Guardrail**: An Epic CANNOT be moved to `FECHADO` unless all its child items (Activities/Tasks) are in `FECHADO` or `CANCELADO`.
 - **Integrated Interactive Checklist**:
   - Dynamic item addition, completion toggle, and removal with real-time visual progress percentage bar.
+- **Sprint & Due Date Management**:
+  - Link tickets to registered **Sprints** (Planned, Active, Completed).
+  - **Due Date** field with visual proximity/overdue alerts.
+  - Sprint and due date badges directly on Kanban cards.
 - **Visuals & Analytics**:
   - Color badges per type (Epic: Purple, Activity: Blue, Task: Green) and Parent Epic tag.
   - **Drag-and-Drop Visual Alert**: Instant block and friendly warning banner if dragging to an invalid status transition column.
@@ -120,6 +136,7 @@ The architecture is designed for high availability and zero single points of fai
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
 - **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine applies OCR and advanced parsing, cross-referencing evidence line-by-line against security requirements and outputs a compliance % audit report.
+- **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic (tags, origin framework) and runs the analysis with real-time SSE streaming, displaying a compliance progress bar and redirecting to the finalized audit report.
 - **Security QA Analytics Dashboard**:
   - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
   - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.
@@ -148,6 +165,13 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 - **MTLS Security (Mutual TLS)**: Support for client certificate requirement (Client Certificate `.pem/.crt` and Private Key `.key`) for secure outbound connections with other environments.
 - **Transactional Audit and CSV Export**: Immutable traceability of operational and transactional events (HTTP, APIs, IPs) with front-end function for instant generation and download of structured reports in CSV format.
 
+#### 7. ⚙️ Settings & Registration (SoD Admin Panel)
+- **Separation of Duties (SoD Matrix)**: The module is protected by a **SoD (Separation of Duties) Matrix** with 3 profiles (`ADMIN`, `USER`, `REQUESTER`) and **8 granular permissions**. Only the ADMIN profile has write access (create, edit, delete) to the registrations below.
+- **Sprint Management**: Full CRUD for delivery iterations with name, goal, start/end dates, and status (`Planned`, `Active`, `Completed`). Direct linkage to Kanban tickets.
+- **Notification Preferences**: Event-driven notification triggers (`ticket created`, `ticket updated`, `due date approaching`, `sprint start`) with channel selection (Email, In-App, SMS) and activation toggles.
+- **Dynamic Requirements Matrix**: Full CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
+- **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).
+
 ---
 
 ### 💻 Stack Tecnológica / Tech Stack
@@ -157,6 +181,7 @@ A **4-Tier Resiliency Pipeline** featuring RAG capabilities over the 314 securit
 - **AI Infrastructure**: Vercel AI SDK 3.3, Groq, OpenRouter, Google Gemini, Zod Schemas
 - **UI & Styling**: Tailwind CSS v4, Recharts, Lucide Icons, Radix UI
 - **Storage & PDF**: Supabase Storage (`qa-logs-archive`), `@react-pdf/renderer`
+- **Security & Governance**: RBAC/SoD Matrix, SCIM v2.0, SAML 2.0, MTLS, MFA/TOTP (RFC 6238)
 
 ---
 

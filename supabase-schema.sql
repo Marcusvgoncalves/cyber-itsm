@@ -18,8 +18,14 @@ DROP TRIGGER IF EXISTS trigger_iam_users_updated_at ON public.iam_users;
 DROP TRIGGER IF EXISTS trigger_identity_requests_updated_at ON public.identity_requests;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS trigger_ticket_closed ON public.tickets;
+DROP TRIGGER IF EXISTS trigger_sprints_updated_at ON public.sprints;
+DROP TRIGGER IF EXISTS trigger_notification_settings_updated_at ON public.notification_settings;
+DROP TRIGGER IF EXISTS trigger_security_requirements_updated_at ON public.security_requirements;
 
 -- Drop tables if they exist to ensure clean state (in order of dependencies)
+DROP TABLE IF EXISTS public.notification_settings CASCADE;
+DROP TABLE IF EXISTS public.sprints CASCADE;
+DROP TABLE IF EXISTS public.security_requirements CASCADE;
 DROP TABLE IF EXISTS public.identity_requests CASCADE;
 DROP TABLE IF EXISTS public.iam_users CASCADE;
 DROP TABLE IF EXISTS public.iam_providers CASCADE;
@@ -116,6 +122,8 @@ CREATE TABLE public.tickets (
   reporter_id UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
   tags TEXT[] DEFAULT '{}',
   compliance_frameworks TEXT[] DEFAULT '{}',
+  due_date TIMESTAMPTZ,
+  sprint_id UUID REFERENCES public.sprints(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   closed_at TIMESTAMPTZ
@@ -126,11 +134,12 @@ CREATE INDEX idx_tickets_status ON public.tickets(status);
 CREATE INDEX idx_tickets_type ON public.tickets(type);
 CREATE INDEX idx_tickets_parent_epic_id ON public.tickets(parent_epic_id);
 CREATE INDEX idx_tickets_priority ON public.tickets(priority);
-CREATE INDEX idx_tickets_priority ON public.tickets(priority);
 CREATE INDEX idx_tickets_framework_origem ON public.tickets(framework_origem);
 CREATE INDEX idx_tickets_assignee_id ON public.tickets(assignee_id);
 CREATE INDEX idx_tickets_reporter_id ON public.tickets(reporter_id);
 CREATE INDEX idx_tickets_created_at ON public.tickets(created_at DESC);
+CREATE INDEX idx_tickets_sprint_id ON public.tickets(sprint_id);
+CREATE INDEX idx_tickets_due_date ON public.tickets(due_date);
 
 -- Trigger for updated_at
 CREATE TRIGGER trigger_tickets_updated_at
@@ -140,7 +149,87 @@ CREATE TRIGGER trigger_tickets_updated_at
 
 
 -- ============================================
--- 4. COMMENTS TABLE
+-- 4. SPRINTS TABLE (Iterações de entrega)
+-- ============================================
+
+CREATE TABLE public.sprints (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  goal TEXT,
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'PLANEJADA' CHECK (status IN ('PLANEJADA', 'ATIVA', 'CONCLUIDA')),
+  created_by UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_sprints_status ON public.sprints(status);
+CREATE INDEX idx_sprints_start_date ON public.sprints(start_date);
+
+CREATE TRIGGER trigger_sprints_updated_at
+  BEFORE UPDATE ON public.sprints
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 5. NOTIFICATION_SETTINGS TABLE (Preferências)
+-- ============================================
+
+CREATE TABLE public.notification_settings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_type TEXT NOT NULL,
+  channel TEXT NOT NULL DEFAULT 'email' CHECK (channel IN ('email', 'in_app', 'sms')),
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (event_type, channel)
+);
+
+CREATE TRIGGER trigger_notification_settings_updated_at
+  BEFORE UPDATE ON public.notification_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 6. SECURITY_REQUIREMENTS TABLE (Matriz dinâmica)
+--    Requisitos customizados/adicionados pela governança (ADMIN).
+-- ============================================
+
+CREATE TABLE public.security_requirements (
+  id TEXT PRIMARY KEY,
+  controle TEXT NOT NULL,
+  detalhamento TEXT,
+  componente TEXT,
+  propriedade TEXT,
+  stride_lm TEXT,
+  riscos TEXT,
+  owasp TEXT,
+  categoria TEXT,
+  criticidade TEXT NOT NULL DEFAULT 'Moderado',
+  tipo_controle TEXT,
+  evidencia TEXT,
+  como_testar TEXT,
+  custom BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_security_requirements_criticidade ON public.security_requirements(criticidade);
+CREATE INDEX idx_security_requirements_componente ON public.security_requirements(componente);
+
+CREATE TRIGGER trigger_security_requirements_updated_at
+  BEFORE UPDATE ON public.security_requirements
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================
+-- 7. COMMENTS TABLE
 -- ============================================
 
 CREATE TABLE public.comments (
@@ -264,6 +353,9 @@ CREATE TRIGGER trigger_identity_requests_updated_at
 ALTER TABLE public.users_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_statuses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sprints ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.security_requirements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.iam_providers ENABLE ROW LEVEL SECURITY;
@@ -292,6 +384,18 @@ CREATE POLICY "Reporters can update own tickets" ON public.tickets FOR UPDATE TO
 CREATE POLICY "Assignees can update assigned tickets" ON public.tickets FOR UPDATE TO authenticated USING (auth.uid() = assignee_id);
 CREATE POLICY "Admins and Analistas can update any ticket" ON public.tickets FOR UPDATE TO authenticated USING (public.is_admin_or_analista());
 CREATE POLICY "Admins can delete tickets" ON public.tickets FOR DELETE TO authenticated USING (public.is_admin());
+
+-- sprints policies
+CREATE POLICY "Authenticated can view sprints" ON public.sprints FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage sprints" ON public.sprints FOR ALL TO authenticated USING (public.is_admin());
+
+-- notification_settings policies
+CREATE POLICY "Authenticated can view notification settings" ON public.notification_settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage notification settings" ON public.notification_settings FOR ALL TO authenticated USING (public.is_admin());
+
+-- security_requirements policies
+CREATE POLICY "Authenticated can view security requirements" ON public.security_requirements FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can manage security requirements" ON public.security_requirements FOR ALL TO authenticated USING (public.is_admin());
 
 -- comments policies
 CREATE POLICY "Authenticated can view comments" ON public.comments FOR SELECT TO authenticated USING (true);
@@ -404,6 +508,14 @@ INSERT INTO public.iam_providers (id, name, type, config, is_active) VALUES
   ('sailpoint', 'Sailpoint IdentityNow', 'sailpoint', '{"governance_enabled": true}'::jsonb, true)
 ON CONFLICT (id) DO NOTHING;
 
+-- Seed default notification settings
+INSERT INTO public.notification_settings (event_type, channel, enabled, description) VALUES
+  ('ticket_created', 'email', true, 'Notificação por e-mail quando um novo chamado é criado'),
+  ('ticket_updated', 'email', true, 'Notificação por e-mail quando um chamado é atualizado'),
+  ('due_date', 'email', true, 'Alerta por e-mail de proximidade/estouro da data de vencimento (due date)'),
+  ('sprint_start', 'email', true, 'Notificação por e-mail quando uma sprint entra em execução')
+ON CONFLICT (event_type, channel) DO NOTHING;
+
 
 -- ============================================
 -- 12. GRANTS
@@ -414,6 +526,12 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.users_profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.tickets TO authenticated;
 GRANT SELECT ON public.ticket_statuses TO authenticated;
+GRANT SELECT ON public.sprints TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sprints TO authenticated;
+GRANT SELECT ON public.notification_settings TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.notification_settings TO authenticated;
+GRANT SELECT ON public.security_requirements TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.security_requirements TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.comments TO authenticated;
 GRANT SELECT, INSERT ON public.audit_logs TO authenticated;
 GRANT SELECT ON public.iam_providers TO authenticated;

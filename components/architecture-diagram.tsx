@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   BarChart3,
   FileArchive,
-  KeyRound
+  KeyRound,
+  Settings,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,12 +59,13 @@ export function ArchitectureDiagram() {
     frontend: {
       title: "Frontend SPA (Next.js 16 App Router)",
       subtitle: "Interface Reativa & Dashboards Interativos",
-      desc: "Aplicação Next.js 16 em React 19 renderizada no cliente. Inclui Kanban Board Hierárquico (Épico/Atividade/Tarefa), Checklist Interativo, Dashboard Volumétrico com calculadora de criticidade, Dashboard de Security QA com Recharts e catálogo da Base de Conhecimento.",
+      desc: "Aplicação Next.js 16 em React 19 renderizada no cliente. Inclui Kanban Board Hierárquico (Épico/Atividade/Tarefa), Checklist Interativo, Dashboard Volumétrico com calculadora de criticidade, Dashboard de Security QA com Recharts, catálogo da Base de Conhecimento e Painel de Configurações & Cadastros com Matriz SoD.",
       details: [
         "Kanban Hierárquico Jira/Trello (Épico, Atividade, Tarefa) e Checklist com barra de %",
         "Validação de Drag-and-Drop em tempo real contra a matriz de transições de status",
         "Kanban & Security QA Dashboards com gráficos Recharts e calculadoras de criticidade",
-        "Catálogo interativo com busca instantânea dos 314 Requisitos SD v4.1",
+        "Gestão de Sprints, Due Dates e Epic QA (Kanban ↔ Security QA Engine)",
+        "Painel de Configurações & Cadastros com proteção SoD (Admin-Only)",
       ],
       tools: ["React 19", "Next.js 16", "Tailwind CSS v4", "Recharts", "Lucide Icons", "Radix UI"],
       color: "border-purple-600 bg-purple-50/80 text-purple-800",
@@ -71,15 +73,16 @@ export function ArchitectureDiagram() {
     },
     backend: {
       title: "Edge Proxy, Validações & Server Actions",
-      subtitle: "Roteamento Edge, Máquina de Estados & Conectores",
-      desc: "Serverless API na Vercel com Middleware Proxy (`proxy.ts`) e Server Actions (`tickets.ts`). Garante a máquina de estados estrita de chamados, imutabilidade do tipo, guardrails de fechamento de Épicos e executa conectores B2B (Jira, ServiceNow, M365) via MTLS.",
+      subtitle: "Roteamento Edge, Máquina de Estados, SoD & Conectores",
+      desc: "Serverless API na Vercel com Middleware Proxy (`proxy.ts`) e Server Actions (`tickets.ts`, `cadastros.ts`). Garante a máquina de estados estrita de chamados, imutabilidade do tipo, guardrails de fechamento de Épicos, CRUD de cadastros com Matriz SoD e executa conectores B2B (Jira, ServiceNow, M365) via MTLS.",
       details: [
         "Validação centralizada de Máquina de Estados (ABERTO, EM_ANDAMENTO, BLOQUEADO, FECHADO, CANCELADO)",
         "Guardrail de fechamento de Épicos e Imutabilidade do Tipo de chamado pós-criação",
+        "Server Actions de Cadastros protegidas por Matriz SoD (ADMIN-only via rbac.ts)",
         "Integrações nativas B2B seguras com Jira, ServiceNow e Microsoft 365 via MTLS",
         "Endpoints SCIM v2.0 (/api/scim/v2/Users) e SAML 2.0 SSO",
       ],
-      tools: ["Vercel Edge Network", "MTLS / Certificados PEM", "B2B Connectors", "TypeScript", "HTTP 429 Interceptor"],
+      tools: ["Vercel Edge Network", "MTLS / Certificados PEM", "B2B Connectors", "RBAC/SoD Matrix", "TypeScript"],
       color: "border-gray-800 bg-gray-100 text-gray-900",
       iconBg: "bg-gray-800 text-white",
     },
@@ -114,10 +117,11 @@ export function ArchitectureDiagram() {
     database: {
       title: "Supabase BaaS & Prisma ORM v7",
       subtitle: "Persistência Relacional & RLS Multi-tenant",
-      desc: "Banco de dados PostgreSQL 16 hospedado no Supabase. Utiliza Row Level Security (RLS) para isolamento rigoroso entre tenants. Gerencia perfis, chamados, logs de auditoria e os modelos de Security QA via Prisma ORM v7 com SqlDriverAdapter.",
+      desc: "Banco de dados PostgreSQL 16 hospedado no Supabase. Utiliza Row Level Security (RLS) para isolamento rigoroso entre tenants. Gerencia perfis, chamados, sprints, notificações, requisitos dinâmicos, logs de auditoria e os modelos de Security QA via Prisma ORM v7 com SqlDriverAdapter.",
       details: [
         "PostgreSQL 16 com políticas RLS por empresa/tenant",
         "Prisma ORM v7 com SqlDriverAdapter para máxima performance SQL",
+        "Models: Sprint, NotificationSetting, Ticket (sprint_id, due_date) e QaResult",
         "Trilha de auditoria imutável com timestamp forense",
         "Armazenamento de evidências brutas e arquivadas no Supabase Storage",
       ],
@@ -152,6 +156,21 @@ export function ArchitectureDiagram() {
       tools: ["JSON Dataset (314 items)", "Busca por Expressões", "Catálogo Interativo UI", "Framework SD v4.1"],
       color: "border-teal-600 bg-teal-50/80 text-teal-800",
       iconBg: "bg-teal-600 text-white",
+    },
+    cadastros_sod: {
+      title: "Configurações & Cadastros (SoD Admin Panel)",
+      subtitle: "Governança de Sprints, Notificações & Requisitos Dinâmicos",
+      desc: "Módulo de governança restrito ao perfil ADMIN com Matriz SoD (Separation of Duties). Permite o cadastro e gestão de Sprints de entrega, Preferências de Notificação por evento e canal, e uma Matriz Dinâmica de Requisitos de Segurança customizados que complementam a base estática dos 314 controles SD v4.1.",
+      details: [
+        "Matriz SoD: 3 perfis (ADMIN, USUARIO, SOLICITANTE) e 8 permissões granulares",
+        "CRUD de Sprints com auditoria (nome, objetivo, datas, status)",
+        "Configuração de Notificações por evento × canal com toggles de ativação",
+        "CRUD de Requisitos Dinâmicos (custom=true) com ID, controle, STRIDE, OWASP",
+        "Toda operação gera registro na trilha de auditoria (audit_logs)",
+      ],
+      tools: ["Server Actions (cadastros.ts)", "RBAC Matrix (rbac.ts)", "Prisma ORM v7", "Audit Trail", "SoD Enforcement"],
+      color: "border-cyan-600 bg-cyan-50/80 text-cyan-800",
+      iconBg: "bg-cyan-600 text-white",
     },
   };
 
@@ -324,6 +343,26 @@ export function ArchitectureDiagram() {
                 <div>
                   <h4 className="font-bold text-sm text-gray-900">Portal IAM / IGA</h4>
                   <p className="text-xs text-gray-500">SCIM v2.0 + SAML 2.0</p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
+                activeNode === "cadastros_sod" ? "border-cyan-600 shadow-lg shadow-cyan-100 scale-105" : "border-gray-200 hover:border-cyan-300 bg-gray-50/50"
+              }`}
+              onClick={() => {
+                setActiveNode("cadastros_sod");
+                setSelectedNodeModal("cadastros_sod");
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-600 text-white">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-900">Cadastros &amp; SoD</h4>
+                  <p className="text-xs text-gray-500">Sprints, Notif. &amp; Requisitos</p>
                 </div>
               </div>
             </div>
