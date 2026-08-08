@@ -222,7 +222,7 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   try {
     const { data: previous, error: fetchErr } = await supabase
       .from('tickets')
-      .select('id, title, type, status, priority, assignee, parent_epic_id, assignee_id')
+      .select('id, title, type, status, priority, assignee, parent_epic_id, assignee_id, attachment_url')
       .eq('id', id)
       .single();
 
@@ -276,6 +276,20 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     const parentEpicVal = updates.parentEpicId !== undefined ? updates.parentEpicId : updates.parent_epic_id;
     if (parentEpicVal !== undefined) {
       sanitized.parent_epic_id = parentEpicVal || null;
+    }
+
+    // Se o anexo foi substituído ou removido, exclui o arquivo anterior do Storage
+    const prevAttachmentUrl = previous.attachment_url;
+    const newAttachmentUrl = sanitized.attachment_url;
+
+    if (prevAttachmentUrl && prevAttachmentUrl !== newAttachmentUrl) {
+      try {
+        await supabase.storage
+          .from('qa-temp-evidences')
+          .remove([prevAttachmentUrl]);
+      } catch (err) {
+        console.error('[Storage/Cleanup] Falha ao excluir arquivo do chamado:', err);
+      }
     }
 
     const { data, error } = await supabase
@@ -404,6 +418,24 @@ export async function moveTicket(ticketId: string, newStatusId: string): Promise
 export async function deleteTicket(id: string): Promise<void> {
   const supabase = await createClient();
 
+  // 1. Busca o anexo existente para exclusão física
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('attachment_url')
+    .eq('id', id)
+    .single();
+
+  if (ticket?.attachment_url) {
+    try {
+      await supabase.storage
+        .from('qa-temp-evidences')
+        .remove([ticket.attachment_url]);
+    } catch (err) {
+      console.error('[Storage/Cleanup] Falha ao excluir arquivo no expurgo do chamado:', err);
+    }
+  }
+
+  // 2. Exclui do banco de dados
   const { error } = await supabase
     .from('tickets')
     .delete()

@@ -640,9 +640,33 @@ export function TicketModal({
                     <span className="text-slate-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
                   )}
                 </div>
-                <span className="text-emerald-600 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> GZIP Ready
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-600 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> GZIP Ready
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                    onClick={async () => {
+                      const client = createClient();
+                      const pathToDelete = attachedFile.url || formData.attachmentUrl;
+                      if (pathToDelete) {
+                        await client.storage.from("qa-temp-evidences").remove([pathToDelete]).catch(console.error);
+                      }
+                      setAttachedFile(null);
+                      setFormData((prev) => ({
+                        ...prev,
+                        attachmentName: '',
+                        attachmentUrl: '',
+                      }));
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             )}
 
