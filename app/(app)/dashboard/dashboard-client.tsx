@@ -60,9 +60,18 @@ export function DashboardClient({
     setActiveTab(initialTab);
   }, [initialTab]);
 
-  // Knowledge base search state
+  // Knowledge base search state & lazy-loaded requirements
   const [searchReq, setSearchReq] = useState("");
   const [expandedReq, setExpandedReq] = useState<string | null>(null);
+  const [securityRequirements, setSecurityRequirements] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (activeTab === 'knowledge' && securityRequirements.length === 0) {
+      import("../../../requisitos-sd.json").then((mod) => {
+        setSecurityRequirements(mod.default);
+      });
+    }
+  }, [activeTab, securityRequirements.length]);
 
   // Local state for reloading lists after actions
   const [iamUsers, setIamUsers] = useState<IamUser[]>(initialIamUsers);
