@@ -30,7 +30,7 @@ function buildTicketUrl(ticketId: string): string {
  * falhas são apenas logadas. Isso garante que o fluxo principal
  * (criação/atualização de chamado) não quebre por causa de e-mail.
  */
-async function sendTicketNotificationEmail(
+export async function sendTicketNotificationEmail(
   props: TicketNotificationProps,
   ticketRecipients: string[]
 ): Promise<void> {
@@ -69,21 +69,26 @@ export async function notifyTicketCreated(ticket: Ticket): Promise<void> {
   const recipients = collectRecipients(ticket);
 
   try {
-    await sendTicketNotificationEmail(
-      {
-        type: 'created',
-        ticketId: ticket.id,
-        ticketUrl: buildTicketUrl(ticket.id),
-        title: ticket.title,
-        description: ticket.description,
-        statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
-        priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
-        frameworkOrigem: ticket.framework_origem,
-        reporterName: ticket.reporter?.full_name,
-        assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
-      },
-      recipients
-    );
+    const props = {
+      type: 'created',
+      ticketId: ticket.id,
+      ticketUrl: buildTicketUrl(ticket.id),
+      title: ticket.title,
+      description: ticket.description,
+      statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
+      priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
+      frameworkOrigem: ticket.framework_origem,
+      reporterName: ticket.reporter?.full_name,
+      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
+    };
+
+    const baseUrl = emailConfig.appUrl || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/emails/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ props, recipients }),
+    }).catch(console.error);
+
   } catch (err) {
     console.error('[email] Erro ao notificar criação do chamado:', err);
   }
@@ -94,22 +99,27 @@ export async function notifyTicketUpdated(ticket: Ticket, changes: string[]): Pr
   const recipients = collectRecipients(ticket);
 
   try {
-    await sendTicketNotificationEmail(
-      {
-        type: 'updated',
-        ticketId: ticket.id,
-        ticketUrl: buildTicketUrl(ticket.id),
-        title: ticket.title,
-        description: ticket.description,
-        statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
-        priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
-        frameworkOrigem: ticket.framework_origem,
-        reporterName: ticket.reporter?.full_name,
-        assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
-        changes,
-      },
-      recipients
-    );
+    const props = {
+      type: 'updated',
+      ticketId: ticket.id,
+      ticketUrl: buildTicketUrl(ticket.id),
+      title: ticket.title,
+      description: ticket.description,
+      statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
+      priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
+      frameworkOrigem: ticket.framework_origem,
+      reporterName: ticket.reporter?.full_name,
+      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
+      changes,
+    };
+
+    const baseUrl = emailConfig.appUrl || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/emails/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ props, recipients }),
+    }).catch(console.error);
+
   } catch (err) {
     console.error('[email] Erro ao notificar atualização do chamado:', err);
   }
