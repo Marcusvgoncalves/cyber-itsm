@@ -125,13 +125,13 @@ const ANALYSIS_SCHEMA = z.object({
 });
 
 const SYSTEM_PROMPT = `Você é um Engenheiro de AppSec Sênior. Sua tarefa é analisar o relatório de vulnerabilidades e propor SOLUÇÕES TÉCNICAS DIRETAS.
-Sua missão é CRUZAR, um a um, os requisitos de arquitetura segura fornecidos com as vulnerabilidades e evidências encontradas no relatório de segurança (JSON/XML/TXT).
+Sua missão é CRUZAR, um a um, TODOS os requisitos de arquitetura segura fornecidos no escopo com as vulnerabilidades e evidências encontradas no relatório de segurança (JSON/XML/TXT).
 
 REGRAS OBRIGATÓRIAS:
-1. Avalie cada requisito do escopo e classifique em "conforme", "parcial" ou "nao_conforme".
-2. Para CADA requisito 'Não conforme' ou 'Parcial', você é OBRIGADO a fornecer em 'recommendation' o comando exato, a configuração de código ou o ajuste de infraestrutura necessário para sanar a falha. PROIBIDO usar verbos genéricos como 'Implantar', 'Verificar' ou 'Corrigir'. Diga exatamente COMO corrigir (ex: 'Altere a diretiva no nginx.conf para add_header Strict-Transport-Security...' ou 'No Prisma, adicione @default(uuid())').
-3. Em 'evidence': Extrair e descrever o exato achado técnico presente no arquivo de origem que causou a reprovação.
-4. Para requisitos 'conforme', descreva no campo 'evidence' a evidência ou motivo específico presente no arquivo que comprova a conformidade, e no campo 'recommendation' a orientação de manutenção do controle.
+1. É TERMINANTEMENTE PROIBIDO omitir ou resumir a lista de requisitos. Se o escopo contiver N requisitos, você DEVE obrigatoriamente retornar N itens no array 'findings', um para cada requisito fornecido.
+2. Avalie cada requisito do escopo e classifique em "conforme", "parcial" ou "nao_conforme".
+3. Para CADA requisito 'Não conforme' ou 'Parcial', você é OBRIGADO a fornecer em 'recommendation' o comando exato, a configuração de código ou o ajuste de infraestrutura necessário para sanar a falha. PROIBIDO usar verbos genéricos como 'Implantar', 'Verificar' ou 'Corrigir'. Diga exatamente COMO corrigir (ex: 'Altere a diretiva no nginx.conf para add_header Strict-Transport-Security...' ou 'No Prisma, adicione @default(uuid())').
+4. Em 'evidence': Extrair e descrever o exato achado técnico presente no arquivo de origem que causou a reprovação ou atestou a conformidade.
 5. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
 6. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
 7. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
@@ -400,9 +400,69 @@ export async function runQaAnalysis(
         }
 
         if (genRes.object && typeof (genRes.object as { compliancePercent?: unknown }).compliancePercent === 'number') {
-          const analysis = genRes.object as QaAnalysis;
+          let analysis = genRes.object as QaAnalysis;
+
+          // REFORÇO DE COBERTURA 100%: Garante que TODOS os requisitos do escopo estejam presentes no laudo!
+          const inputReqLines = requirements
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0);
+
+          const existingFindings = Array.isArray(analysis.findings) ? analysis.findings : [];
+
+          // Mapeia cada linha de requisito do escopo para garantir cobertura total (sem omissões do LLM)
+          const fullFindings: QaFinding[] = inputReqLines.map((reqLine, idx) => {
+            const idMatch = reqLine.match(/([A-Z0-9._-]+)/i);
+            const reqId = idMatch ? idMatch[1] : `REQ-${idx + 1}`;
+            const reqName = reqLine.length > 40 ? reqLine.slice(0, 40) + '...' : reqLine;
+
+            const existing = existingFindings.find(
+              (f) =>
+                f.requirementId &&
+                (f.requirementId.toLowerCase() === reqId.toLowerCase() ||
+                 reqId.toLowerCase().includes(f.requirementId.toLowerCase()) ||
+                 (f.requirementName && reqLine.toLowerCase().includes(f.requirementName.toLowerCase())))
+            );
+
+            if (existing) {
+              return {
+                requirementId: existing.requirementId || reqId,
+                requirementName: existing.requirementName || reqName,
+                status: existing.status || 'nao_conforme',
+                evidence: existing.evidence || `Achado técnico avaliado para o controle ${reqId}.`,
+                recommendation: existing.recommendation || `Consultar os logs da pipeline DevSecOps e o código-fonte correspondente à tag/ID ${reqId} para aplicar a remediação técnica.`,
+              };
+            }
+
+            return {
+              requirementId: reqId,
+              requirementName: reqName,
+              status: 'nao_conforme',
+              evidence: `Requisito ${reqId} não teve evidência conclusiva extraída na avaliação parcial do LLM.`,
+              recommendation: `Consultar os logs da pipeline DevSecOps e o código-fonte correspondente à tag/ID ${reqId} para aplicar a remediação técnica.`,
+            };
+          });
+
+          // Recalcula compliance global com base nos requisitos completos do escopo
+          const conformeCount = fullFindings.filter((f) => f.status === 'conforme').length;
+          const parcialCount = fullFindings.filter((f) => f.status === 'parcial').length;
+          const totalReqs = fullFindings.length || 1;
+          const updatedCompliance = Math.round(((conformeCount + 0.5 * parcialCount) / totalReqs) * 1000) / 10;
+
+          let updatedRating: QaAnalysis['overallRating'] = 'baixo';
+          if (updatedCompliance < 50) updatedRating = 'critico';
+          else if (updatedCompliance < 70) updatedRating = 'alto';
+          else if (updatedCompliance < 85) updatedRating = 'medio';
+
+          analysis = {
+            ...analysis,
+            findings: fullFindings,
+            compliancePercent: updatedCompliance,
+            overallRating: updatedRating,
+          };
+
           const activeAgentLabel = `${agent.label} (${modelId})`;
-          console.log(`[Security QA Engine] Sucesso com agente: ${activeAgentLabel}`);
+          console.log(`[Security QA Engine] Sucesso com agente: ${activeAgentLabel} (Cobertura: ${fullFindings.length}/${inputReqLines.length} requisitos)`);
 
           const latencyMs = Date.now() - startTime;
           const tokensUsed = genRes.usage?.totalTokens ?? 1500;
