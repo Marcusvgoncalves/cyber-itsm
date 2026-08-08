@@ -20,7 +20,6 @@ import {
 import { changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
-import securityRequirements from "../../../requisitos-sd.json";
 
 // Lazy-load (next/dynamic) do Copiloto de IA — só baixa quando aberto.
 const SecurityAgent = dynamic(

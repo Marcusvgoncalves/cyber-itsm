@@ -37,6 +37,18 @@ const nextConfig: NextConfig = {
   /* Desativa o header X-Powered-By (exposição da stack). */
   poweredByHeader: false,
 
+  /* Otimização de árvore de dependências para pacotes pesados. */
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@radix-ui/react-select",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-separator",
+      "@radix-ui/react-slot",
+    ],
+  },
+
   /* Headers de segurança aplicados a todas as rotas da aplicação. */
   async headers() {
     return [
