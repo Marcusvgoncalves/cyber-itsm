@@ -26,6 +26,7 @@ import {
   Layers,
   AlertCircle,
   CircleHelp,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ export function TicketModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showTypeHelp, setShowTypeHelp] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const [epicSearch, setEpicSearch] = useState("");
 
   // States para anexos e parecer
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string } | null>(null);
@@ -90,6 +92,18 @@ export function TicketModal({
   const availableEpics = allTickets.filter(
     (t) => t.type === 'EPICO' && (mode === 'create' || t.id !== ticket?.id)
   );
+
+  // Épicos filtrados por código (SPN-XXXXXX) ou por título
+  const filteredEpics = availableEpics.filter((epic) => {
+    const epicCode = `SPN-${epic.id.slice(-6).toUpperCase()}`;
+    const searchLower = epicSearch.trim().toLowerCase();
+    if (!searchLower) return true;
+    return (
+      epicCode.toLowerCase().includes(searchLower) ||
+      epic.title.toLowerCase().includes(searchLower) ||
+      `${epicCode} - ${epic.title}`.toLowerCase().includes(searchLower)
+    );
+  });
 
   useEffect(() => {
     if (ticket) {
@@ -120,6 +134,7 @@ export function TicketModal({
     setErrors({});
     setAttachedFile(null);
     setRequirementOpinion(null);
+    setEpicSearch("");
   }, [ticket, defaultStatusId, currentUser]);
 
   const validate = () => {
@@ -129,7 +144,7 @@ export function TicketModal({
     if (!formData.assignee.trim()) newErrors.assignee = 'O preenchimento do Responsável é obrigatório';
     if (!formData.type) newErrors.type = 'O tipo de chamado é obrigatório';
 
-    if ((formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && !formData.parentEpicId) {
+    if ((formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && (!formData.parentEpicId || formData.parentEpicId === 'none')) {
       newErrors.parentEpicId = 'Vínculo a um Épico Pai é OBRIGATÓRIO para Atividades e Tarefas';
     }
 
@@ -310,29 +325,55 @@ export function TicketModal({
 
           {/* Épico Pai (Visível e obrigatório para Atividade e Tarefa) */}
           {(formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && (
-            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-1">
-              <Label htmlFor="parentEpicId" className="block text-xs font-bold text-purple-900 uppercase">
-                Épico Pai Vinculado *
-              </Label>
+            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="parentEpicId" className="block text-xs font-bold text-purple-900 uppercase">
+                  Épico Pai Vinculado *
+                </Label>
+                <span className="text-[10px] font-semibold text-purple-700">
+                  Obrigatório para {formData.type === 'ATIVIDADE' ? 'Atividades' : 'Tarefas'}
+                </span>
+              </div>
+
+              {/* Campo de Busca de Épico no padrão SPN-XXXXXX - Título */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-purple-400" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por número (ex: SPN-A1B2C3) ou título do Épico..."
+                  value={epicSearch}
+                  onChange={(e) => setEpicSearch(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-white border-purple-200 placeholder:text-purple-300 focus-visible:ring-purple-500"
+                  disabled={isLoading}
+                />
+              </div>
+
               <Select
                 value={formData.parentEpicId}
                 onValueChange={(v: string) => handleChange('parentEpicId', v)}
                 disabled={isLoading}
               >
-                <SelectTrigger id="parentEpicId" className={cn("bg-white", errors.parentEpicId && "border-red-500")}>
-                  <SelectValue placeholder="Selecione o Épico Pai correspondente..." />
+                <SelectTrigger id="parentEpicId" className={cn("bg-white text-xs font-medium", errors.parentEpicId && "border-red-500")}>
+                  <SelectValue placeholder="Selecione o Épico Pai (SPN-XXXXXX - Título)..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableEpics.length === 0 ? (
-                    <SelectItem value="none" disabled>
-                      Nenhum Épico cadastrado. Crie um Épico antes!
+                  {filteredEpics.length === 0 ? (
+                    <SelectItem value="none" disabled className="text-xs">
+                      {availableEpics.length === 0
+                        ? "Nenhum Épico cadastrado. Crie um Épico antes!"
+                        : "Nenhum Épico encontrado para esta busca."}
                     </SelectItem>
                   ) : (
-                    availableEpics.map((epic) => (
-                      <SelectItem key={epic.id} value={epic.id}>
-                        <span className="font-semibold text-purple-800">[ÉPICO]</span> {epic.title}
-                      </SelectItem>
-                    ))
+                    filteredEpics.map((epic) => {
+                      const epicCode = `SPN-${epic.id.slice(-6).toUpperCase()}`;
+                      return (
+                        <SelectItem key={epic.id} value={epic.id} className="text-xs">
+                          <span className="font-mono font-bold text-purple-900">{epicCode}</span>
+                          <span className="text-slate-400 mx-1.5">-</span>
+                          <span className="font-medium text-slate-800">{epic.title}</span>
+                        </SelectItem>
+                      );
+                    })
                   )}
                 </SelectContent>
               </Select>
