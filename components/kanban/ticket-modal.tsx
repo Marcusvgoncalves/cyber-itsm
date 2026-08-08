@@ -75,6 +75,7 @@ export function TicketModal({
   const [showTypeHelp, setShowTypeHelp] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [epicSearch, setEpicSearch] = useState("");
+  const [isEpicDropdownOpen, setIsEpicDropdownOpen] = useState(false);
 
   // States para anexos e parecer
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string } | null>(null);
@@ -125,6 +126,9 @@ export function TicketModal({
       `${epicCodeStart} - ${title}`.includes(rawQuery)
     );
   });
+
+  // Épico selecionado atualmente
+  const selectedEpic = availableEpics.find((e) => e.id === formData.parentEpicId);
 
   useEffect(() => {
     if (ticket) {
@@ -347,7 +351,7 @@ export function TicketModal({
 
           {/* Épico Pai (Visível e obrigatório para Atividade e Tarefa) */}
           {(formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && (
-            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-2">
+            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-2 relative">
               <div className="flex items-center justify-between">
                 <Label htmlFor="parentEpicId" className="block text-xs font-bold text-purple-900 uppercase">
                   Épico Pai Vinculado *
@@ -357,48 +361,92 @@ export function TicketModal({
                 </span>
               </div>
 
-              {/* Campo de Busca de Épico no padrão SPN-XXXXXX - Título */}
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-purple-400" />
-                <Input
-                  type="text"
-                  placeholder="Buscar por número (ex: SPN-A1B2C3) ou título do Épico..."
-                  value={epicSearch}
-                  onChange={(e) => setEpicSearch(e.target.value)}
-                  className="h-8 pl-8 text-xs bg-white border-purple-200 placeholder:text-purple-300 focus-visible:ring-purple-500"
-                  disabled={isLoading}
-                />
-              </div>
+              {/* Se já houver um Épico Selecionado */}
+              {selectedEpic && !isEpicDropdownOpen ? (
+                <div className="flex items-center justify-between p-2 bg-white border border-purple-300 rounded-md text-xs shadow-sm">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <span className="font-mono font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded shrink-0">
+                      SPN-{selectedEpic.id.slice(-6).toUpperCase()}
+                    </span>
+                    <span className="text-slate-400 font-bold shrink-0">-</span>
+                    <span className="font-medium text-slate-800 truncate">{selectedEpic.title}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      handleChange('parentEpicId', '');
+                      setEpicSearch('');
+                      setIsEpicDropdownOpen(true);
+                    }}
+                    className="h-6 px-2 text-[11px] text-purple-700 hover:bg-purple-100 shrink-0 font-semibold"
+                  >
+                    Alterar
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-purple-400" />
+                  <Input
+                    type="text"
+                    placeholder="Digite o número (ex: SPN-A1B2C3) ou título do Épico..."
+                    value={epicSearch}
+                    onFocus={() => setIsEpicDropdownOpen(true)}
+                    onChange={(e) => {
+                      setEpicSearch(e.target.value);
+                      setIsEpicDropdownOpen(true);
+                    }}
+                    className={cn(
+                      "h-9 pl-8 pr-8 text-xs bg-white border-purple-200 placeholder:text-purple-300 focus-visible:ring-purple-500",
+                      errors.parentEpicId && "border-red-500 ring-1 ring-red-500"
+                    )}
+                    disabled={isLoading}
+                  />
 
-              <Select
-                value={formData.parentEpicId}
-                onValueChange={(v: string) => handleChange('parentEpicId', v)}
-                disabled={isLoading}
-              >
-                <SelectTrigger id="parentEpicId" className={cn("bg-white text-xs font-medium", errors.parentEpicId && "border-red-500")}>
-                  <SelectValue placeholder="Selecione o Épico Pai (SPN-XXXXXX - Título)..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredEpics.length === 0 ? (
-                    <SelectItem value="none" disabled className="text-xs">
-                      {availableEpics.length === 0
-                        ? "Nenhum Épico cadastrado. Crie um Épico antes!"
-                        : "Nenhum Épico encontrado para esta busca."}
-                    </SelectItem>
-                  ) : (
-                    filteredEpics.map((epic) => {
-                      const epicCode = `SPN-${epic.id.slice(-6).toUpperCase()}`;
-                      return (
-                        <SelectItem key={epic.id} value={epic.id} className="text-xs">
-                          <span className="font-mono font-bold text-purple-900">{epicCode}</span>
-                          <span className="text-slate-400 mx-1.5">-</span>
-                          <span className="font-medium text-slate-800">{epic.title}</span>
-                        </SelectItem>
-                      );
-                    })
+                  {/* Dropdown de Resultados da Busca */}
+                  {isEpicDropdownOpen && (
+                    <>
+                      {/* Overlay para fechar ao clicar fora */}
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setIsEpicDropdownOpen(false)}
+                      />
+                      <div className="absolute left-0 right-0 top-10 z-50 max-h-52 overflow-y-auto rounded-md border border-purple-200 bg-white shadow-xl animate-fadeIn">
+                        {filteredEpics.length === 0 ? (
+                          <div className="p-3 text-center text-xs text-slate-500 font-medium">
+                            {availableEpics.length === 0
+                              ? "Nenhum Épico cadastrado. Crie um Épico primeiro!"
+                              : `Nenhum Épico encontrado para "${epicSearch}".`}
+                          </div>
+                        ) : (
+                          filteredEpics.map((epic) => {
+                            const epicCode = `SPN-${epic.id.slice(-6).toUpperCase()}`;
+                            return (
+                              <div
+                                key={epic.id}
+                                onClick={() => {
+                                  handleChange('parentEpicId', epic.id);
+                                  setIsEpicDropdownOpen(false);
+                                  setEpicSearch("");
+                                }}
+                                className="flex items-center gap-2 p-2.5 text-xs hover:bg-purple-50 cursor-pointer border-b border-purple-50 last:border-0 transition-colors"
+                              >
+                                <span className="font-mono font-bold text-purple-900 bg-purple-100 px-2 py-0.5 rounded shrink-0">
+                                  {epicCode}
+                                </span>
+                                <span className="text-slate-400 font-bold shrink-0">-</span>
+                                <span className="font-medium text-slate-800 truncate">{epic.title}</span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </>
                   )}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+
               {errors.parentEpicId && (
                 <p className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" /> {errors.parentEpicId}
