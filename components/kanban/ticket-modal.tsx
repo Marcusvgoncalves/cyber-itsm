@@ -89,18 +89,40 @@ export function TicketModal({
 
   // Lista de Épicos disponíveis para relacionamento pai
   const availableEpics = allTickets.filter(
-    (t) => t.type === 'EPICO' && (mode === 'create' || t.id !== ticket?.id)
+    (t) => (t.type?.trim().toUpperCase() === 'EPICO') && (mode === 'create' || t.id !== ticket?.id)
   );
 
-  // Épicos filtrados por código (SPN-XXXXXX) ou por título
+  // Épicos filtrados por número do chamado (SPN-XXXXXX, ID completo, prefixo UUID) ou por título
   const filteredEpics = availableEpics.filter((epic) => {
-    const epicCode = `SPN-${epic.id.slice(-6).toUpperCase()}`;
-    const searchLower = epicSearch.trim().toLowerCase();
-    if (!searchLower) return true;
+    const rawQuery = epicSearch.trim().toLowerCase();
+    if (!rawQuery) return true;
+
+    // Remove prefixos como 'spn-', 'spn', '#', 'spn:', etc.
+    const cleanQuery = rawQuery.replace(/^(spn[-:\s]?|#)/i, "").trim();
+
+    const fullId = epic.id.toLowerCase();
+    const startId = epic.id.slice(0, 8).toLowerCase();
+    const endId = epic.id.slice(-6).toLowerCase();
+
+    const epicCodeFull = `spn-${fullId}`;
+    const epicCodeStart = `spn-${startId}`;
+    const epicCodeEnd = `spn-${endId}`;
+
+    const title = (epic.title || "").toLowerCase();
+
     return (
-      epicCode.toLowerCase().includes(searchLower) ||
-      epic.title.toLowerCase().includes(searchLower) ||
-      `${epicCode} - ${epic.title}`.toLowerCase().includes(searchLower)
+      fullId.includes(rawQuery) ||
+      (cleanQuery && fullId.includes(cleanQuery)) ||
+      startId.includes(rawQuery) ||
+      (cleanQuery && startId.includes(cleanQuery)) ||
+      endId.includes(rawQuery) ||
+      (cleanQuery && endId.includes(cleanQuery)) ||
+      epicCodeFull.includes(rawQuery) ||
+      epicCodeStart.includes(rawQuery) ||
+      epicCodeEnd.includes(rawQuery) ||
+      title.includes(rawQuery) ||
+      `${epicCodeEnd} - ${title}`.includes(rawQuery) ||
+      `${epicCodeStart} - ${title}`.includes(rawQuery)
     );
   });
 
