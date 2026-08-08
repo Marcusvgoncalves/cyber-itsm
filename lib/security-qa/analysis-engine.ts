@@ -10,7 +10,7 @@
  * `QaRateLimitError` para que o Inngest re-agende (RetryAfterError) em poucos
  * segundos — nunca gera um laudo "baixa fidelidade" por pressa.
  */
-import { generateObject, type LanguageModel } from 'ai';
+import { generateObject, generateText, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
@@ -23,7 +23,7 @@ import type { QaAnalysis, QaFinding } from './types';
 export class QaRateLimitError extends Error {
   readonly retryAfterMs: number;
 
-  constructor(message: string, retryAfterMs = 15_000) {
+  constructor(message = 'Todas as APIs de LLM retornaram Rate Limit (429)', retryAfterMs = 15_000) {
     super(message);
     this.name = 'QaRateLimitError';
     this.retryAfterMs = retryAfterMs;
@@ -78,7 +78,7 @@ const AGENTS: AgentConfig[] = [
     id: 'google',
     label: 'Google (Gemini 2.0 Flash / Lite)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
-    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'],
+    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite'],
     createModel: GOOGLE,
   },
   {
@@ -90,13 +90,13 @@ const AGENTS: AgentConfig[] = [
   },
   {
     id: 'openrouter',
-    label: 'OpenRouter (Gemini & Llama Free)',
+    label: 'OpenRouter (Gemini & Llama)',
     envKeys: ['OPENROUTER_API_KEY'],
     modelIds: [
-      'google/gemini-2.0-flash-exp:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'meta-llama/llama-3.1-8b-instruct:free',
-      'mistralai/mistral-small-24b-instruct-2501:free',
+      'google/gemini-2.0-flash-001',
+      'meta-llama/llama-3.3-70b-instruct',
+      'deepseek/deepseek-r1',
+      'mistralai/mistral-small-24b-instruct-2501',
     ],
     createModel: OPENROUTER,
   },
@@ -104,7 +104,7 @@ const AGENTS: AgentConfig[] = [
     id: 'groq',
     label: 'Groq (Llama 3.3 70B / 3.1 8B)',
     envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama3-70b-8192'],
+    modelIds: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
     createModel: GROQ,
   },
 ];
@@ -359,14 +359,44 @@ export async function runQaAnalysis(
       try {
         onStatus?.(`Analisando evidências via ${agent.label} (${modelId})...`);
 
-        const genRes = await generateObject({
-          model: modelFactory(modelId),
-          schema: ANALYSIS_SCHEMA,
-          system: SYSTEM_PROMPT,
-          prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
-          temperature: 0.25,
-          maxOutputTokens: 4096,
-        });
+        let genRes: { object: any; usage?: any };
+        try {
+          genRes = await generateObject({
+            model: modelFactory(modelId),
+            schema: ANALYSIS_SCHEMA,
+            system: SYSTEM_PROMPT,
+            prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
+            temperature: 0.25,
+            maxOutputTokens: 4096,
+            maxRetries: 0,
+          });
+        } catch (sdkErr) {
+          const errMsg = sdkErr instanceof Error ? sdkErr.message : String(sdkErr);
+          if (isRateLimitError(sdkErr)) {
+            throw sdkErr;
+          }
+          if (errMsg.includes('json_schema') || agent.id === 'groq') {
+            console.log(`[Security QA Engine] Modelo '${modelId}' requer fallback via generateText JSON...`);
+            const textRes = await generateText({
+              model: modelFactory(modelId),
+              system: SYSTEM_PROMPT,
+              prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nRetorne ESTRITAMENTE um objeto JSON válido no formato:\n{\n  "compliancePercent": number,\n  "overallRating": "baixo"|"medio"|"alto"|"critico",\n  "executiveSummary": string,\n  "findings": [{ "requirementId": string, "requirementName": string, "status": "conforme"|"parcial"|"nao_conforme", "evidence": string, "recommendation": string }]\n}`,
+              temperature: 0.25,
+              maxOutputTokens: 4096,
+              maxRetries: 0,
+            });
+
+            const jsonMatch = textRes.text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsedObj = JSON.parse(jsonMatch[0]);
+              genRes = { object: parsedObj, usage: textRes.usage };
+            } else {
+              throw sdkErr;
+            }
+          } else {
+            throw sdkErr;
+          }
+        }
 
         if (genRes.object && typeof (genRes.object as { compliancePercent?: unknown }).compliancePercent === 'number') {
           const analysis = genRes.object as QaAnalysis;

@@ -1,4 +1,5 @@
-import { runQaAnalysis } from "./analysis-engine";
+import { runQaAnalysis, generateFallbackAnalysis } from "./analysis-engine";
+import { prisma } from "./prisma";
 import {
   ensureQaBuckets,
   downloadEvidenceText,
@@ -44,7 +45,7 @@ export async function runLocalQaProcess(qaResultId: string, fileUrl: string) {
         ? text.slice(0, 35_000) + "\n\n[CONTEÚDO RESUMIDO DEFENSIVAMENTE PARA PERFORMANCE]"
         : text;
 
-    // 3) Executa a análise através da esteira de IA (com fallback automático se LLMs estiverem sem cota)
+    // 3) Executa a análise através da esteira de IA (com fallback síncrono instantâneo se LLMs estiverem sem cota)
     let analysis;
     try {
       const res = await runQaAnalysis(
@@ -55,16 +56,27 @@ export async function runLocalQaProcess(qaResultId: string, fileUrl: string) {
       analysis = res.analysis;
     } catch (err) {
       console.warn(
-        `[Local Fallback Worker ${qaResultId}] APIs de LLM indisponíveis (Rate Limit/Cota). Ativando motor determinístico de contingência...`,
+        `[Local Fallback Worker ${qaResultId}] APIs de LLM indisponíveis (Rate Limit/Cota). Ativando motor determinístico de contingência instantâneo...`,
         err instanceof Error ? err.message : err
       );
-      const res = await runQaAnalysis(
-        loaded.requirements,
-        truncatedEvidence,
-        (message) => console.log(`[Local Worker ${qaResultId}] ${message}`),
-        { allowFallback: true }
-      );
-      analysis = res.analysis;
+
+      const [totalTickets, totalProjects, avgRes] = await Promise.all([
+        prisma.ticket.count().catch(() => 0),
+        prisma.qaProject.count().catch(() => 0),
+        prisma.qaResult
+          .aggregate({ _avg: { compliancePercent: true } })
+          .catch(() => ({ _avg: { compliancePercent: null } })),
+      ]);
+
+      const avgCompliance =
+        avgRes?._avg?.compliancePercent != null ? Number(avgRes._avg.compliancePercent) : 85.0;
+
+      analysis = generateFallbackAnalysis(loaded.requirements, truncatedEvidence, {
+        totalTickets,
+        totalProjects,
+        avgCompliance,
+      });
+      analysis.executiveSummary += ' [Nota: Análise executada via motor de regras determinístico de contingência devido a instabilidade temporária nas APIs de LLM].';
     }
 
     // 4) Cria o arquivamento forense

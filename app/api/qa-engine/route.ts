@@ -17,7 +17,7 @@ import { logSystemAudit } from '@/lib/audit/audit';
 // ============================================================================
 
 export const runtime = 'nodejs';
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /** Contrato estrito de entrada (tipagem com Zod). */
 const QaEngineRequestSchema = z.object({
