@@ -3,6 +3,8 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useRef, useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Bot, X, Send, User as UserIcon, ShieldAlert, Loader2, ArrowRight, LayoutDashboard, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +98,57 @@ function getMessageText(message: { parts: Array<{ type: string; text?: string }>
   return textPart?.text ?? "";
 }
 
+// Estilo dos elementos markdown renderizados pelo Copiloto.
+const MARKDOWN_COMPONENTS = {
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="list-disc space-y-1 pl-5">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="list-decimal space-y-1 pl-5">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="leading-relaxed">{children}</li>
+  ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="mb-2 last:mb-0">{children}</p>
+  ),
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 className="mb-2 mt-3 text-base font-bold first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="mb-2 mt-3 text-sm font-bold first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="mb-2 mt-3 text-[13px] font-bold first:mt-0">{children}</h3>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-semibold">{children}</strong>
+  ),
+  code: ({ children }: { children?: React.ReactNode }) => (
+    <code className="rounded bg-gray-100 px-1 py-0.5 text-[12px] font-mono text-red-600">
+      {children}
+    </code>
+  ),
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote className="border-l-2 border-gray-200 pl-3 italic text-gray-500">
+      {children}
+    </blockquote>
+  ),
+  table: ({ children }: { children?: React.ReactNode }) => (
+    <div className="my-2 overflow-x-auto">
+      <table className="w-full border-collapse text-[12px]">{children}</table>
+    </div>
+  ),
+  th: ({ children }: { children?: React.ReactNode }) => (
+    <th className="border border-gray-200 bg-gray-50 px-2 py-1 text-left font-semibold">
+      {children}
+    </th>
+  ),
+  td: ({ children }: { children?: React.ReactNode }) => (
+    <td className="border border-gray-200 px-2 py-1">{children}</td>
+  ),
+};
+
 export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onAction }: SecurityAgentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +183,7 @@ export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onActi
     return currentUser?.id 
       ? `cyberitsm_secops_chat_messages_${currentUser.id}` 
       : "cyberitsm_secops_chat_messages_guest";
-  }, [currentUser?.id]);
+  }, [currentUser]);
 
   const { messages, status, sendMessage, error, setMessages } = useChat({
     transport,
@@ -268,15 +321,22 @@ export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onActi
                       msg.role === "user" ? "items-end" : "items-start"
                     }`}
                   >
-                    <div
-                      className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
-                        msg.role === "user"
-                          ? "rounded-tr-sm bg-primary text-white"
-                          : "rounded-tl-sm border border-gray-100 bg-white text-gray-800"
-                      }`}
-                    >
-                      {getMessageText(msg)}
-                    </div>
+                  <div
+                    data-testid={msg.role === "user" ? "user-bubble" : "assistant-bubble"}
+                    className={`whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${
+                      msg.role === "user"
+                        ? "rounded-tr-sm bg-primary text-white"
+                        : "rounded-tl-sm border border-gray-100 bg-white text-gray-800"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      getMessageText(msg)
+                    ) : (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                        {getMessageText(msg)}
+                      </ReactMarkdown>
+                    )}
+                  </div>
                   </div>
                 </div>
 

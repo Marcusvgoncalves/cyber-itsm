@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+# estado de autenticação E2E (contém cookies de sessão) — nunca versionar
+/tests/.auth/
 
 # next.js
 /.next/

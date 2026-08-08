@@ -25,7 +25,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
   const [newTicketStatusId, setNewTicketStatusId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [_, startTransition] = useTransition();

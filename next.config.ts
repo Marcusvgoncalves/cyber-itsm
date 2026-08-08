@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
+/*
+ * A diretiva CSP `upgrade-insecure-requests` é uma boa prática de produção
+ * (HTTPS), mas QUEBRA o desenvolvimento em HTTP puro: navegadores (especialmente
+ * o WebKit) passam a requisitar TODOS os sub-recursos via https:// e o dev server
+ * não possui TLS, então os bundles JS/CSS falham e o React nunca hidrata.
+ * Por isso ela é aplicada SOMENTE em produção.
+ */
+const isProduction = process.env.NODE_ENV === "production";
+
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -15,7 +24,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' blob: wss: https:",
-      "upgrade-insecure-requests",
+      ...(isProduction ? ["upgrade-insecure-requests"] : []),
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'self'",
