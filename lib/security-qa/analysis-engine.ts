@@ -116,8 +116,8 @@ const ANALYSIS_SCHEMA = z.object({
       requirementId: z.string().describe("ID do requisito fornecido (ex: VIVO.SEGURA.X)"),
       requirementName: z.string().describe("Nome descritivo do requisito"),
       status: z.enum(['conforme', 'parcial', 'nao_conforme']).describe("Status de atendimento da evidência"),
-      evidence: z.string().describe("Descrição do motivo/trecho encontrado no relatório"),
-      recommendation: z.string().describe("Recomendação técnica para adequação"),
+      evidence: z.string().describe("A evidência técnica detalhada extraída do relatório"),
+      recommendation: z.string().describe("A recomendação técnica específica para correção"),
     })
   ).describe("Lista de resultados, uma para cada requisito do escopo"),
 });
@@ -127,11 +127,15 @@ Sua missão é CRUZAR, um a um, os requisitos de arquitetura segura fornecidos c
 
 REGRAS OBRIGATÓRIAS:
 1. Avalie cada requisito do escopo e classifique em "conforme", "parcial" ou "nao_conforme".
-2. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
-3. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
-4. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
-5. Para cada finding, use requirementId exatamente como citado no escopo.
-6. Você deve obrigatoriamente retornar todos os dados em um objeto JSON válido.`;
+2. Para CADA requisito analisado que resulte em 'nao_conforme' ou 'parcial', você DEVE obrigatoriamente:
+   - Em 'evidence': Extrair e descrever o exato achado técnico presente no arquivo de origem que causou a reprovação.
+   - Em 'recommendation': Fornecer uma instrução técnica, acionável e específica para mitigar aquela vulnerabilidade exata. É TERMINANTEMENTE PROIBIDO gerar textos genéricos como 'Implantar o controle conforme diretrizes'.
+3. Para requisitos 'conforme', descreva no campo 'evidence' a evidência ou motivo específico presente no arquivo que comprova a conformidade, e no campo 'recommendation' a orientação de manutenção do controle.
+4. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
+5. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
+6. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
+7. Para cada finding, use requirementId exatamente como citado no escopo.
+8. Você deve obrigatoriamente retornar todos os dados em um objeto JSON válido.`;
 
 /** Detecta erros de Rate Limit (HTTP 429) a partir de qualquer provider AI SDK. */
 export function isRateLimitError(err: unknown): boolean {
@@ -178,18 +182,18 @@ export function generateFallbackAnalysis(
     const matches = tokens.filter((t) => t.length > 3 && evidenceLower.includes(t));
 
     let status: 'conforme' | 'parcial' | 'nao_conforme' = 'nao_conforme';
-    let evidenceStr = 'Nenhuma evidência direta encontrada no relatório submetido.';
-    let recStr = 'Implantar o controle conforme diretrizes do padrão SD v4.1.';
+    let evidenceStr = `Requisito '${reqId}' não teve evidências técnicas diretas identificadas no arquivo de origem submetido.`;
+    let recStr = `Extrair evidências específicas de homologação ou corrigir as fragilidades apontadas para '${name}'.`;
 
     if (matches.length >= 2) {
       if (evidenceLower.includes('vulnerabil') || evidenceLower.includes('fail') || evidenceLower.includes('error')) {
         status = 'parcial';
-        evidenceStr = `Evidência parcial identificada para o termo '${matches[0]}', porém foram reportadas fragilidades no relatório.`;
-        recStr = 'Corrigir as vulnerabilidades apontadas e reaplicar os testes de homologação.';
+        evidenceStr = `Achado técnico identificado no relatório relacionado aos termos '${matches.slice(0, 3).join(', ')}' com reporte de vulnerabilidade.`;
+        recStr = `Mitigar a vulnerabilidade específica identificada para o controle '${reqId}' (${name}) e reexecutar a varredura.`;
       } else {
         status = 'conforme';
-        evidenceStr = `Evidência confirmada no relatório com correspondência nos termos '${matches.slice(0, 3).join(', ')}'.`;
-        recStr = 'Manter monitoramento contínuo do controle.';
+        evidenceStr = `Evidência técnica confirmada no arquivo de origem para o controle '${reqId}' (correspondência: ${matches.slice(0, 3).join(', ')}).`;
+        recStr = `Manter o monitoramento contínuo sobre a implementação do controle '${reqId}'.`;
       }
     }
 

@@ -234,10 +234,10 @@ export function QaProjectPdfDocument({ result }: { result: QaResult }) {
               </View>
               <Text style={styles.findingText}>
                 <Text style={{ fontWeight: "bold" }}>Evidência: </Text>
-                {finding.evidence}
+                {finding.evidence?.trim() ? finding.evidence : "Sem detalhes adicionais fornecidos."}
               </Text>
               <Text style={styles.findingRec}>
-                Recomendação SecOps: {finding.recommendation}
+                Recomendação SecOps: {finding.recommendation?.trim() ? finding.recommendation : "Sem detalhes adicionais fornecidos."}
               </Text>
             </View>
           );

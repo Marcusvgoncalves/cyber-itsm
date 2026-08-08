@@ -88,8 +88,8 @@ export function QaReportDocument({ result }: { result: QaResult }) {
             <Text style={[styles.status, { color: STATUS_COLOR[f.status] }]}>
               {STATUS_LABEL[f.status] ?? f.status}
             </Text>
-            <Text style={styles.evidence}>Evidência: {f.evidence}</Text>
-            <Text style={styles.evidence}>Recomendação: {f.recommendation}</Text>
+            <Text style={styles.evidence}>Evidência: {f.evidence?.trim() ? f.evidence : "Sem detalhes adicionais fornecidos."}</Text>
+            <Text style={styles.evidence}>Recomendação: {f.recommendation?.trim() ? f.recommendation : "Sem detalhes adicionais fornecidos."}</Text>
           </View>
         ))}
 

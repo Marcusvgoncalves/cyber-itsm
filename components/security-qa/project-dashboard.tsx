@@ -320,8 +320,12 @@ export function ProjectDashboard({ result, evidenceUrl, currentUser }: ProjectDa
                               <Icon className="h-3 w-3" /> {meta.label}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs">{f.evidence}</td>
-                          <td className="px-4 py-3 text-xs">{f.recommendation}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {f.evidence?.trim() ? f.evidence : "Sem detalhes adicionais fornecidos."}
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {f.recommendation?.trim() ? f.recommendation : "Sem detalhes adicionais fornecidos."}
+                          </td>
                         </tr>
                       );
                     })
