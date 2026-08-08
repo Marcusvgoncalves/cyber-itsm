@@ -79,16 +79,6 @@ const FAQ: FaqCategory[] = [
     icon: <Workflow className="h-5 w-5 text-vivo" />,
     items: [
       {
-        question: "Como funciona a esteira de DevSecOps integrada?",
-        answer: [
-          "Todo código novo passa pelo agente antes de chegar à produção.",
-          "Na entrega, o repositório é analisado automaticamente contra a base de requisitos (SD v4.1).",
-          "Falhas críticas são reportadas e bloqueiam o deploy na Vercel.",
-          "Somente após passar nas validações o código é publicado em produção.",
-        ],
-        links: [{ label: "Ir para o Quadro Kanban", href: "/dashboard" }],
-      },
-      {
         question: "Como acompanho o status dos meus chamados?",
         answer: [
           "O Quadro Kanban utiliza o modelo hierárquico com 3 níveis: Épico (macro demanda), Atividade e Tarefa.",
