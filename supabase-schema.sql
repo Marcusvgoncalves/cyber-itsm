@@ -110,7 +110,6 @@ CREATE TABLE public.tickets (
   priority TEXT NOT NULL DEFAULT 'media' CHECK (priority IN ('baixa', 'media', 'alta', 'critica')),
   assignee TEXT NOT NULL DEFAULT 'Não atribuído',
   parent_epic_id UUID REFERENCES public.tickets(id) ON DELETE SET NULL,
-  checklist JSONB DEFAULT '[]'::jsonb,
   framework_origem TEXT CHECK (framework_origem IN ('NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS')),
   dominio_framework TEXT,
   assignee_id UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,

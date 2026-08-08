@@ -46,7 +46,6 @@ export async function getTickets(): Promise<Ticket[]> {
     type: t.type || 'TAREFA',
     status: (t.status ? t.status.toUpperCase() : 'ABERTO') as TicketStatus,
     assignee: t.assignee || t.assignee_user?.full_name || t.assignee_user?.email || 'Não atribuído',
-    checklist: Array.isArray(t.checklist) ? t.checklist : [],
     parentEpicId: t.parent_epic_id || t.parentEpicId || null,
   }));
 
@@ -93,7 +92,6 @@ export async function getTicketById(id: string): Promise<Ticket | null> {
     type: data.type || 'TAREFA',
     status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
     assignee: data.assignee || data.assignee_user?.full_name || data.assignee_user?.email || 'Não atribuído',
-    checklist: Array.isArray(data.checklist) ? data.checklist : [],
     parentEpicId: data.parent_epic_id || data.parentEpicId || null,
   };
 
@@ -151,7 +149,6 @@ export async function createTicket(formData: Partial<Ticket> & { reporter_id: st
       priority: normalizePriority(formData.priority || 'media'),
       assignee: formData.assignee!.trim(),
       parent_epic_id: parentEpicId,
-      checklist: Array.isArray(formData.checklist) ? formData.checklist : [],
       framework_origem: formData.framework_origem || null,
       assignee_id: formData.assignee_id || null,
       reporter_id: formData.reporter_id,
@@ -171,7 +168,6 @@ export async function createTicket(formData: Partial<Ticket> & { reporter_id: st
     type: data.type || ticketType,
     status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
     assignee: data.assignee || formData.assignee,
-    checklist: Array.isArray(data.checklist) ? data.checklist : [],
     parentEpicId: data.parent_epic_id || parentEpicId,
   };
 
@@ -231,7 +227,6 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   if (updates.status !== undefined) sanitized.status = newStatus;
   if (updates.priority !== undefined && isAllowedPriority(updates.priority)) sanitized.priority = updates.priority;
   if (updates.assignee !== undefined && updates.assignee.trim()) sanitized.assignee = updates.assignee.trim();
-  if (updates.checklist !== undefined) sanitized.checklist = updates.checklist;
   if (updates.tags !== undefined) sanitized.tags = updates.tags;
   if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
 
@@ -253,7 +248,6 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     type: data.type || previous.type,
     status: (data.status ? data.status.toUpperCase() : newStatus) as TicketStatus,
     assignee: data.assignee || previous.assignee,
-    checklist: Array.isArray(data.checklist) ? data.checklist : [],
     parentEpicId: data.parent_epic_id || previous.parent_epic_id,
   };
 

@@ -38,12 +38,6 @@ export type FrameworkOrigem = 'NIST' | 'CIS' | 'SABSA' | 'ISO' | 'LGPD' | 'PCI-D
 
 export const FRAMEWORK_OPTIONS: FrameworkOrigem[] = ['NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS'];
 
-export interface ChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
 export interface Ticket {
   id: string;
   title: string;
@@ -56,7 +50,6 @@ export interface Ticket {
   parent_epic_id?: string | null;
   parentEpic?: { id: string; title: string } | null;
   childTickets?: Ticket[];
-  checklist: ChecklistItem[];
   framework_origem?: FrameworkOrigem | null;
   dominio_framework?: string | null;
   assignee_id?: string | null;

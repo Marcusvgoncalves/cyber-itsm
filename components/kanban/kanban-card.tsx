@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Ticket, TicketPriority, TYPE_COLORS, TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
-import { GripVertical, User, Clock, CheckSquare, Layers } from "lucide-react";
+import { GripVertical, User, Clock, Layers } from "lucide-react";
 
 interface KanbanCardProps {
   ticket: Ticket;
@@ -16,9 +16,6 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
   const typeKey = ticket.type || 'TAREFA';
   const typeStyle = TYPE_COLORS[typeKey] || TYPE_COLORS.TAREFA;
   const typeLabel = TYPE_LABELS[typeKey] || typeKey;
-
-  const totalChecklist = ticket.checklist?.length || 0;
-  const completedChecklist = ticket.checklist?.filter((i) => i.completed).length || 0;
 
   return (
     <article
@@ -85,14 +82,6 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {totalChecklist > 0 && (
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
-              <CheckSquare className="h-3 w-3 text-slate-500" />
-              <span>
-                {completedChecklist}/{totalChecklist}
-              </span>
-            </div>
-          )}
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
             <Clock className="h-3 w-3" />
             <time dateTime={ticket.updated_at}>

@@ -7,7 +7,6 @@ import {
   Ticket,
   TicketPriority,
   TicketType,
-  ChecklistItem,
   User,
   TYPE_LABELS,
   TYPE_COLORS,
@@ -20,15 +19,13 @@ import {
   Tag,
   Shield,
   User as UserIcon,
-  CheckSquare,
-  Plus,
-  Trash2,
   UploadCloud,
   Download,
   CheckCircle2,
   FileText,
   Layers,
   AlertCircle,
+  CircleHelp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,9 +71,8 @@ export function TicketModal({
     tags: '',
   });
 
-  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
-  const [newChecklistText, setNewChecklistText] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showTypeHelp, setShowTypeHelp] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
 
   // States para anexos e parecer
@@ -108,7 +104,6 @@ export function TicketModal({
         parentEpicId: ticket.parentEpicId || ticket.parent_epic_id || '',
         tags: ticket.tags?.join(', ') || '',
       });
-      setChecklist(Array.isArray(ticket.checklist) ? ticket.checklist : []);
     } else {
       setFormData({
         title: '',
@@ -121,7 +116,6 @@ export function TicketModal({
         parentEpicId: '',
         tags: '',
       });
-      setChecklist([]);
     }
     setErrors({});
     setAttachedFile(null);
@@ -141,27 +135,6 @@ export function TicketModal({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleAddChecklistItem = () => {
-    if (!newChecklistText.trim()) return;
-    const newItem: ChecklistItem = {
-      id: 'chk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      text: newChecklistText.trim(),
-      completed: false,
-    };
-    setChecklist((prev) => [...prev, newItem]);
-    setNewChecklistText('');
-  };
-
-  const handleToggleChecklistItem = (id: string) => {
-    setChecklist((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
-    );
-  };
-
-  const handleRemoveChecklistItem = (id: string) => {
-    setChecklist((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleFileUpload = async (file: File | undefined) => {
@@ -204,7 +177,6 @@ export function TicketModal({
       assignee_id: formData.assignee_id || null,
       parentEpicId: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
       parent_epic_id: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
-      checklist,
       tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
       reporter_id: currentUser.id,
     };
@@ -216,11 +188,6 @@ export function TicketModal({
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
-
-  // Progresso do Checklist
-  const totalChecklistCount = checklist.length;
-  const completedChecklistCount = checklist.filter((item) => item.completed).length;
-  const checklistPercentage = totalChecklistCount > 0 ? Math.round((completedChecklistCount / totalChecklistCount) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
@@ -247,9 +214,51 @@ export function TicketModal({
           {/* Tipo & Status Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo do Chamado * {mode === 'edit' && <span className="text-xs text-amber-600">(Imutável)</span>}
-              </Label>
+              <div className="flex items-center gap-1 mb-1">
+                <Label htmlFor="type" className="block text-sm font-medium text-gray-700">
+                  Tipo do Chamado * {mode === 'edit' && <span className="text-xs text-amber-600">(Imutável)</span>}
+                </Label>
+                <div className="relative inline-flex">
+                  <button
+                    type="button"
+                    aria-label="Ajuda sobre os tipos de chamado"
+                    aria-haspopup="true"
+                    aria-expanded={showTypeHelp}
+                    onClick={() => setShowTypeHelp((prev) => !prev)}
+                    onMouseEnter={() => setShowTypeHelp(true)}
+                    onMouseLeave={() => setShowTypeHelp(false)}
+                    className="inline-flex items-center justify-center h-4 w-4 rounded-full text-slate-400 hover:text-primary hover:bg-slate-100 transition-colors focus:outline-none"
+                  >
+                    <CircleHelp className="h-3.5 w-3.5" />
+                  </button>
+                  {showTypeHelp && (
+                    <div
+                      role="tooltip"
+                      className="absolute left-0 top-6 z-50 w-72 p-3 bg-white border border-slate-200 rounded-lg shadow-xl text-left animate-fadeIn"
+                      onMouseEnter={() => setShowTypeHelp(true)}
+                      onMouseLeave={() => setShowTypeHelp(false)}
+                    >
+                      <p className="text-xs font-extrabold uppercase tracking-wide text-slate-900 mb-2">
+                        Entendendo a Hierarquia:
+                      </p>
+                      <ul className="space-y-2 text-[11px] leading-relaxed text-slate-700">
+                        <li>
+                          <span className="font-bold text-purple-700">• Épico:</span> Uma grande iniciativa de negócio ou projeto de arquitetura que leva tempo para ser concluído.{" "}
+                          <span className="italic text-slate-500">(Ex: Modernização da Infraestrutura de IAM).</span>
+                        </li>
+                        <li>
+                          <span className="font-bold text-blue-700">• Atividade:</span> Um fluxo de trabalho menor, parte de um Épico, que entrega um valor específico.{" "}
+                          <span className="italic text-slate-500">(Ex: Deploy de infraestrutura do provedor de identidade).</span>
+                        </li>
+                        <li>
+                          <span className="font-bold text-emerald-700">• Tarefa:</span> Um esforço técnico e atômico executado por uma única pessoa para concluir uma Atividade.{" "}
+                          <span className="italic text-slate-500">(Ex: Subir container localhost do Keycloak e validar rotas de autenticação).</span>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
               <Select
                 value={formData.type}
                 onValueChange={(v: TicketType) => handleChange('type', v)}
@@ -424,78 +433,6 @@ export function TicketModal({
               rows={3}
               disabled={isLoading}
             />
-          </div>
-
-          {/* COMPONENTE DE CHECKLIST INTEGRADO */}
-          <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold uppercase text-slate-700 flex items-center gap-1.5">
-                <CheckSquare className="h-4 w-4 text-primary" /> Checklist de Validação ({completedChecklistCount}/{totalChecklistCount})
-              </Label>
-              <span className="text-xs font-bold text-slate-600">{checklistPercentage}% Concluído</span>
-            </div>
-
-            {/* Barra de Progresso Visual */}
-            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-emerald-500 h-full transition-all duration-300 ease-out"
-                style={{ width: `${checklistPercentage}%` }}
-              />
-            </div>
-
-            {/* Input Adicionar Item */}
-            <div className="flex items-center gap-2 pt-1">
-              <Input
-                value={newChecklistText}
-                onChange={(e) => setNewChecklistText(e.target.value)}
-                placeholder="Adicionar novo item de verificação..."
-                className="h-8 text-xs bg-white"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddChecklistItem();
-                  }
-                }}
-              />
-              <Button type="button" size="sm" onClick={handleAddChecklistItem} className="h-8 text-xs gap-1 shrink-0">
-                <Plus className="h-3.5 w-3.5" /> Adicionar
-              </Button>
-            </div>
-
-            {/* Lista de Itens */}
-            <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
-              {checklist.length === 0 ? (
-                <p className="text-xs text-slate-400 italic py-1 text-center">Nenhum item adicionado ao checklist.</p>
-              ) : (
-                checklist.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-2 bg-white rounded border border-slate-100 hover:border-slate-200 transition-colors"
-                  >
-                    <label className="flex items-center gap-2.5 cursor-pointer text-xs flex-1 select-none">
-                      <input
-                        type="checkbox"
-                        checked={item.completed}
-                        onChange={() => handleToggleChecklistItem(item.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                      />
-                      <span className={cn(item.completed && "line-through text-slate-400 font-normal", !item.completed && "text-slate-800 font-medium")}>
-                        {item.text}
-                      </span>
-                    </label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveChecklistItem(item.id)}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-red-500"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
 
           {/* Anexos de Evidências */}

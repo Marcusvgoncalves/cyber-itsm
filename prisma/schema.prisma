@@ -86,7 +86,6 @@ model Ticket {
   parentEpicId    String?      @map("parent_epic_id") @db.Uuid
   parentEpic      Ticket?      @relation("EpicHierarchy", fields: [parentEpicId], references: [id], onDelete: SetNull)
   childTickets    Ticket[]     @relation("EpicHierarchy")
-  checklist       Json         @default("[]")
   tags            String[]     @default([])
   frameworkOrigem String?      @map("framework_origem")
   reporterId      String?      @map("reporter_id") @db.Uuid

@@ -91,9 +91,10 @@ const FAQ: FaqCategory[] = [
       {
         question: "Como acompanho o status dos meus chamados?",
         answer: [
-          "No Quadro Kanban, cada coluna representa um estado: Aberto, Em Andamento, Em Revisão, Fechado e Cancelado.",
-          "Arraste o card do chamado entre as colunas para atualizar o status.",
-          "Abert por equipe, os usuários veem apenas seus chamados; administradores/analistas veem todos.",
+          "O Quadro Kanban utiliza o modelo hierárquico com 3 níveis: Épico (macro demanda), Atividade e Tarefa.",
+          "Cada coluna representa um estado estrito: Aberto, Em Andamento, Bloqueado, Fechado e Cancelado.",
+          "Existem regras de transição (ex: um chamado não pode pular de Aberto direto para Fechado sem passar por Em Andamento).",
+          "Atenção aos Épicos: você só pode mover um Épico para 'Fechado' se todas as suas Atividades e Tarefas filhas também estiverem Fechadas ou Canceladas.",
         ],
         links: [{ label: "Acompanhar meus chamados", href: "/dashboard" }],
       },

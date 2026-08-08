@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAuthService } from '@/lib/auth/authService';
 import { createTicket } from '@/app/actions/tickets';
 import { validateTicketCreation } from '@/lib/domain/ticketRules';
-import type { TicketPriority, FrameworkOrigem, TicketType, ChecklistItem } from '@/lib/types';
+import type { TicketPriority, FrameworkOrigem, TicketType } from '@/lib/types';
 
 /**
  * POST /api/tickets
@@ -58,7 +58,6 @@ export async function POST(request: Request) {
       assignee,
       parentEpicId,
       parent_epic_id: parentEpicId,
-      checklist: Array.isArray(body.checklist) ? (body.checklist as ChecklistItem[]) : [],
       framework_origem: typeof body.framework_origem === 'string' ? (body.framework_origem as FrameworkOrigem) : null,
       assignee_id: typeof body.assignee_id === 'string' ? body.assignee_id : null,
       reporter_id: context.session.id,
