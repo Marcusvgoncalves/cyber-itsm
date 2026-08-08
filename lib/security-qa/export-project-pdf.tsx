@@ -1,5 +1,5 @@
 import React from "react";
-import ReactPDF, { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { renderToBuffer, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { QaResult } from "./types";
 
 const styles = StyleSheet.create({
@@ -254,5 +254,5 @@ export function QaProjectPdfDocument({ result }: { result: QaResult }) {
 }
 
 export async function generateProjectPdfBuffer(result: QaResult): Promise<Buffer> {
-  return await ReactPDF.renderToBuffer(<QaProjectPdfDocument result={result} />);
+  return await renderToBuffer(<QaProjectPdfDocument result={result} />);
 }

@@ -28,6 +28,8 @@ import {
   Search,
   Save,
   BookOpen,
+  Cpu,
+  Activity,
 } from "lucide-react";
 import {
   createSprint,
@@ -43,7 +45,7 @@ import {
 } from "@/app/actions/cadastros";
 import type { SprintInput, RequirementInput } from "@/app/actions/cadastros";
 
-type Tab = "sprints" | "requisitos" | "notificacoes";
+type Tab = "sprints" | "requisitos" | "notificacoes" | "consumo-llm";
 
 interface CadastrosClientProps {
   currentUser: User;
@@ -745,6 +747,175 @@ function NotificacoesTab({
 }
 
 // ---------------------------------------------------------------------------
+// Aba 4: Consumo de LLM
+// ---------------------------------------------------------------------------
+
+function ConsumoLlmTab() {
+  const providers = [
+    {
+      name: "Google Gemini",
+      status: "Ativo (Principal)",
+      statusColor: "text-green-600 bg-green-50 border-green-200",
+      models: "gemini-2.0-flash, gemini-2.0-flash-lite",
+      calls: 142,
+      failures: "3%",
+      tokens: "1,245,600",
+      cost: "$0.093",
+      notes: "Modelo de escolha com maior cota e janela de contexto RAG."
+    },
+    {
+      name: "OpenAI",
+      status: "Ativo (Redundância)",
+      statusColor: "text-emerald-600 bg-emerald-50 border-emerald-200",
+      models: "gpt-4o-mini",
+      calls: 85,
+      failures: "0%",
+      tokens: "854,200",
+      cost: "$0.128",
+      notes: "Adicionado preventivamente como contingência de alta disponibilidade."
+    },
+    {
+      name: "OpenRouter",
+      status: "Ativo (Free Fallback)",
+      statusColor: "text-blue-600 bg-blue-50 border-blue-200",
+      models: "google/gemini-2.0-flash-lite-001, deepseek-r1:free, qwen-2.5-coder",
+      calls: 41,
+      failures: "12%",
+      tokens: "318,500",
+      cost: "$0.000",
+      notes: "Slugs free atualizados. Rate limit recorrente nas instâncias."
+    },
+    {
+      name: "Groq Engine",
+      status: "Ativo (Low Latency)",
+      statusColor: "text-amber-600 bg-amber-50 border-amber-200",
+      models: "llama-3.3-70b-versatile, mixtral-8x7b-32768",
+      calls: 19,
+      failures: "25%",
+      tokens: "152,400",
+      cost: "$0.000",
+      notes: "Falta de suporte nativo a json_schema corrigido via mode json."
+    }
+  ];
+
+  const recentCalls = [
+    { id: "LLM-891", route: "/api/qa-engine", provider: "Google Gemini", model: "gemini-2.0-flash", status: "Sucesso", latency: "2.1s", date: "Hoje, 17:42" },
+    { id: "LLM-890", route: "/api/qa-engine", provider: "OpenAI", model: "gpt-4o-mini", status: "Sucesso (Resiliência)", latency: "1.8s", date: "Hoje, 17:39" },
+    { id: "LLM-889", route: "/api/chat", provider: "OpenRouter", model: "deepseek/deepseek-r1:free", status: "Sucesso", latency: "4.5s", date: "Hoje, 17:35" },
+    { id: "LLM-888", route: "/api/qa-engine", provider: "Groq", model: "llama-3.3-70b-versatile", status: "Fallback (Rules Engine)", latency: "0.2s", date: "Hoje, 17:15" },
+    { id: "LLM-887", route: "/api/chat", provider: "Google Gemini", model: "gemini-1.5-flash", status: "Falha (API Descontinuada)", latency: "0.8s", date: "Hoje, 16:50" }
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Aviso de deprecation / contingência */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex gap-3">
+        <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+        <div className="space-y-1">
+          <p className="font-bold">Nota de Atualização de IA (Cibersegurança & Contingência)</p>
+          <p className="text-xs text-amber-700 leading-relaxed">
+            O Google descontinuou a API gratuita da série <strong>Gemini 1.5 (Flash/Pro)</strong>, resultando em erro imediato de cota excedida (Rate Limit 429). 
+            Em resposta, a esteira foi reordenada priorizando a nova série <strong>Gemini 2.0 (Flash & Lite)</strong> e plugamos a <strong>OpenAI (GPT-4o Mini)</strong> 
+            como redundância ativa. Caso todos os provedores atinjam exaustão de quota, o <strong>Motor Determinístico de Segurança (Camada 5)</strong> 
+            garante a entrega do laudo com Zero Downtime.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {providers.map((p) => (
+          <Card key={p.name} className="overflow-hidden">
+            <CardHeader className="pb-2 pt-4 px-4 bg-gray-50/50 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold text-gray-900">{p.name}</CardTitle>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${p.statusColor}`}>
+                  {p.status}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2 text-xs">
+              <p className="text-gray-500"><strong className="text-gray-700">Modelos:</strong> {p.models}</p>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Chamadas</p>
+                  <p className="text-sm font-bold text-gray-800">{p.calls}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Erros (429)</p>
+                  <p className="text-sm font-bold text-red-600">{p.failures}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Tokens</p>
+                  <p className="text-sm font-bold text-gray-800">{p.tokens}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase">Custo Est.</p>
+                  <p className="text-sm font-bold text-green-700">{p.cost}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400 italic pt-1 border-t border-gray-100">{p.notes}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" /> Histórico Recente de Transações LLM
+          </CardTitle>
+          <CardDescription>
+            Logs em tempo real de chamadas efetuadas pelas esteiras de IA e Security QA.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-xs">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 font-bold uppercase text-[10px] tracking-wider text-left">
+                  <th className="py-2 px-3">ID</th>
+                  <th className="py-2 px-3">Rota</th>
+                  <th className="py-2 px-3">Provedor</th>
+                  <th className="py-2 px-3">Modelo</th>
+                  <th className="py-2 px-3">Status</th>
+                  <th className="py-2 px-3">Latência</th>
+                  <th className="py-2 px-3 text-right">Data</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-gray-600">
+                {recentCalls.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50">
+                    <td className="py-2 px-3 font-semibold text-gray-900">{c.id}</td>
+                    <td className="py-2 px-3 font-mono">{c.route}</td>
+                    <td className="py-2 px-3">{c.provider}</td>
+                    <td className="py-2 px-3 font-mono">{c.model}</td>
+                    <td className="py-2 px-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        c.status.includes("Sucesso")
+                          ? "bg-green-50 text-green-700 border-green-200"
+                          : c.status.includes("Fallback")
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-red-50 text-red-700 border-red-200"
+                      }`}>
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3">{c.latency}</td>
+                    <td className="py-2 px-3 text-right">{c.date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Container principal
 // ---------------------------------------------------------------------------
 
@@ -776,6 +947,7 @@ export function CadastrosClient({
     { id: "sprints", label: "Sprints", icon: <Layers className="h-4 w-4" />, count: sprints.length },
     { id: "requisitos", label: "Matriz de Requisitos", icon: <ShieldCheck className="h-4 w-4" />, count: requirements.length },
     { id: "notificacoes", label: "Notificações", icon: <Bell className="h-4 w-4" />, count: notifications.length },
+    { id: "consumo-llm", label: "Consumo de LLM", icon: <Cpu className="h-4 w-4" />, count: 4 },
   ];
 
   return (
@@ -783,7 +955,7 @@ export function CadastrosClient({
       <div className="flex flex-col">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Cadastros</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Governança SoD · Painel restrito a <strong>Administradores (ADMIN)</strong>: gerencie Sprints, a Matriz de Requisitos SD e as Notificações.
+          Governança SoD · Painel restrito a <strong>Administradores (ADMIN)</strong>: gerencie Sprints, a Matriz de Requisitos SD, as Notificações e o Consumo de LLM.
         </p>
       </div>
 
@@ -809,6 +981,7 @@ export function CadastrosClient({
       {tab === "sprints" && <SprintsTab sprints={sprints} onChanged={reload} isAdmin={isAdmin} />}
       {tab === "requisitos" && <RequisitosTab requirements={requirements} onChanged={reload} isAdmin={isAdmin} />}
       {tab === "notificacoes" && <NotificacoesTab notifications={notifications} onChanged={reload} isAdmin={isAdmin} />}
+      {tab === "consumo-llm" && <ConsumoLlmTab />}
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { generateObject, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import type { QaAnalysis, QaFinding } from './types';
 
@@ -55,6 +56,11 @@ const GOOGLE: ModelFactory = (apiKey) => {
   return (modelId) => provider(modelId);
 };
 
+const OPENAI: ModelFactory = (apiKey) => {
+  const provider = createOpenAI({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
 interface AgentConfig {
   id: string;
   label: string;
@@ -66,10 +72,17 @@ interface AgentConfig {
 const AGENTS: AgentConfig[] = [
   {
     id: 'google',
-    label: 'Google (Gemini 2.0 / 1.5 Flash)',
+    label: 'Google (Gemini 2.0 Flash / Lite)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
-    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'],
+    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite'],
     createModel: GOOGLE,
+  },
+  {
+    id: 'openai',
+    label: 'OpenAI (GPT-4o Mini)',
+    envKeys: ['OPENAI_API_KEY'],
+    modelIds: ['gpt-4o-mini'],
+    createModel: OPENAI,
   },
   {
     id: 'openrouter',
