@@ -44,12 +44,28 @@ export async function runLocalQaProcess(qaResultId: string, fileUrl: string) {
         ? text.slice(0, 35_000) + "\n\n[CONTEÚDO RESUMIDO DEFENSIVAMENTE PARA PERFORMANCE]"
         : text;
 
-    // 3) Executa a análise através da esteira de IA
-    const { analysis } = await runQaAnalysis(
-      loaded.requirements,
-      truncatedEvidence,
-      (message) => console.log(`[Local Worker ${qaResultId}] ${message}`)
-    );
+    // 3) Executa a análise através da esteira de IA (com fallback automático se LLMs estiverem sem cota)
+    let analysis;
+    try {
+      const res = await runQaAnalysis(
+        loaded.requirements,
+        truncatedEvidence,
+        (message) => console.log(`[Local Worker ${qaResultId}] ${message}`)
+      );
+      analysis = res.analysis;
+    } catch (err) {
+      console.warn(
+        `[Local Fallback Worker ${qaResultId}] APIs de LLM indisponíveis (Rate Limit/Cota). Ativando motor determinístico de contingência...`,
+        err instanceof Error ? err.message : err
+      );
+      const res = await runQaAnalysis(
+        loaded.requirements,
+        truncatedEvidence,
+        (message) => console.log(`[Local Worker ${qaResultId}] ${message}`),
+        { allowFallback: true }
+      );
+      analysis = res.analysis;
+    }
 
     // 4) Cria o arquivamento forense
     const { archivedPath, gzSizeBytes, originalSizeBytes } =

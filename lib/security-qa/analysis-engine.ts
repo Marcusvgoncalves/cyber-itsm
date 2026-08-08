@@ -43,7 +43,10 @@ function resolveApiKey(names: string[]): string | null {
 type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
 
 const GROQ: ModelFactory = (apiKey) => {
-  const provider = createGroq({ apiKey });
+  const provider = createOpenAI({
+    apiKey,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
   return (modelId) => provider(modelId);
 };
 
@@ -75,7 +78,7 @@ const AGENTS: AgentConfig[] = [
     id: 'google',
     label: 'Google (Gemini 2.0 Flash / Lite)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
-    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+    modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'],
     createModel: GOOGLE,
   },
   {
@@ -90,18 +93,18 @@ const AGENTS: AgentConfig[] = [
     label: 'OpenRouter (Gemini & Llama Free)',
     envKeys: ['OPENROUTER_API_KEY'],
     modelIds: [
-      'google/gemini-2.0-flash-lite-001',
-      'deepseek/deepseek-r1:free',
-      'qwen/qwen-2.5-coder-32b-instruct:free',
-      'mistralai/mistral-7b-instruct:free',
+      'google/gemini-2.0-flash-exp:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'meta-llama/llama-3.1-8b-instruct:free',
+      'mistralai/mistral-small-24b-instruct-2501:free',
     ],
     createModel: OPENROUTER,
   },
   {
     id: 'groq',
-    label: 'Groq (Llama 3.3 70B / Mixtral)',
+    label: 'Groq (Llama 3.3 70B / 3.1 8B)',
     envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+    modelIds: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama3-70b-8192'],
     createModel: GROQ,
   },
 ];
