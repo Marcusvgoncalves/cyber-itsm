@@ -122,20 +122,19 @@ const ANALYSIS_SCHEMA = z.object({
   ).describe("Lista de resultados, uma para cada requisito do escopo"),
 });
 
-const SYSTEM_PROMPT = `Você é um engenheiro de segurança sênior do "Centro de Security QA".
+const SYSTEM_PROMPT = `Você é um Engenheiro de AppSec Sênior. Sua tarefa é analisar o relatório de vulnerabilidades e propor SOLUÇÕES TÉCNICAS DIRETAS.
 Sua missão é CRUZAR, um a um, os requisitos de arquitetura segura fornecidos com as vulnerabilidades e evidências encontradas no relatório de segurança (JSON/XML/TXT).
 
 REGRAS OBRIGATÓRIAS:
 1. Avalie cada requisito do escopo e classifique em "conforme", "parcial" ou "nao_conforme".
-2. Para CADA requisito analisado que resulte em 'nao_conforme' ou 'parcial', você DEVE obrigatoriamente:
-   - Em 'evidence': Extrair e descrever o exato achado técnico presente no arquivo de origem que causou a reprovação.
-   - Em 'recommendation': Fornecer uma instrução técnica, acionável e específica para mitigar aquela vulnerabilidade exata. É TERMINANTEMENTE PROIBIDO gerar textos genéricos como 'Implantar o controle conforme diretrizes'.
-3. Para requisitos 'conforme', descreva no campo 'evidence' a evidência ou motivo específico presente no arquivo que comprova a conformidade, e no campo 'recommendation' a orientação de manutenção do controle.
-4. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
-5. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
-6. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
-7. Para cada finding, use requirementId exatamente como citado no escopo.
-8. Você deve obrigatoriamente retornar todos os dados em um objeto JSON válido.`;
+2. Para CADA requisito 'Não conforme' ou 'Parcial', você é OBRIGADO a fornecer em 'recommendation' o comando exato, a configuração de código ou o ajuste de infraestrutura necessário para sanar a falha. PROIBIDO usar verbos genéricos como 'Implantar', 'Verificar' ou 'Corrigir'. Diga exatamente COMO corrigir (ex: 'Altere a diretiva no nginx.conf para add_header Strict-Transport-Security...' ou 'No Prisma, adicione @default(uuid())').
+3. Em 'evidence': Extrair e descrever o exato achado técnico presente no arquivo de origem que causou a reprovação.
+4. Para requisitos 'conforme', descreva no campo 'evidence' a evidência ou motivo específico presente no arquivo que comprova a conformidade, e no campo 'recommendation' a orientação de manutenção do controle.
+5. compliancePercent = (requisitos conforme + 0.5 * requisitos parcial) / total de requisitos * 100, arredondado para 1 casa decimal.
+6. overallRating: < 50 => "critico" | 50 a 69 => "alto" | 70 a 84 => "medio" | >= 85 => "baixo".
+7. executiveSummary: sumário executivo em português (pt-BR), máximo 150 palavras.
+8. Para cada finding, use requirementId exatamente como citado no escopo.
+9. Você deve obrigatoriamente retornar todos os dados em um objeto JSON válido.`;
 
 /** Detecta erros de Rate Limit (HTTP 429) a partir de qualquer provider AI SDK. */
 export function isRateLimitError(err: unknown): boolean {
@@ -261,7 +260,7 @@ export async function runQaAnalysis(
           schema: ANALYSIS_SCHEMA,
           system: SYSTEM_PROMPT,
           prompt: `[REQUISITOS]\n${requirements}\n\n[RELATÓRIO DE SEGURANÇA]\n${evidence}\n\nCruce os requisitos com as evidências e devolva o JSON conforme o schema.`,
-          temperature: 0.2,
+          temperature: 0.25,
           maxOutputTokens: 4096,
         });
 
