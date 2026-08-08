@@ -179,6 +179,17 @@ export async function createTicket(
       parentEpicId: data.parent_epic_id || parentEpicId,
     };
 
+    if (newTicket.parentEpicId) {
+      const { data: parentData } = await supabase
+        .from('tickets')
+        .select('id, title')
+        .eq('id', newTicket.parentEpicId)
+        .single();
+      if (parentData) {
+        newTicket.parentEpic = parentData;
+      }
+    }
+
     try {
       await notifyTicketCreated(newTicket);
     } catch (emailErr) {
@@ -252,6 +263,11 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     if (updates.tags !== undefined) sanitized.tags = updates.tags;
     if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
 
+    const parentEpicVal = updates.parentEpicId !== undefined ? updates.parentEpicId : updates.parent_epic_id;
+    if (parentEpicVal !== undefined) {
+      sanitized.parent_epic_id = parentEpicVal || null;
+    }
+
     const { data, error } = await supabase
       .from('tickets')
       .update(sanitized)
@@ -275,6 +291,19 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
       assignee: data.assignee || previous.assignee,
       parentEpicId: data.parent_epic_id || previous.parent_epic_id,
     };
+
+    if (updatedTicket.parentEpicId) {
+      const { data: parentData } = await supabase
+        .from('tickets')
+        .select('id, title')
+        .eq('id', updatedTicket.parentEpicId)
+        .single();
+      if (parentData) {
+        updatedTicket.parentEpic = parentData;
+      }
+    } else {
+      updatedTicket.parentEpic = undefined;
+    }
 
     const changes = buildTicketChanges(
       {
