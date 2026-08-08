@@ -198,3 +198,22 @@ model Ticket {
   @@index([dueDate])
   @@map("tickets")
 }
+
+// ---------------------------------------------------------------------------
+// LlmCallLog — Logs reais de chamadas de inteligência artificial para o painel.
+// ---------------------------------------------------------------------------
+model LlmCallLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  provider   String   // google | openai | openrouter | groq | fallback
+  model      String
+  route      String   // ex: /api/qa-engine, /api/chat
+  status     String   // SUCESSO | FALLBACK | FALHA
+  latencyMs  Int      @map("latency_ms")
+  tokensUsed Int?     @map("tokens_used")
+  costEst    Decimal? @map("cost_est") @db.Decimal(10, 6)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([provider])
+  @@index([createdAt(sort: Desc)])
+  @@map("llm_call_logs")
+}

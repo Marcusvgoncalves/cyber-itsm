@@ -42,6 +42,7 @@ import {
   getSprints,
   getNotificationSettings,
   getCustomRequirements,
+  getLlmUsageMetrics,
 } from "@/app/actions/cadastros";
 import type { SprintInput, RequirementInput } from "@/app/actions/cadastros";
 

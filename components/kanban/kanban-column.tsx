@@ -16,9 +16,12 @@ interface KanbanColumnProps {
   onTicketClick: (ticket: Ticket) => void;
   onAddTicket: (statusId: string) => void;
   onQaRequest?: (ticket: Ticket) => void;
+  /** Exclusão exclusiva de ADMIN (Matriz SoD). */
+  canDelete?: boolean;
+  onDelete?: (ticket: Ticket) => void;
 }
 
-export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket, onQaRequest }: KanbanColumnProps) {
+export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket, onQaRequest, canDelete, onDelete }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -100,6 +103,8 @@ export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onT
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onQaRequest={onQaRequest}
+              canDelete={canDelete}
+              onDelete={onDelete}
             />
           ))
         )}

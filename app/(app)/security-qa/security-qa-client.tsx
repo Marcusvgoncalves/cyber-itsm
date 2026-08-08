@@ -11,13 +11,17 @@ import {
   AlertTriangle,
   XCircle,
   FileArchive,
-  BarChart3
+  BarChart3,
+  Trash2,
 } from "lucide-react";
 import type { QaFindingStatus, QaResult } from "@/lib/security-qa/types";
+import type { User } from "@/lib/types";
 import { SecurityQaDashboard } from "@/components/security-qa/security-qa-dashboard";
+import { deleteQaAnalysis } from "@/app/actions/security-qa";
 
 interface SecurityQaClientProps {
   initialResults: QaResult[];
+  currentUser: User;
 }
 
 const RATING_LABEL: Record<string, string> = { baixo: "Baixo", medio: "Médio", alto: "Alto", critico: "Crítico" };
@@ -36,9 +40,33 @@ function statusCounts(result: QaResult) {
   return counts;
 }
 
-export function SecurityQaClient({ initialResults }: SecurityQaClientProps) {
+export function SecurityQaClient({ initialResults, currentUser }: SecurityQaClientProps) {
   const [showDashboard, setShowDashboard] = useState(false);
-  const [results] = useState<QaResult[]>(initialResults);
+  const [results, setResults] = useState<QaResult[]>(initialResults);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const isAdmin = currentUser.role === "admin";
+
+  const handleDelete = async (result: QaResult) => {
+    if (!window.confirm(
+      `Excluir definitivamente a análise de "${result.project_name}"? ` +
+      "Os artefatos forenses (GZIP) e o laudo PDF serão removidos do Storage. Esta ação não pode ser desfeita."
+    )) return;
+
+    setDeletingId(result.id);
+    try {
+      const res = await deleteQaAnalysis(result.id);
+      if (res.ok) {
+        setResults((prev) => prev.filter((r) => r.id !== result.id));
+      } else {
+        window.alert(res.error ?? "Falha ao excluir a análise.");
+      }
+    } catch (err) {
+      console.error("Erro ao excluir análise:", err);
+      window.alert("Falha ao excluir a análise.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (showDashboard) {
     return (
@@ -86,7 +114,7 @@ export function SecurityQaClient({ initialResults }: SecurityQaClientProps) {
                   <th scope="col" className="px-4 py-3">Vereditos</th>
                   <th scope="col" className="px-4 py-3">Evidência</th>
                   <th scope="col" className="px-4 py-3">Data</th>
-                  <th scope="col" className="px-4 py-3 text-right">Abrir</th>
+                  <th scope="col" className="px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -146,11 +174,29 @@ export function SecurityQaClient({ initialResults }: SecurityQaClientProps) {
                           })}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Link href={`/security-qa/project/${result.id}`} className="inline-flex">
-                            <Button variant="ghost" size="sm" className="text-primary gap-1">
-                              Visualizar <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(result)}
+                                disabled={deletingId === result.id}
+                                className="gap-1 text-red-600 hover:bg-red-50"
+                                title="Excluir análise (somente ADMIN)"
+                              >
+                                {deletingId === result.id ? (
+                                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            <Link href={`/security-qa/project/${result.id}`} className="inline-flex">
+                              <Button variant="ghost" size="sm" className="text-primary gap-1">
+                                Visualizar <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

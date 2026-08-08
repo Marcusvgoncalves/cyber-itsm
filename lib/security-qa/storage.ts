@@ -151,3 +151,47 @@ export async function uploadQaPdfReport(
     pdfFileUrl: urlError || !data?.signedUrl ? null : data.signedUrl,
   };
 }
+
+/**
+ * Exclui do Storage todos os artefatos de um laudo: o arquivo forense GZIP
+ * (qa-logs-archive) e o laudo PDF (qa-pdf-reports). Usado no expurgo manual
+ * (exclusão de análise) — service role. Caminhos nulos/vazios são ignorados.
+ */
+export async function deleteQaResultStorage(artifacts: {
+  archivedFilePath?: string | null;
+  pdfFilePath?: string | null;
+}): Promise<{ removedArchive: boolean; removedPdf: boolean }> {
+  const client = createServiceClient();
+
+  const removals: Promise<boolean>[] = [];
+  if (artifacts.archivedFilePath) {
+    removals.push(
+      client.storage
+        .from(QA_BUCKETS.archive)
+        .remove([artifacts.archivedFilePath])
+        .then(({ error }) => {
+          if (error) console.error('[QA Storage] Falha ao excluir arquivo GZIP:', error.message);
+          return !error;
+        })
+    );
+  } else {
+    removals.push(Promise.resolve(false));
+  }
+
+  if (artifacts.pdfFilePath) {
+    removals.push(
+      client.storage
+        .from(QA_BUCKETS.pdf)
+        .remove([artifacts.pdfFilePath])
+        .then(({ error }) => {
+          if (error) console.error('[QA Storage] Falha ao excluir laudo PDF:', error.message);
+          return !error;
+        })
+    );
+  } else {
+    removals.push(Promise.resolve(false));
+  }
+
+  const [removedArchive, removedPdf] = await Promise.all(removals);
+  return { removedArchive, removedPdf };
+}

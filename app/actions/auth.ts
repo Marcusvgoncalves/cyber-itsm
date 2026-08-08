@@ -6,6 +6,10 @@ import { getAuthService } from "@/lib/auth/authService";
 import { cookies } from "next/headers";
 import { verifyTOTP, generateSecret } from "@/lib/totp";
 import { revalidatePath } from "next/cache";
+import { createAuditLog, logSystemAudit } from "@/lib/audit/audit";
+
+// Compatibilidade: módulos existentes importam createAuditLog de "@/app/actions/auth".
+export { createAuditLog };
 
 // Interface for profile query response
 interface ProfileData {
@@ -20,34 +24,9 @@ interface ProfileData {
   reset_token_expires_at: string | null;
 }
 
-/**
- * Helper to write a system audit log.
- */
-export async function createAuditLog(
-  action: string,
-  entityType: string,
-  entityId?: string,
-  oldData?: Record<string, any> | null,
-  newData?: Record<string, any> | null
-) {
-  try {
-    const supabase = await createClient();
-    const context = await getAuthService().getUser();
-    if (!context) return;
-
-    await supabase.from('audit_logs').insert({
-      user_id: context.session.id,
-      action,
-      entity_type: entityType,
-      entity_id: entityId || null,
-      old_data: oldData || null,
-      new_data: newData || null,
-      ip_address: '127.0.0.1', // Mocked or read if available
-      user_agent: 'NextJS Server Action'
-    });
-  } catch (err) {
-    console.error('Falha ao gravar log de auditoria:', err);
-  }
+/** Normaliza qualquer e-mail para o domínio sandbox @cyberitsm.local. */
+function normalizeEmail(raw: string): string {
+  return raw.trim().toLowerCase().replace(/@(telefonica\.com|vivo\.com\.br|.*)$/, '@cyberitsm.local');
 }
 
 /**
@@ -67,7 +46,25 @@ export async function signInWithCredentials(
   email: string,
   password: string
 ): Promise<{ error?: string }> {
-  return getAuthService().signIn({ email, password });
+  const result = await getAuthService().signIn({ email, password });
+  if (result.error) return result;
+
+  // Auditoria de login (service role: a sessão só fica visível no próximo request).
+  try {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from('users_profiles')
+      .select('id')
+      .eq('email', normalizeEmail(email))
+      .single();
+    await logSystemAudit(profile?.id ?? null, 'login_success', 'auth', null, null, {
+      email: normalizeEmail(email),
+    });
+  } catch (err) {
+    console.error('Falha ao auditar login:', err);
+  }
+
+  return {};
 }
 
 /**
@@ -298,10 +295,15 @@ export async function changeUserPassword(password: string): Promise<boolean> {
  * Logs out the user and clears MFA validation.
  */
 export async function logoutUser(): Promise<void> {
+  const context = await getAuthService().getUser();
+  const userId = context?.session.id ?? null;
+
   await getAuthService().signOut();
   
   const cookieStore = await cookies();
   cookieStore.delete('mfa_verified');
   cookieStore.delete('session_start');
   cookieStore.delete('last_activity');
+
+  await logSystemAudit(userId, 'logout', 'auth');
 }

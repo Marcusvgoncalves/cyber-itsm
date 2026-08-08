@@ -14,6 +14,7 @@ import {
   canCloseEpic,
 } from "@/lib/domain/ticketRules";
 import { DEFAULT_STATUSES, type Ticket, type TicketStatus, type User, type AuditLog } from "@/lib/types";
+import { createAuditLog } from "@/lib/audit/audit";
 
 export async function getTickets(): Promise<Ticket[]> {
   const supabase = await createClient();
@@ -238,6 +239,13 @@ export async function createTicket(
       console.error('Falha ao enviar notificação de criação:', emailErr);
     }
 
+    await createAuditLog('ticket_create', 'tickets', newTicket.id, null, {
+      title: newTicket.title,
+      type: newTicket.type,
+      priority: newTicket.priority,
+      status: newTicket.status,
+    });
+
     revalidatePath('/dashboard');
     return newTicket;
   } catch (err) {
@@ -399,6 +407,15 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
       }
     }
 
+    await createAuditLog('ticket_update', 'tickets', id, {
+      status: prevStatus,
+      priority: previous.priority,
+    }, {
+      status: updatedTicket.status,
+      priority: updatedTicket.priority,
+      assignee: updatedTicket.assignee,
+    });
+
     revalidatePath('/dashboard');
     return updatedTicket;
   } catch (err) {
@@ -466,16 +483,25 @@ export async function moveTicket(ticketId: string, newStatusId: string): Promise
 
   if (error) throw new Error(error.message);
 
+  await createAuditLog('ticket_move', 'tickets', ticketId, { status: prevStatus }, { status: normalizedStatus });
+
   revalidatePath('/dashboard');
 }
 
 export async function deleteTicket(id: string): Promise<void> {
   const supabase = await createClient();
 
-  // 1. Busca o anexo existente para exclusão física
+  // Matriz SoD: exclusão de atividades do Kanban é exclusiva do perfil ADMIN.
+  const context = await getAuthService().getUser();
+  if (!context) throw new Error('Não autenticado.');
+  if (context.user.role !== 'admin') {
+    throw new Error('Acesso negado. Apenas usuários ADMIN podem excluir atividades do Kanban (Matriz SoD).');
+  }
+
+  // 1. Busca o ticket para auditoria + exclusão física do anexo
   const { data: ticket } = await supabase
     .from('tickets')
-    .select('attachment_url')
+    .select('title, attachment_url')
     .eq('id', id)
     .single();
 
@@ -496,6 +522,8 @@ export async function deleteTicket(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throw new Error(error.message);
+
+  await createAuditLog('ticket_delete', 'tickets', id, { title: ticket?.title }, null);
 
   revalidatePath('/dashboard');
 }

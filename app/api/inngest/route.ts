@@ -10,6 +10,7 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 import { processQaReport } from "@/lib/inngest/functions/processQaReport";
+import { auditRetentionJob } from "@/lib/inngest/functions/auditRetention";
 
 export const runtime = "nodejs";
 // Funções de background podem exceder o timeout padrão (60s). 300s cobre
@@ -18,5 +19,5 @@ export const maxDuration = 300;
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [processQaReport],
+  functions: [processQaReport, auditRetentionJob],
 });

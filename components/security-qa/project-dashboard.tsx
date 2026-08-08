@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { QaResult, QaFindingStatus } from "@/lib/security-qa/types";
+import type { User } from "@/lib/types";
+import { deleteQaAnalysis } from "@/app/actions/security-qa";
 import {
   ResponsiveContainer,
   RadialBarChart,
@@ -28,11 +31,13 @@ import {
   Archive,
   FileText,
   Link2,
+  Trash2,
 } from "lucide-react";
 
 interface ProjectDashboardProps {
   result: QaResult;
   evidenceUrl: string | null;
+  currentUser: User;
 }
 
 const RATING_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -53,9 +58,12 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps) {
+export function ProjectDashboard({ result, evidenceUrl, currentUser }: ProjectDashboardProps) {
+  const router = useRouter();
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const rating = RATING_META[result.overall_rating] ?? RATING_META.medio;
+  const isAdmin = currentUser.role === "admin";
 
   const counts = {
     conforme: result.findings.filter((f) => f.status === "conforme").length,
@@ -92,6 +100,28 @@ export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps)
     }
   }, [result]);
 
+  const handleDelete = useCallback(async () => {
+    if (!window.confirm(
+      `Excluir definitivamente a análise de "${result.project_name}"? ` +
+      "Os artefatos forenses (GZIP) e o laudo PDF serão removidos do Storage. Esta ação não pode ser desfeita."
+    )) return;
+
+    setDeleting(true);
+    try {
+      const res = await deleteQaAnalysis(result.id);
+      if (res.ok) {
+        router.push("/security-qa");
+      } else {
+        window.alert(res.error ?? "Falha ao excluir a análise.");
+      }
+    } catch (err) {
+      console.error("Erro ao excluir análise:", err);
+      window.alert("Falha ao excluir a análise.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [result.id, result.project_name, router]);
+
   return (
     <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Cabeçalho do resultado */}
@@ -117,6 +147,19 @@ export function ProjectDashboard({ result, evidenceUrl }: ProjectDashboardProps)
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
               Exportar PDF
             </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
+                title="Excluir análise (somente ADMIN)"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Excluir
+              </Button>
+            )}
           </div>
         </div>
 

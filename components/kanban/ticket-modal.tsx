@@ -27,6 +27,7 @@ import {
   AlertCircle,
   CircleHelp,
   Search,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,9 @@ interface TicketModalProps {
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
+  /** Exclusão exclusiva de ADMIN (Matriz SoD). */
+  canDelete?: boolean;
+  onDelete?: (ticket: Ticket) => void;
 }
 
 export function TicketModal({
@@ -57,6 +61,8 @@ export function TicketModal({
   onClose,
   onSubmit,
   isLoading,
+  canDelete,
+  onDelete,
 }: TicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -753,13 +759,25 @@ export function TicketModal({
 
           {/* Actions */}
           <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
-            <div>
+            <div className="flex items-center gap-2">
               {mode === 'edit' && ticket && (
                 <a href={`/api/tickets/${ticket.id}/pdf`} target="_blank" rel="noopener noreferrer">
                   <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs text-primary border-primary/30">
                     <Download className="h-3.5 w-3.5" /> Exportar Relatório em PDF
                   </Button>
                 </a>
+              )}
+              {mode === 'edit' && ticket && canDelete && onDelete && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(ticket)}
+                  disabled={isLoading}
+                  className="gap-1.5 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Excluir
+                </Button>
               )}
             </div>
             <div className="flex items-center gap-3">

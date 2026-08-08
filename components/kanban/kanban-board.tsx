@@ -9,7 +9,7 @@ import { PlusIcon, RefreshCw, BarChart3, LayoutGrid, AlertTriangle, X } from "lu
 import { Button } from "@/components/ui/button";
 import { KanbanDashboard } from "./kanban-dashboard";
 import { EpicQaModal } from "./epic-qa-modal";
-import { createTicket, moveTicket, updateTicket, getTickets, getStatuses } from "@/app/actions/tickets";
+import { createTicket, moveTicket, updateTicket, deleteTicket, getTickets, getStatuses } from "@/app/actions/tickets";
 import { getSprints } from "@/app/actions/cadastros";
 import { isAllowedTransition, ALLOWED_TRANSITIONS, canCloseEpic } from "@/lib/domain/ticketRules";
 import { useTransition } from "react";
@@ -197,6 +197,30 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     setQaTicket(ticket);
   }, []);
 
+  // Exclusão exclusiva de ADMIN (Matriz SoD): remove também do estado local.
+  const isAdmin = currentUser.role === 'admin';
+  const handleTicketDelete = useCallback(async (ticket: Ticket) => {
+    setValidationError(null);
+    const confirmDelete = window.confirm(
+      `Excluir definitivamente a atividade "${ticket.title}"? Esta ação não pode ser desfeita.`
+    );
+    if (!confirmDelete) return;
+
+    startTransition(async () => {
+      setIsLoading(true);
+      try {
+        await deleteTicket(ticket.id);
+        setTickets((prev) => prev.filter((t) => t.id !== ticket.id));
+        setSelectedTicket((current) => (current?.id === ticket.id ? null : current));
+      } catch (error: any) {
+        console.error('Erro ao excluir ticket:', error);
+        setValidationError(error.message || 'Erro ao excluir chamado.');
+      } finally {
+        setIsLoading(false);
+      }
+    });
+  }, []);
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -279,6 +303,8 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
                   onTicketClick={handleTicketClick}
                   onAddTicket={handleAddTicket}
                   onQaRequest={handleQaTicket}
+                  canDelete={isAdmin}
+                  onDelete={handleTicketDelete}
                 />
               </div>
             ))}
@@ -298,6 +324,8 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           onClose={handleCloseModal}
           onSubmit={handleTicketSubmit}
           isLoading={isLoading}
+          canDelete={isAdmin}
+          onDelete={handleTicketDelete}
         />
       ) : null}
 

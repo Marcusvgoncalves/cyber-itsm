@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Ticket, TicketPriority, TYPE_COLORS, TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
-import { GripVertical, User, Clock, Layers, ShieldCheck } from "lucide-react";
+import { GripVertical, User, Clock, Layers, ShieldCheck, Trash2 } from "lucide-react";
 
 interface KanbanCardProps {
   ticket: Ticket;
@@ -11,9 +11,12 @@ interface KanbanCardProps {
   onDragStart: (e: React.DragEvent, ticketId: string) => void;
   onDragEnd: () => void;
   onQaRequest?: (ticket: Ticket) => void;
+  /** Exclusão exclusiva de ADMIN (Matriz SoD). */
+  canDelete?: boolean;
+  onDelete?: (ticket: Ticket) => void;
 }
 
-export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd, onQaRequest }: KanbanCardProps) {
+export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd, onQaRequest, canDelete, onDelete }: KanbanCardProps) {
   const typeKey = ticket.type || 'TAREFA';
   const typeStyle = TYPE_COLORS[typeKey] || TYPE_COLORS.TAREFA;
   const typeLabel = TYPE_LABELS[typeKey] || typeKey;
@@ -103,6 +106,20 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
               {new Date(ticket.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
             </time>
           </div>
+          {canDelete && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(ticket);
+              }}
+              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-red-50 p-1 text-red-600 transition-colors hover:bg-red-100"
+              title="Excluir atividade (somente ADMIN)"
+              aria-label={`Excluir atividade ${ticket.title}`}
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
     </article>

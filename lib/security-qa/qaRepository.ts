@@ -13,6 +13,7 @@
  */
 import { prisma } from './prisma';
 import { Prisma } from '@/lib/generated/prisma/client';
+import { deleteQaResultStorage } from './storage';
 import type { QaAnalysis, QaResult } from './types';
 
 export interface CreatePendingQaResultInput {
@@ -165,4 +166,48 @@ export async function listQaResults(limit = 50): Promise<QaResult[]> {
     take: limit,
   });
   return rows.map(toQaResult);
+}
+
+/**
+ * Exclui permanentemente uma análise de Security QA:
+ *   1. remove os artefatos do Storage (GZIP forense + laudo PDF);
+ *   2. exclui o registro em qa_results;
+ *   3. se o projeto (qa_projects) ficar órfão, exclui também.
+ * Retorna o QaResult removido (para auditoria). Idempotente: registros já
+ * removidos ou PROCESSANDO não encontrados lançam erro controlado.
+ */
+export async function deleteQaResult(id: string): Promise<QaResult> {
+  const existing = await prisma.qaResult.findUnique({
+    where: { id },
+    include: { project: true },
+  });
+  if (!existing) {
+    throw new Error(`Análise de Security QA '${id}' não encontrada.`);
+  }
+
+  // 1) Remove artefatos de storage (GZIP forense + PDF). Falhas são toleradas
+  //    para não bloquear a exclusão lógica do registro.
+  await deleteQaResultStorage({
+    archivedFilePath: existing.archivedFilePath,
+    pdfFilePath: existing.pdfFilePath,
+  }).catch((err) => {
+    console.error(`[QA Repository] Falha ao remover artefatos de ${id}:`, err);
+  });
+
+  const removed = toQaResult(existing);
+
+  // 2) Exclui o registro. onDelete é RESTRICT no projeto, então a ordem importa.
+  await prisma.qaResult.delete({ where: { id } });
+
+  // 3) Remove o projeto se ficou órfão (sem outros laudos).
+  const remaining = await prisma.qaResult.count({
+    where: { projectId: existing.projectId },
+  });
+  if (remaining === 0) {
+    await prisma.qaProject
+      .delete({ where: { id: existing.projectId } })
+      .catch(() => undefined);
+  }
+
+  return removed;
 }

@@ -28,6 +28,7 @@ export default async function ProjectDashboardPage({ params }: Props) {
     <ProjectDashboard
       result={result}
       evidenceUrl={evidenceUrl ?? result.archived_file_url}
+      currentUser={currentUser}
     />
   );
 }

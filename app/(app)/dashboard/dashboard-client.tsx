@@ -17,17 +17,25 @@ import {
   Shield, Users, TicketCheck, Settings, Database, 
   RefreshCw, CheckCircle, XCircle, ArrowUpRight, ShieldAlert,
   KeyRound, Lock, QrCode, Bot, BookOpen, Search, ChevronDown, ChevronUp, Layers,
-  Trash2, Key, Download, UploadCloud
+  Trash2, Key, Download, UploadCloud, AlertTriangle, Loader2, ShieldCheck
 } from "lucide-react";
 import { changeUserPassword, disableMfa, initiateMfa, confirmMfaSetup } from "@/app/actions/auth";
 import { syncIamProvider, createIdentityRequest, approveIdentityRequest, rejectIdentityRequest, createLocalUser, listSystemUsers, updateUserRole, setUserActive, forceMfaReconfiguration, deprovisionUser, resetUserPasswordToDefault } from "@/app/actions/iam";
+import { getAuditRetentionStatusAction, grantAuditPurgeConsentAction, revokeAuditPurgeConsentAction, runAuditRetentionNowAction } from "@/app/actions/audit";
 import type { Status, Ticket, IamProvider, IamUser, IdentityRequest, User, AuditLog } from "@/lib/types";
+import type { AuditRetentionStatus } from "@/lib/audit/retention";
 
 // Lazy-load (next/dynamic) do Copiloto de IA — só baixa quando aberto.
 const SecurityAgent = dynamic(
   () => import("@/components/SecurityAgent").then((mod) => mod.SecurityAgent),
   { ssr: false }
 );
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
 
 interface DashboardClientProps {
   currentUser: User;
@@ -83,6 +91,23 @@ export function DashboardClient({
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [systemUsersState, setSystemUsersState] = useState<User[]>(systemUsers);
   const [userMgmtMsg, setUserMgmtMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Política de Retenção de Logs de Auditoria (aba Auditoria — ADMIN)
+  const [retention, setRetention] = useState<AuditRetentionStatus | null>(null);
+  const [retentionMsg, setRetentionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [retentionRunning, setRetentionRunning] = useState(false);
+  const isAuditApprover = currentUser.email?.toLowerCase().split('@')[0] === 'marcus.goncalves';
+
+  useEffect(() => {
+    if (activeTab === 'audit' && currentUser.role === 'admin' && !retention) {
+      getAuditRetentionStatusAction()
+        .then((res) => {
+          if (res.data) setRetention(res.data);
+          else if (res.error) setRetentionMsg({ type: 'error', text: res.error });
+        })
+        .catch((err) => console.error('Erro ao carregar status de retenção:', err));
+    }
+  }, [activeTab, currentUser.role, retention]);
 
   // Security Agent state
   const [showAgent, setShowAgent] = useState(false);
@@ -178,6 +203,58 @@ export function DashboardClient({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const refreshRetention = async () => {
+    const res = await getAuditRetentionStatusAction();
+    if (res.data) setRetention(res.data);
+    return res;
+  };
+
+  const handleGrantPurgeConsent = async () => {
+    if (!window.confirm(
+      "Conceder consentimento para o expurgo automático de logs de auditoria com mais de 90 dias? " +
+      "O consentimento é registrado em nome de marcus.goncalves e vale por 30 dias."
+    )) return;
+    setRetentionMsg(null);
+    const res = await grantAuditPurgeConsentAction();
+    if (res.ok && res.expiresAt) {
+      setRetentionMsg({ type: 'success', text: `Consentimento concedido. Expurgo liberado até ${new Date(res.expiresAt).toLocaleString('pt-BR')}.` });
+      await refreshRetention();
+    } else {
+      setRetentionMsg({ type: 'error', text: res.error ?? 'Falha ao conceder consentimento.' });
+    }
+  };
+
+  const handleRevokePurgeConsent = async (consentId: string) => {
+    if (!window.confirm("Revogar o consentimento de expurgo? Os logs antigos voltarão a ficar retidos.")) return;
+    setRetentionMsg(null);
+    const res = await revokeAuditPurgeConsentAction(consentId);
+    if (res.ok) {
+      setRetentionMsg({ type: 'success', text: 'Consentimento de expurgo revogado.' });
+      await refreshRetention();
+    } else {
+      setRetentionMsg({ type: 'error', text: res.error ?? 'Falha ao revogar consentimento.' });
+    }
+  };
+
+  const handleRunRetentionNow = async () => {
+    setRetentionRunning(true);
+    setRetentionMsg(null);
+    try {
+      const res = await runAuditRetentionNowAction();
+      if (res.ok) {
+        setRetentionMsg({ type: 'success', text: 'Rotina de retenção executada: arquivamento e expurgo concluídos.' });
+        await refreshRetention();
+      } else {
+        setRetentionMsg({ type: 'error', text: res.error ?? 'Falha ao executar a rotina de retenção.' });
+      }
+    } catch (err) {
+      console.error('Erro ao executar retenção:', err);
+      setRetentionMsg({ type: 'error', text: 'Falha ao executar a rotina de retenção.' });
+    } finally {
+      setRetentionRunning(false);
+    }
   };
 
   // Sync Provider (Entra ID or Keycloak)
@@ -815,6 +892,95 @@ export function DashboardClient({
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Logs de Auditoria do Sistema (SecOps)</h2>
               <p className="text-gray-600 text-sm mt-1">Rastreabilidade completa de ações e transações de segurança realizadas na plataforma.</p>
             </div>
+
+            {/* Política de Retenção de Logs */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg font-bold">Política de Retenção de Logs</CardTitle>
+                  <CardDescription>
+                    Busca quente por 7 dias · arquivo GZIP por até 90 dias · expurgo somente com consentimento do aprovador
+                  </CardDescription>
+                </div>
+                <Button size="sm" onClick={handleRunRetentionNow} disabled={retentionRunning} variant="outline" className="gap-2 h-8 text-xs font-semibold">
+                  {retentionRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Executar rotina agora
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {retentionMsg && (
+                  <div className={`px-3 py-2 rounded-md text-xs font-semibold ${retentionMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                    {retentionMsg.text}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Hot (0–7 dias)</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{retention?.hot.count ?? '—'}</p>
+                    <p className="text-xs text-gray-500 mt-1">logs consultáveis na UI</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Arquivado (GZIP)</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{retention?.archive.days ?? '—'} dias</p>
+                    <p className="text-xs text-gray-500 mt-1">{retention?.archive.rows ?? '—'} logs · {retention ? formatBytes(retention.archive.compressedBytes) : ''}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Economia de storage</p>
+                    {retention && retention.archive.originalBytes > 0 ? (
+                      <>
+                        <p className="text-2xl font-bold text-primary mt-1">
+                          {Math.round((1 - retention.archive.compressedBytes / retention.archive.originalBytes) * 100)}%
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatBytes(retention.archive.originalBytes)} → {formatBytes(retention.archive.compressedBytes)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-2xl font-bold text-gray-900 mt-1">—</p>
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-gray-200 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Expurgo &gt;90 dias</p>
+                    <p className="text-xl font-bold text-gray-900 mt-1 leading-tight">
+                      {retention?.pendingPurge.days ? `${retention.pendingPurge.days} dias pendentes` : 'Nenhum pendente'}
+                    </p>
+                    <p className="text-xs mt-1">
+                      {retention?.consent?.status === 'GRANTED' && retention.consent.expiresAt && new Date(retention.consent.expiresAt) > new Date() ? (
+                        <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
+                          <CheckCircle className="h-3 w-3" /> Consentimento ativo até {new Date(retention.consent.expiresAt).toLocaleDateString('pt-BR')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+                          <AlertTriangle className="h-3 w-3" /> Aguardando consentimento
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {retention?.consent?.status === 'GRANTED' && retention.consent.expiresAt && new Date(retention.consent.expiresAt) > new Date() ? (
+                    isAuditApprover && retention.consent.id && (
+                      <Button size="sm" variant="outline" onClick={() => handleRevokePurgeConsent(retention.consent!.id!)} className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50">
+                        <XCircle className="h-3.5 w-3.5" /> Revogar consentimento
+                      </Button>
+                    )
+                  ) : (
+                    isAuditApprover && (
+                      <Button size="sm" onClick={handleGrantPurgeConsent} className="gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Conceder consentimento de expurgo
+                      </Button>
+                    )
+                  )}
+                  <p className="text-[11px] text-gray-500">
+                    {isAuditApprover
+                      ? 'Você é o aprovador (marcus.goncalves): o expurgo de logs > 90 dias só ocorre com o seu consentimento.'
+                      : 'O expurgo de logs > 90 dias é executado somente com o consentimento do aprovador marcus.goncalves.'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">

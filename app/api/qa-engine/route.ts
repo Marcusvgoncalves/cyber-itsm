@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { after } from 'next/server';
 import { inngest } from '@/lib/inngest/client';
+import { getAuthService } from '@/lib/auth/authService';
 import { createPendingQaResult } from '@/lib/security-qa/qaRepository';
 import { sanitizeText } from '@/lib/security-qa/analysis-engine';
 import { runLocalQaProcess } from '@/lib/security-qa/local-worker';
+import { logSystemAudit } from '@/lib/audit/audit';
 
 // ============================================================================
 // Centro de Security QA — Publisher (Monolito Orientado a Eventos com Resilience).
@@ -52,6 +54,13 @@ export async function POST(req: Request) {
     originalFileName: sanitizeText(fileName),
     tempStoragePath: sanitizeText(storagePath),
     createdBy: null,
+  });
+
+  // Auditoria: quem solicitou a avaliação (session id quando autenticado).
+  const context = await getAuthService().getUser().catch(() => null);
+  await logSystemAudit(context?.session.id ?? null, 'qa_analysis_request', 'qa_results', pending.id, null, {
+    project_name: sanitizeText(projectName),
+    original_file_name: sanitizeText(fileName),
   });
 
   const hasInngestKey = !!process.env.INNGEST_EVENT_KEY;
