@@ -346,11 +346,11 @@ export async function getStatuses() {
   return DEFAULT_STATUSES;
 }
 
-export async function getUsers() {
+export async function getUsers(): Promise<User[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('users_profiles')
-    .select('id, email, full_name, role, avatar_url')
+    .select('*')
     .order('full_name', { ascending: true });
   
   if (error) throw new Error(error.message);

@@ -1,4 +1,4 @@
-import { getStatuses, getTickets, getUsers, getCurrentUser, getAuditLogs } from "@/lib/supabase";
+import { getStatuses, getTickets, getUsers, getCurrentUser, getAuditLogs } from "@/app/actions/tickets";
 import { getIamProviders, getIamUsers, getIdentityRequests } from "@/app/actions/iam";
 import { DashboardClient } from "./dashboard-client";
 import { redirect } from "next/navigation";
