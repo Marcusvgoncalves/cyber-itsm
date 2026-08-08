@@ -171,7 +171,7 @@ export async function createTicket(formData: Partial<Ticket> & { reporter_id: st
     parentEpicId: data.parent_epic_id || parentEpicId,
   };
 
-  notifyTicketCreated(newTicket);
+  await notifyTicketCreated(newTicket);
   revalidatePath('/dashboard/kanban');
   return newTicket;
 }
@@ -266,7 +266,7 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
   );
 
   if (changes.length > 0) {
-    notifyTicketUpdated(updatedTicket, changes);
+    await notifyTicketUpdated(updatedTicket, changes);
   }
 
   revalidatePath('/dashboard/kanban');

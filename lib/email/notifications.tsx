@@ -64,51 +64,55 @@ async function sendTicketNotificationEmail(
   }
 }
 
-/** Dispara notificação de criação (fire-and-forget). */
-export function notifyTicketCreated(ticket: Ticket): void {
+/** Dispara notificação de criação. */
+export async function notifyTicketCreated(ticket: Ticket): Promise<void> {
   const recipients = collectRecipients(ticket);
 
-  void sendTicketNotificationEmail(
-    {
-      type: 'created',
-      ticketId: ticket.id,
-      ticketUrl: buildTicketUrl(ticket.id),
-      title: ticket.title,
-      description: ticket.description,
-      statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
-      priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
-      frameworkOrigem: ticket.framework_origem,
-      reporterName: ticket.reporter?.full_name,
-      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
-    },
-    recipients
-  ).catch((err) => {
+  try {
+    await sendTicketNotificationEmail(
+      {
+        type: 'created',
+        ticketId: ticket.id,
+        ticketUrl: buildTicketUrl(ticket.id),
+        title: ticket.title,
+        description: ticket.description,
+        statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
+        priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
+        frameworkOrigem: ticket.framework_origem,
+        reporterName: ticket.reporter?.full_name,
+        assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
+      },
+      recipients
+    );
+  } catch (err) {
     console.error('[email] Erro ao notificar criação do chamado:', err);
-  });
+  }
 }
 
-/** Dispara notificação de atualização (fire-and-forget). */
-export function notifyTicketUpdated(ticket: Ticket, changes: string[]): void {
+/** Dispara notificação de atualização. */
+export async function notifyTicketUpdated(ticket: Ticket, changes: string[]): Promise<void> {
   const recipients = collectRecipients(ticket);
 
-  void sendTicketNotificationEmail(
-    {
-      type: 'updated',
-      ticketId: ticket.id,
-      ticketUrl: buildTicketUrl(ticket.id),
-      title: ticket.title,
-      description: ticket.description,
-      statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
-      priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
-      frameworkOrigem: ticket.framework_origem,
-      reporterName: ticket.reporter?.full_name,
-      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
-      changes,
-    },
-    recipients
-  ).catch((err) => {
+  try {
+    await sendTicketNotificationEmail(
+      {
+        type: 'updated',
+        ticketId: ticket.id,
+        ticketUrl: buildTicketUrl(ticket.id),
+        title: ticket.title,
+        description: ticket.description,
+        statusLabel: STATUS_LABELS[ticket.status] ?? ticket.status,
+        priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
+        frameworkOrigem: ticket.framework_origem,
+        reporterName: ticket.reporter?.full_name,
+        assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
+        changes,
+      },
+      recipients
+    );
+  } catch (err) {
     console.error('[email] Erro ao notificar atualização do chamado:', err);
-  });
+  }
 }
 
 /**
