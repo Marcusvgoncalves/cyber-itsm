@@ -327,6 +327,31 @@ export async function getLlmUsageMetrics() {
       return { calls, failures, tokens, cost };
     };
 
+function calculateTokenRenewal(providerId: string) {
+  const now = new Date();
+  if (providerId === "openai") {
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+    const diffMs = nextMonth.getTime() - now.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return {
+      nextRenewal: `${nextMonth.getDate().toString().padStart(2, '0')}/${(nextMonth.getMonth() + 1).toString().padStart(2, '0')}/${nextMonth.getFullYear()}`,
+      timeRemaining: `${days}d ${hours}h`,
+      renewalCycle: "Mensal (Dia 1)"
+    };
+  } else {
+    const nextUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    const diffMs = nextUtc.getTime() - now.getTime();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return {
+      nextRenewal: `${nextUtc.getUTCDate().toString().padStart(2, '0')}/${(nextUtc.getUTCMonth() + 1).toString().padStart(2, '0')} às 00:00 UTC`,
+      timeRemaining: `${hours}h ${minutes}m`,
+      renewalCycle: "Diário (00:00 UTC)"
+    };
+  }
+}
+
     const google = getStats('google');
     const openai = getStats('openai');
     const openrouter = getStats('openrouter');
@@ -343,6 +368,7 @@ export async function getLlmUsageMetrics() {
         failures: google.failures,
         tokens: (google.tokens || 1245600).toLocaleString('pt-BR'),
         cost: `$${(google.cost || 0.093).toFixed(3)}`,
+        renewal: calculateTokenRenewal("google"),
         notes: "Modelo de escolha com maior cota e janela de contexto RAG."
       },
       {
@@ -355,6 +381,7 @@ export async function getLlmUsageMetrics() {
         failures: openai.failures,
         tokens: (openai.tokens || 854200).toLocaleString('pt-BR'),
         cost: `$${(openai.cost || 0.128).toFixed(3)}`,
+        renewal: calculateTokenRenewal("openai"),
         notes: "Adicionado preventivamente como contingência de alta disponibilidade."
       },
       {
@@ -367,6 +394,7 @@ export async function getLlmUsageMetrics() {
         failures: openrouter.failures,
         tokens: (openrouter.tokens || 318500).toLocaleString('pt-BR'),
         cost: `$${(openrouter.cost || 0).toFixed(3)}`,
+        renewal: calculateTokenRenewal("openrouter"),
         notes: "Slugs free atualizados. Rate limit recorrente nas instâncias."
       },
       {
@@ -379,6 +407,7 @@ export async function getLlmUsageMetrics() {
         failures: groq.failures,
         tokens: (groq.tokens || 152400).toLocaleString('pt-BR'),
         cost: `$${(groq.cost || 0).toFixed(3)}`,
+        renewal: calculateTokenRenewal("groq"),
         notes: "Falta de suporte nativo a json_schema corrigido via mode json."
       }
     ];

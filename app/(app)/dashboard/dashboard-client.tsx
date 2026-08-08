@@ -62,6 +62,7 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'kanban' | 'iam' | 'audit' | 'architecture' | 'settings' | 'knowledge'>(initialTab);
+  const [iamSubTab, setIamSubTab] = useState<'providers' | 'users' | 'requests' | 'user_mgmt'>('providers');
   const [isPending, startTransition] = useTransition();
 
   // Sincroniza a aba ativa quando a navegação lateral muda o parâmetro ?tab=
@@ -91,6 +92,16 @@ export function DashboardClient({
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [systemUsersState, setSystemUsersState] = useState<User[]>(systemUsers);
   const [userMgmtMsg, setUserMgmtMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Busca de usuários sincronizados (aba IAM)
+  const [iamSearch, setIamSearch] = useState("");
+  const filteredIamUsers = iamSearch.trim()
+    ? iamUsers.filter((u) =>
+        [u.full_name, u.email, u.department, u.role, u.provider_id]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(iamSearch.toLowerCase()))
+      )
+    : iamUsers;
 
   // Política de Retenção de Logs de Auditoria (aba Auditoria — ADMIN)
   const [retention, setRetention] = useState<AuditRetentionStatus | null>(null);
@@ -463,7 +474,6 @@ export function DashboardClient({
               initialStatuses={statuses}
               initialTickets={tickets}
               currentUser={currentUser}
-              onTicketSelect={(ticket) => setSelectedTicket(ticket)}
               openCreateSignal={openCreateSignal}
             />
           </div>
@@ -471,332 +481,359 @@ export function DashboardClient({
 
         {activeTab === 'iam' && (
           <div className="space-y-6">
-            <div className="flex flex-col">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Portal de Governança de Identidades (IAM / IGA)</h2>
-              <p className="text-gray-600 text-sm mt-1">Gerencie integrações de identidades com os provedores corporativos de mercado.</p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                  <Shield className="h-6 w-6 text-primary" />
+                  Portal de Governança de Identidades (IAM / IGA) & Configurações
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  Provisionamento SCIM v2.0, SSO SAML 2.0, fluxo JIT via SailPoint, conectores enterprise e auditoria de acessos.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => handleSyncProvider('entra_id')} disabled={isPending} className="bg-primary hover:bg-primary-hover gap-1.5 text-xs">
+                  <RefreshCw className="h-3.5 w-3.5" /> Sync Entra ID
+                </Button>
+                <Button size="sm" onClick={() => handleSyncProvider('keycloak')} disabled={isPending} variant="outline" className="gap-1.5 text-xs">
+                  <RefreshCw className="h-3.5 w-3.5" /> Sync Keycloak
+                </Button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Active integrations */}
-              <div className="space-y-6 lg:col-span-2">
+            {/* Painel de métricas KPI */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div
+                onClick={() => setIamSubTab('users')}
+                className={`rounded-xl border p-4 flex items-center gap-3 cursor-pointer transition-all ${
+                  iamSubTab === 'users' ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-200 bg-white hover:border-primary/50'
+                }`}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700 shrink-0">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-gray-900 leading-none">{iamUsers.length}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">Identidades sincronizadas</p>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setIamSubTab('requests')}
+                className={`rounded-xl border p-4 flex items-center gap-3 cursor-pointer transition-all ${
+                  iamSubTab === 'requests' ? 'border-amber-500 bg-amber-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-amber-300'
+                }`}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50 text-amber-700 shrink-0">
+                  <ShieldAlert className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-gray-900 leading-none">
+                    {identityRequests.filter((r) => r.status === 'pendente').length}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">Aprovações pendentes (JIT)</p>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setIamSubTab('user_mgmt')}
+                className={`rounded-xl border p-4 flex items-center gap-3 cursor-pointer transition-all ${
+                  iamSubTab === 'user_mgmt' ? 'border-emerald-500 bg-emerald-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 shrink-0">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-gray-900 leading-none">
+                    {systemUsersState.filter((u) => u.mfa_setup_complete).length}
+                    <span className="text-sm font-semibold text-gray-400">/{systemUsersState.length}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">Usuários com MFA ativo</p>
+                </div>
+              </div>
+
+              <div
+                onClick={() => setIamSubTab('providers')}
+                className={`rounded-xl border p-4 flex items-center gap-3 cursor-pointer transition-all ${
+                  iamSubTab === 'providers' ? 'border-purple-500 bg-purple-50/50 shadow-sm' : 'border-gray-200 bg-white hover:border-purple-300'
+                }`}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 text-purple-700 shrink-0">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-gray-900 leading-none">{identityRequests.length}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">Requisições de acesso</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-navegação por abas dinâmicas de UX */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-2">
+              <button
+                type="button"
+                onClick={() => setIamSubTab('providers')}
+                className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                  iamSubTab === 'providers'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <KeyRound className="h-4 w-4" /> Provedores & Integrações
+              </button>
+              <button
+                type="button"
+                onClick={() => setIamSubTab('users')}
+                className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                  iamSubTab === 'users'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <Users className="h-4 w-4" /> Identidades Sincronizadas
+                <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${iamSubTab === 'users' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'}`}>
+                  {iamUsers.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIamSubTab('requests')}
+                className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                  iamSubTab === 'requests'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <ShieldAlert className="h-4 w-4" /> Workflows JIT & Aprovações
+                {identityRequests.filter((r) => r.status === 'pendente').length > 0 && (
+                  <span className="ml-1 rounded-full bg-amber-500 text-white px-2 py-0.5 text-[10px] font-bold">
+                    {identityRequests.filter((r) => r.status === 'pendente').length}
+                  </span>
+                )}
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIamSubTab('user_mgmt')}
+                  className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                    iamSubTab === 'user_mgmt'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <Lock className="h-4 w-4" /> Usuários do Sistema & MFA (RBAC)
+                  <span className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${iamSubTab === 'user_mgmt' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                    {systemUsersState.length}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Conteúdo da Sub-Aba 1: Provedores & Integrações */}
+            {iamSubTab === 'providers' && (
+              <div className="space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg font-bold">Provedores de Identidade Integrados</CardTitle>
-                    <CardDescription>Sincronize credenciais corporativas no sandbox local</CardDescription>
+                    <CardTitle className="text-lg font-bold">Provedores de Identidade Integrados (IdP)</CardTitle>
+                    <CardDescription>Sincronização de credenciais e federados OIDC/SAML/SCIM</CardDescription>
                   </CardHeader>
                   <CardContent className="divide-y divide-gray-150">
-                    <div className="flex items-center justify-between py-4">
-                      <div>
-                        <h4 className="font-bold text-gray-900">Microsoft Entra ID (OIDC)</h4>
-                        <p className="text-xs text-gray-500">Mapeamento de claims e escopos OIDC corporativos</p>
+                    <div className="flex items-center justify-between py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                          <KeyRound className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-gray-900 text-sm">Microsoft Entra ID (OIDC)</h4>
+                            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">ATIVO</span>
+                          </div>
+                          <p className="text-xs text-gray-500">Mapeamento de claims e escopos OIDC corporativos</p>
+                        </div>
                       </div>
-                      <Button size="sm" onClick={() => handleSyncProvider('entra_id')} disabled={isPending} className="bg-primary hover:bg-primary-hover gap-1.5">
+                      <Button size="sm" onClick={() => handleSyncProvider('entra_id')} disabled={isPending} className="bg-primary hover:bg-primary-hover gap-1.5 text-xs">
                         <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between py-4">
-                      <div>
-                        <h4 className="font-bold text-gray-900">Keycloak Broker</h4>
-                        <p className="text-xs text-gray-500">Mapeamento de Realms e Client Credentials</p>
+                    <div className="flex items-center justify-between py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 text-purple-700">
+                          <Shield className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-gray-900 text-sm">Keycloak Broker</h4>
+                            <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">ATIVO</span>
+                          </div>
+                          <p className="text-xs text-gray-500">Mapeamento de Realms e Client Credentials</p>
+                        </div>
                       </div>
-                      <Button size="sm" onClick={() => handleSyncProvider('keycloak')} disabled={isPending} className="bg-primary hover:bg-primary-hover gap-1.5">
+                      <Button size="sm" onClick={() => handleSyncProvider('keycloak')} disabled={isPending} className="bg-primary hover:bg-primary-hover gap-1.5 text-xs">
                         <RefreshCw className="h-3.5 w-3.5" /> Sincronizar
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between py-4 opacity-75">
-                      <div>
-                        <h4 className="font-bold text-gray-900">Oracle Access Manager (OAM WebGate)</h4>
-                        <p className="text-xs text-gray-500">SSO legado baseado em injeção de headers HTTP</p>
+                    <div className="flex items-center justify-between py-3.5 opacity-75">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                          <Lock className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 text-sm">Oracle Access Manager (OAM WebGate)</h4>
+                          <p className="text-xs text-gray-500">SSO legado baseado em injeção de headers HTTP</p>
+                        </div>
                       </div>
                       <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-1 rounded">Passivo</span>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Synced Users List */}
-                <Card>
-                  <CardHeader>
+                {/* Integrações de identidade (mTLS + OAuth/SAML/SCIM) */}
+                <IntegrationConnections currentUser={currentUser} />
+
+                {/* Integrações enterprise (Jira / ServiceNow / Office 365) */}
+                <EnterpriseTools currentUser={currentUser} />
+              </div>
+            )}
+
+            {/* Conteúdo da Sub-Aba 2: Identidades Sincronizadas */}
+            {iamSubTab === 'users' && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+                  <div>
                     <CardTitle className="text-lg font-bold">Usuários Sincronizados de IAM</CardTitle>
-                    <CardDescription>Visualização de identidades mapeadas via OIDC e Brokers</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-500">
-                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
+                    <CardDescription>Identidades mapeadas em tempo real via OIDC e Brokers</CardDescription>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                    <Input
+                      value={iamSearch}
+                      onChange={(e) => setIamSearch(e.target.value)}
+                      placeholder="Buscar por nome, e-mail, departamento..."
+                      className="h-8 w-64 pl-8 text-xs"
+                    />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
+                        <tr>
+                          <th scope="col" className="px-4 py-3">Nome</th>
+                          <th scope="col" className="px-4 py-3">E-mail</th>
+                          <th scope="col" className="px-4 py-3">Provedor</th>
+                          <th scope="col" className="px-4 py-3">Departamento</th>
+                          <th scope="col" className="px-4 py-3">Função Mapeada</th>
+                          <th scope="col" className="px-4 py-3">Último Sync</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredIamUsers.length === 0 ? (
                           <tr>
-                            <th scope="col" className="px-4 py-3">Nome</th>
-                            <th scope="col" className="px-4 py-3">E-mail</th>
-                            <th scope="col" className="px-4 py-3">Provedor</th>
-                            <th scope="col" className="px-4 py-3">Departamento</th>
-                            <th scope="col" className="px-4 py-3">Função Mapeada</th>
-                            <th scope="col" className="px-4 py-3">Último Sync</th>
+                            <td colSpan={6} className="text-center py-6 text-gray-400">
+                              {iamUsers.length === 0
+                                ? 'Nenhum usuário sincronizado. Clique em "Sincronizar" nos provedores acima.'
+                                : 'Nenhum usuário encontrado para a busca.'}
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {iamUsers.length === 0 ? (
-                            <tr>
-                              <td colSpan={6} className="text-center py-6 text-gray-400">
-                                Nenhum usuário sincronizado. Clique em "Sincronizar" nos provedores acima.
+                        ) : (
+                          filteredIamUsers.map((usr) => (
+                            <tr key={usr.id} className="bg-white hover:bg-gray-50">
+                              <td className="px-4 py-3 font-semibold text-gray-950">{usr.full_name}</td>
+                              <td className="px-4 py-3 font-mono text-xs">{usr.email}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  usr.provider_id === 'entra_id' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                }`}>
+                                  {usr.provider_id === 'entra_id' ? 'Microsoft Entra ID' : 'Keycloak'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs">{usr.department}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  usr.role === 'admin' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                  usr.role === 'analista' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  'bg-gray-50 text-gray-600 border border-gray-200'
+                                }`}>
+                                  {usr.role === 'admin' ? 'ADMIN' : usr.role === 'analista' ? 'ANALISTA' : 'SOLICITANTE'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs">
+                                {new Date(usr.last_sync!).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               </td>
                             </tr>
-                          ) : (
-                            iamUsers.map((usr) => (
-                              <tr key={usr.id} className="bg-white hover:bg-gray-50">
-                                <td className="px-4 py-3 font-semibold text-gray-950">{usr.full_name}</td>
-                                <td className="px-4 py-3 font-mono text-xs">{usr.email}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    usr.provider_id === 'entra_id' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  }`}>
-                                    {usr.provider_id === 'entra_id' ? 'Microsoft Entra ID' : 'Keycloak'}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-xs">{usr.department}</td>
-                                <td className="px-4 py-3 font-semibold uppercase text-xs">{usr.role}</td>
-                                <td className="px-4 py-3 text-xs">
-                                  {new Date(usr.last_sync!).toLocaleDateString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              {/* Sailpoint Approval flow */}
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg font-bold">Solicitar Função (Sailpoint IGA)</CardTitle>
-                    <CardDescription>Workflow formal de governança com aprovação de SecOps</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {reqSuccess && (
-                      <div className="mb-4 text-xs bg-green-50 text-green-700 border border-green-200 p-2.5 rounded">
-                        {reqSuccess}
-                      </div>
-                    )}
-                    <form onSubmit={handleRequestRole} className="space-y-3">
-                      <div>
-                        <Label htmlFor="reqEmail" className="text-xs font-semibold">Usuário do Colaborador (nome.sobrenome)</Label>
-                        <Input
-                          id="reqEmail"
-                          type="text"
-                          placeholder="marcus.goncalves"
-                          value={reqEmail}
-                          onChange={(e) => setReqEmail(e.target.value)}
-                          required
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="reqRole" className="text-xs font-semibold">Função Pretendida</Label>
-                        <Select value={reqRole} onValueChange={(v: any) => setReqRole(v)}>
-                          <SelectTrigger id="reqRole" className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="solicitante">Solicitante (Básico)</SelectItem>
-                            <SelectItem value="analista">Analista (Criar/Editar)</SelectItem>
-                            <SelectItem value="admin">Administrador (Total)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="reqJustification" className="text-xs font-semibold">Justificativa Corporativa</Label>
-                        <Input
-                          id="reqJustification"
-                          type="text"
-                          placeholder="Motivo do acesso..."
-                          value={reqJustification}
-                          onChange={(e) => setReqJustification(e.target.value)}
-                          required
-                          className="h-9 text-sm"
-                        />
-                      </div>
-                      <Button type="submit" className="w-full bg-vivo hover:bg-vivo-hover text-white text-xs h-9">
-                        Enviar Requisição IGA
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-
-                {/* Local manually creation (Admin only) */}
-                {isAdmin && (
+            {/* Conteúdo da Sub-Aba 3: Workflows JIT & Aprovações */}
+            {iamSubTab === 'requests' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg font-bold">Cadastrar Usuário Local</CardTitle>
-                      <CardDescription>Criação direta de contas no banco de dados</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+                      <div>
+                        <CardTitle className="text-lg font-bold">Fila de Aprovação de Acesso (SailPoint IGA)</CardTitle>
+                        <CardDescription>Fluxo formal de governança SecOps para autorização de perfis</CardDescription>
+                      </div>
+                      <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full">
+                        {identityRequests.filter((r) => r.status === 'pendente').length} pendente(s)
+                      </span>
                     </CardHeader>
                     <CardContent>
-                      {localSuccess && (
-                        <div className="mb-4 text-xs bg-green-50 text-green-700 border border-green-200 p-2.5 rounded">
-                          {localSuccess}
-                        </div>
-                      )}
-                      {localTempPassword && (
-                        <div className="mb-4 text-xs bg-amber-50 text-amber-800 border border-amber-200 p-2.5 rounded">
-                          <p className="font-bold mb-1">Senha temporária de primeiro acesso:</p>
-                          <code className="font-mono font-bold break-all">{localTempPassword}</code>
-                          <p className="text-amber-700 mt-1">Repasse esta senha ao usuário. Ele deverá trocar a senha e configurar o MFA no primeiro login.</p>
-                        </div>
-                      )}
-                      <form onSubmit={handleCreateLocalUser} className="space-y-3">
-                        <div>
-                          <Label htmlFor="localName" className="text-xs font-semibold">Nome Completo</Label>
-                          <Input
-                            id="localName"
-                            type="text"
-                            placeholder="Marcus Gonçalves"
-                            value={localFullName}
-                            onChange={(e) => setLocalFullName(e.target.value)}
-                            required
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="localEmail" className="text-xs font-semibold">Usuário (nome.sobrenome)</Label>
-                          <Input
-                            id="localEmail"
-                            type="text"
-                            placeholder="marcus.goncalves"
-                            value={localEmail}
-                            onChange={(e) => setLocalEmail(e.target.value)}
-                            required
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="localRole" className="text-xs font-semibold">Perfil RBAC</Label>
-                          <Select value={localRole} onValueChange={(v: any) => setLocalRole(v)}>
-                            <SelectTrigger id="localRole" className="h-9 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="solicitante">Solicitante</SelectItem>
-                              <SelectItem value="analista">Analista</SelectItem>
-                              <SelectItem value="admin">Administrador</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <Button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white text-xs h-9">
-                          Criar Perfil
-                        </Button>
-                      </form>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* User management (Admin only) */}
-                {isAdmin && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg font-bold flex items-center gap-2">
-                        <Users className="h-5 w-5 text-primary" />
-                        Gestão de Usuários do Sistema
-                      </CardTitle>
-                      <CardDescription>Contas locais ativas. Gerencie perfis RBAC, estado de acesso e MFA.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {userMgmtMsg && (
-                        <div className={`mb-4 text-xs p-2.5 rounded border ${
-                          userMgmtMsg.type === 'success'
-                            ? 'bg-green-50 text-green-700 border-green-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
-                        }`}>
-                          {userMgmtMsg.text}
-                        </div>
-                      )}
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-gray-500">
                           <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
                             <tr>
-                              <th scope="col" className="px-4 py-3">Usuário</th>
+                              <th scope="col" className="px-4 py-3">Solicitante</th>
+                              <th scope="col" className="px-4 py-3">E-mail Alvo</th>
                               <th scope="col" className="px-4 py-3">Perfil</th>
-                              <th scope="col" className="px-4 py-3">MFA</th>
+                              <th scope="col" className="px-4 py-3">Justificativa</th>
                               <th scope="col" className="px-4 py-3">Status</th>
                               <th scope="col" className="px-4 py-3 text-right">Ações</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {systemUsersState.length === 0 ? (
+                            {identityRequests.length === 0 ? (
                               <tr>
-                                <td colSpan={5} className="text-center py-6 text-gray-400">
-                                  Nenhum usuário cadastrado.
+                                <td colSpan={6} className="text-center py-6 text-gray-400">
+                                  Nenhuma requisição de acesso pendente no Sailpoint.
                                 </td>
                               </tr>
                             ) : (
-                              systemUsersState.map((user) => (
-                                <tr key={user.id} className="bg-white hover:bg-gray-50">
+                              identityRequests.map((req) => (
+                                <tr key={req.id} className="bg-white hover:bg-gray-50">
+                                  <td className="px-4 py-3 font-semibold text-gray-900">{req.requester?.full_name || req.requester?.email || 'N/A'}</td>
+                                  <td className="px-4 py-3 font-mono text-xs">{req.target_user_email}</td>
+                                  <td className="px-4 py-3 uppercase font-semibold text-xs text-primary">{req.requested_role}</td>
+                                  <td className="px-4 py-3 text-xs">{req.justification}</td>
                                   <td className="px-4 py-3">
-                                    <div className="font-semibold text-gray-900">{user.full_name || 'Sem nome'}</div>
-                                    <div className="font-mono text-xs text-gray-500">{user.email}</div>
-                                    {user.id === currentUser.id && (
-                                      <span className="text-[10px] font-bold text-primary">(você)</span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      req.status === 'provisionado' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                      req.status === 'pendente' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
+                                      'bg-red-50 text-red-700 border border-red-200'
+                                    }`}>
+                                      {req.status === 'provisionado' ? 'Aprovado & Provisionado' : req.status === 'pendente' ? 'Aprovação Pendente' : 'Rejeitado'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    {req.status === 'pendente' && isAdmin ? (
+                                      <div className="flex items-center justify-end gap-1.5">
+                                        <Button size="sm" onClick={() => handleApproveRequest(req.id)} className="bg-green-600 hover:bg-green-700 text-white text-[10px] px-2 py-1 h-7">
+                                          Aprovar
+                                        </Button>
+                                        <Button size="sm" onClick={() => handleRejectRequest(req.id)} variant="destructive" className="text-[10px] px-2 py-1 h-7">
+                                          Rejeitar
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-xs text-gray-400 italic">Concluído</span>
                                     )}
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <select
-                                      value={user.role}
-                                      disabled={user.id === currentUser.id}
-                                      onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'analista' | 'solicitante')}
-                                      className="h-8 text-xs rounded border border-gray-300 bg-white px-2 text-gray-700 disabled:opacity-50"
-                                    >
-                                      <option value="solicitante">Solicitante</option>
-                                      <option value="analista">Analista</option>
-                                      <option value="admin">Admin</option>
-                                    </select>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                      user.mfa_setup_complete
-                                        ? 'bg-green-50 text-green-700 border-green-200'
-                                        : 'bg-orange-50 text-orange-700 border-orange-200'
-                                    }`}>
-                                      {user.mfa_setup_complete ? 'Ativo' : 'Pendente'}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                      user.is_active !== false
-                                        ? 'bg-green-50 text-green-700 border-green-200'
-                                        : 'bg-red-50 text-red-700 border-red-200'
-                                    }`}>
-                                      {user.is_active !== false ? 'Ativo' : 'Bloqueado'}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
-                                        onClick={() => handleForceMfa(user.id)} disabled={!user.mfa_setup_complete}>
-                                        <RefreshCw className="h-3 w-3 mr-1" /> Revogar MFA
-                                      </Button>
-                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
-                                        onClick={() => handleResetPassword(user.id)}>
-                                        <Key className="h-3 w-3 mr-1 text-amber-600" /> Liberar Senha
-                                      </Button>
-                                      <Button size="sm" variant="outline" className={`h-8 text-[11px] px-2 ${user.is_active !== false ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
-                                        onClick={() => handleToggleActive(user.id, user.is_active !== false)}
-                                        disabled={user.id === currentUser.id}>
-                                        {user.is_active !== false ? (
-                                          <>
-                                            <XCircle className="h-3 w-3 mr-1 text-red-500" /> Bloquear
-                                          </>
-                                        ) : (
-                                          <>
-                                            <CheckCircle className="h-3 w-3 mr-1 text-green-500" /> Desbloquear
-                                          </>
-                                        )}
-                                      </Button>
-                                      <Button size="sm" variant="outline" className="h-8 text-[11px] px-2 text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeprovision(user.id)}
-                                        disabled={user.id === currentUser.id}>
-                                        <Trash2 className="h-3 w-3 mr-1" /> Desprovisionar
-                                      </Button>
-                                    </div>
                                   </td>
                                 </tr>
                               ))
@@ -804,85 +841,255 @@ export function DashboardClient({
                           </tbody>
                         </table>
                       </div>
-                      <p className="text-xs text-gray-500 mt-3">
-                        Novo usuários são criados com MFA obrigatório (2º fator) a configurar no primeiro login.
-                      </p>
                     </CardContent>
                   </Card>
-                )}
-              </div>
-            </div>
+                </div>
 
-            {/* Sailpoint Requests Approval queue */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-bold">Fila de Aprovação de Acesso (Sailpoint IGA)</CardTitle>
-                <CardDescription>Fluxo formal de governança SecOps para autorização de perfis</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left text-gray-500">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
-                      <tr>
-                        <th scope="col" className="px-4 py-3">Solicitante</th>
-                        <th scope="col" className="px-4 py-3">E-mail Alvo</th>
-                        <th scope="col" className="px-4 py-3">Perfil Requerido</th>
-                        <th scope="col" className="px-4 py-3">Justificativa</th>
-                        <th scope="col" className="px-4 py-3">Status</th>
-                        <th scope="col" className="px-4 py-3 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {identityRequests.length === 0 ? (
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base font-bold">Solicitar Função (SailPoint IGA)</CardTitle>
+                      <CardDescription>Workflow formal com aprovação de SecOps</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {reqSuccess && (
+                        <div className="mb-4 text-xs bg-green-50 text-green-700 border border-green-200 p-2.5 rounded">
+                          {reqSuccess}
+                        </div>
+                      )}
+                      <form onSubmit={handleRequestRole} className="space-y-3">
+                        <div>
+                          <Label htmlFor="reqEmail" className="text-xs font-semibold">Usuário do Colaborador (nome.sobrenome)</Label>
+                          <Input
+                            id="reqEmail"
+                            type="text"
+                            placeholder="marcus.goncalves"
+                            value={reqEmail}
+                            onChange={(e) => setReqEmail(e.target.value)}
+                            required
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="reqRole" className="text-xs font-semibold">Função Pretendida</Label>
+                          <Select value={reqRole} onValueChange={(v: any) => setReqRole(v)}>
+                            <SelectTrigger id="reqRole" className="h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="solicitante">Solicitante (Básico)</SelectItem>
+                              <SelectItem value="analista">Analista (Criar/Editar)</SelectItem>
+                              <SelectItem value="admin">Administrador (Total)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="reqJustification" className="text-xs font-semibold">Justificativa Corporativa</Label>
+                          <Input
+                            id="reqJustification"
+                            type="text"
+                            placeholder="Motivo do acesso..."
+                            value={reqJustification}
+                            onChange={(e) => setReqJustification(e.target.value)}
+                            required
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <Button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white text-xs h-9">
+                          Enviar Requisição IGA
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {isAdmin && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base font-bold">Cadastrar Usuário Local</CardTitle>
+                        <CardDescription>Criação direta de contas de sistema</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {localSuccess && (
+                          <div className="mb-4 text-xs bg-green-50 text-green-700 border border-green-200 p-2.5 rounded">
+                            {localSuccess}
+                          </div>
+                        )}
+                        {localTempPassword && (
+                          <div className="mb-4 text-xs bg-amber-50 text-amber-800 border border-amber-200 p-2.5 rounded">
+                            <p className="font-bold mb-1">Senha temporária de primeiro acesso:</p>
+                            <code className="font-mono font-bold break-all">{localTempPassword}</code>
+                            <p className="text-amber-700 mt-1">Repasse esta senha ao usuário.</p>
+                          </div>
+                        )}
+                        <form onSubmit={handleCreateLocalUser} className="space-y-3">
+                          <div>
+                            <Label htmlFor="localName" className="text-xs font-semibold">Nome Completo</Label>
+                            <Input
+                              id="localName"
+                              type="text"
+                              placeholder="Marcus Gonçalves"
+                              value={localFullName}
+                              onChange={(e) => setLocalFullName(e.target.value)}
+                              required
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="localEmail" className="text-xs font-semibold">Usuário (nome.sobrenome)</Label>
+                            <Input
+                              id="localEmail"
+                              type="text"
+                              placeholder="marcus.goncalves"
+                              value={localEmail}
+                              onChange={(e) => setLocalEmail(e.target.value)}
+                              required
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="localRole" className="text-xs font-semibold">Perfil RBAC</Label>
+                            <Select value={localRole} onValueChange={(v: any) => setLocalRole(v)}>
+                              <SelectTrigger id="localRole" className="h-9 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="solicitante">Solicitante</SelectItem>
+                                <SelectItem value="analista">Analista</SelectItem>
+                                <SelectItem value="admin">Administrador</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white text-xs h-9">
+                            Criar Perfil Local
+                          </Button>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Conteúdo da Sub-Aba 4: Usuários do Sistema & MFA */}
+            {iamSubTab === 'user_mgmt' && isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Gestão de Usuários do Sistema & Controles MFA
+                  </CardTitle>
+                  <CardDescription>Contas locais ativas. Gerencie perfis RBAC, estado de acesso e MFA.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {userMgmtMsg && (
+                    <div className={`mb-4 text-xs p-2.5 rounded border ${
+                      userMgmtMsg.type === 'success'
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-red-50 text-red-700 border-red-200'
+                    }`}>
+                      {userMgmtMsg.text}
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 font-bold">
                         <tr>
-                          <td colSpan={6} className="text-center py-6 text-gray-400">
-                            Nenhuma requisição de acesso pendente no Sailpoint.
-                          </td>
+                          <th scope="col" className="px-4 py-3">Usuário</th>
+                          <th scope="col" className="px-4 py-3">Perfil</th>
+                          <th scope="col" className="px-4 py-3">MFA</th>
+                          <th scope="col" className="px-4 py-3">Status</th>
+                          <th scope="col" className="px-4 py-3 text-right">Ações</th>
                         </tr>
-                      ) : (
-                        identityRequests.map((req) => (
-                          <tr key={req.id} className="bg-white hover:bg-gray-50">
-                            <td className="px-4 py-3 font-semibold text-gray-900">{req.requester?.full_name || req.requester?.email || 'N/A'}</td>
-                            <td className="px-4 py-3 font-mono text-xs">{req.target_user_email}</td>
-                            <td className="px-4 py-3 uppercase font-semibold text-xs text-primary">{req.requested_role}</td>
-                            <td className="px-4 py-3 text-xs">{req.justification}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                req.status === 'provisionado' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                req.status === 'pendente' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                                'bg-red-50 text-red-700 border border-red-200'
-                              }`}>
-                                {req.status === 'provisionado' ? 'Aprovado & Provisionado' : req.status === 'pendente' ? 'Aprovação Pendente' : 'Rejeitado'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              {req.status === 'pendente' && isAdmin ? (
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <Button size="sm" onClick={() => handleApproveRequest(req.id)} className="bg-green-600 hover:bg-green-700 text-white text-[10px] px-2 py-1 h-7">
-                                    Aprovar
-                                  </Button>
-                                  <Button size="sm" onClick={() => handleRejectRequest(req.id)} variant="destructive" className="text-[10px] px-2 py-1 h-7">
-                                    Rejeitar
-                                  </Button>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-gray-400 italic">Nenhuma ação</span>
-                              )}
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {systemUsersState.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-6 text-gray-400">
+                              Nenhum usuário cadastrado.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Integrações de identidade (mTLS + OAuth/SAML/SCIM) */}
-            <IntegrationConnections currentUser={currentUser} />
-
-            {/* Integrações enterprise (Jira / ServiceNow / Office 365) */}
-            <EnterpriseTools currentUser={currentUser} />
+                        ) : (
+                          systemUsersState.map((user) => (
+                            <tr key={user.id} className="bg-white hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                <div className="font-semibold text-gray-900">{user.full_name || 'Sem nome'}</div>
+                                <div className="font-mono text-xs text-gray-500">{user.email}</div>
+                                {user.id === currentUser.id && (
+                                  <span className="text-[10px] font-bold text-primary">(você)</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <select
+                                  value={user.role}
+                                  disabled={user.id === currentUser.id}
+                                  onChange={(e) => handleRoleChange(user.id, e.target.value as 'admin' | 'analista' | 'solicitante')}
+                                  className="h-8 text-xs rounded border border-gray-300 bg-white px-2 text-gray-700 disabled:opacity-50"
+                                >
+                                  <option value="solicitante">Solicitante</option>
+                                  <option value="analista">Analista</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  user.mfa_setup_complete
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-orange-50 text-orange-700 border-orange-200'
+                                }`}>
+                                  {user.mfa_setup_complete ? 'Ativo' : 'Pendente'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  user.is_active !== false
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-red-50 text-red-700 border-red-200'
+                                }`}>
+                                  {user.is_active !== false ? 'Ativo' : 'Bloqueado'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                  <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
+                                    onClick={() => handleForceMfa(user.id)} disabled={!user.mfa_setup_complete}>
+                                    <RefreshCw className="h-3 w-3 mr-1" /> Revogar MFA
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-8 text-[11px] px-2"
+                                    onClick={() => handleResetPassword(user.id)}>
+                                    <Key className="h-3 w-3 mr-1 text-amber-600" /> Liberar Senha
+                                  </Button>
+                                  <Button size="sm" variant="outline" className={`h-8 text-[11px] px-2 ${user.is_active !== false ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}`}
+                                    onClick={() => handleToggleActive(user.id, user.is_active !== false)}
+                                    disabled={user.id === currentUser.id}>
+                                    {user.is_active !== false ? (
+                                      <>
+                                        <XCircle className="h-3 w-3 mr-1 text-red-500" /> Bloquear
+                                      </>
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="h-3 w-3 mr-1 text-green-500" /> Desbloquear
+                                      </>
+                                    )}
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="h-8 text-[11px] px-2 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeprovision(user.id)}
+                                    disabled={user.id === currentUser.id}>
+                                    <Trash2 className="h-3 w-3 mr-1" /> Desprovisionar
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Novos usuários são criados com MFA obrigatório (2º fator) a configurar no primeiro login.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 

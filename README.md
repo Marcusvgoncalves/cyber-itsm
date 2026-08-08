@@ -47,52 +47,47 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
   - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework * SLA`.
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
-- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento de forma assíncrona em background via **Inngest**, mitigando problemas de timeout de requisições.
-- **Pipeline Multiagente Reordenado (Gemini 2.0 em 1º lugar)**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter Free** → **Groq**, com fallback determinístico. Cada chamada de IA (sucesso, falha ou fallback) é registrada em `llm_call_logs` com provedor, modelo, latência, tokens e custo estimado.
-- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise em segundo plano via worker assíncrono, permitindo que a interface acompanhe o progresso em tempo real e redirecione ao laudo finalizado.
+- **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento em background de forma assíncrona via **Next.js `after()`** e **Inngest**, garantindo execução contínua no ecossistema Serverless sem congelamento da requisição HTTP.
+- **Esteira Multiagente de 5 Camadas de Resiliência**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** ➔ **OpenAI GPT-4o Mini** ➔ **OpenRouter Free** ➔ **Groq Engine** ➔ **Motor Determinístico por Regras de Contingência**. Cada chamada de IA é registrada na tabela física `llm_call_logs` com provedor, modelo, rota, latência ms, tokens e custo estimado.
+- **Epic QA — Integração Kanban ↔ Security QA**: Épicos do quadro Kanban podem ser submetidos diretamente ao motor Security QA via modal dedicado. O sistema pré-carrega os requisitos SD v4.1 relacionados ao épico (tags, framework de origem) e executa a análise em segundo plano via worker assíncrono.
 - **Security QA Analytics Dashboard**:
   - **Volumetria de Vereditos**: Gráficos Recharts detalhando o acumulado de itens `Conforme`, `Parcial` e `Não Conforme`.
   - **Calculadora SecOps de Impacto**: Fórmula dinâmica `Severidade Vulnerabilidade * Escopo do Sistema * Exposição de Rede` com badges interativos de risco.
-- **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados (até 10MB) e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) para máximo aproveitamento do espaço físico e realizando o expurgo da evidência descomprimida temporária (Zero Data Leak).
-- **Relatórios Executivos em PDF**: Exportação integral de relatórios de auditoria, projetos avaliados e laudos estruturados em PDF compilados nativamente via `@react-pdf/renderer`.
-- **Exclusão de Análises (ADMIN)**: Laudos podem ser excluídos definitivamente por ADMIN — remove os artefatos forenses (GZIP + PDF) do Storage, o registro e o projeto órfão, sempre registrando a ação na trilha de auditoria.
+- **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) e realizando o expurgo da evidência temporária.
+- **Relatórios Executivos em PDF**: Exportação de relatórios compilados nativamente via `@react-pdf/renderer` com importação nomeada `renderToBuffer` para estabilidade no bundler Serverless.
 
-#### 3. 🤖 Copiloto de IA Multiagente (Zero Downtime)
-Esteira de resiliência encadeada com suporte a RAG sobre os 314 Requisitos. O Copiloto opera com uma persona **Especialista Sênior Estrita em Cibersegurança** e possui higiene automática do contexto a cada novo login (limpeza local). O roteamento é dinâmico por agente (fallback automático ao primeiro provedor disponível):
-1. **Camada 1 — Groq Engine (`GROQ_API_KEY`)**: Resposta ultra-rápida (< 2s) utilizando `llama-3.1-8b-instant`, `llama-3.3-70b-versatile` e `mixtral-8x7b-32768`.
-2. **Camada 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Roteamento secundário para modelos abertos gratuitos (`deepseek/deepseek-r1:free`, `deepseek/deepseek-chat:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`).
-3. **Camada 3 — Google Gemini (`GEMINI_API_KEY`)**: Modelos `gemini-2.0-flash`, `gemini-2.0-flash-lite` e `gemini-2.5-flash` para janelas longas de contexto.
+#### 3. 🤖 Copiloto de IA Multiagente & Contingência (Zero Downtime)
+Esteira de resiliência encadeada com RAG sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com a **Camada 5 — Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma (total de chamados, projetos e índice de compliance médio histórico) para gerar análises contextualizadas caso todas as APIs externas estejam indisponíveis.
 
-#### 4. 🔑 Portal IAM/IGA e Configurações
-- **Governança Integrada & Configurações**: Dashboard unificado que gerencia perfis de usuários, autenticação e preferências locais.
-- **Provisionamento SCIM v2.0 (`/api/scim/v2/Users`)**: Endpoint completo para integração com Azure Entra ID, Okta e Keycloak para ciclo de vida de usuários.
-- **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Suporte a Single Sign-On federado corporativo.
-- **Fila Sailpoint JIT (Just-In-Time)**: Solicitação e aprovação de acessos com segregação de funções (SoD) e controle RBAC (`admin`, `analista`, `solicitante`).
+#### 4. 🔑 Portal IAM/IGA e Configurações (Reorganizado & UX Aprimorada)
+- **Sub-Navegação por Abas Dinâmicas (`iamSubTab`)**: Interface responsiva e compacta dividida em 4 categorias operacionais que eliminam espaços vazios:
+  1. **Provedores & Integrações**: Gestão de IdPs (Entra ID, Keycloak, OAM WebGate) + Conexões `OAuth2`, `SAML 2.0`, `SCIM 2.0` (`IntegrationConnections`) e Conectores Enterprise (`EnterpriseTools` Jira/ServiceNow/O365).
+  2. **Identidades Sincronizadas**: Tabela responsiva de identidades federadas com busca dinâmica por nome, e-mail, departamento e provedor.
+  3. **Workflows JIT & Aprovações**: Fila de solicitações Just-In-Time (SailPoint IGA) com botões de aprovação/rejeição em um clique + Formulário JIT + Cadastro de Contas Locais.
+  4. **Usuários do Sistema & Controles MFA**: Tabela de gestão de contas locais ativas com RBAC (`admin`, `analista`, `solicitante`), status de MFA (2FA), bloqueio/desbloqueio, liberação de senha e desprovisionamento.
+- **KPIs em Tempo Real**: Métricas de Identidades Sincronizadas, Pendências JIT, Usuários com MFA Ativo e Requisições no topo da tela.
 
 #### 5. 📚 Base de Conhecimento SD v4.1 (314 Requisitos)
 - Catálogo interativo navegável dos **314 Requisitos de Segurança de Desenvolvimento**.
 - Filtros por criticidade (Crítico, Alto, Médio, Baixo) e busca instantânea.
-- Mapeamento explícito de cada item com os frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001** e vetores de ameaça **STRIDE LM**.
+- Mapeamento explícito com os frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001** e vetores de ameaça **STRIDE LM**.
 
 #### 6. 🔌 Conectores Outbound, MTLS & Logs de Auditoria CSV
 - **Conectores Nativos B2B**: Interfaces dedicadas para integração externa com **Jira Software**, **ServiceNow** e **Microsoft 365**.
-- **Segurança MTLS (Mutual TLS)**: Suporte para exigência de certificados de cliente (Client Certificate `.pem/.crt` e Private Key `.key`) para conexões outbound seguras com outros ambientes.
-- **Auditoria Transacional e Exportação CSV**: Rastreabilidade imutável de eventos operacionais e transacionais (HTTP, IPs, Métodos API) com função front-end de geração instantânea e download de relatório estruturado em formato CSV.
+- **Segurança MTLS (Mutual TLS)**: Suporte para exigência de certificados de cliente (`.pem/.crt` e `.key`) para conexões outbound seguras.
+- **Auditoria Transacional e Exportação CSV**: Rastreabilidade imutável de eventos operacionais com download em formato CSV.
 
-#### 7. ⚙️ Cadastros (Painel SoD Admin)
-- **Segregação de Funções (Matriz SoD)**: O módulo é protegido por uma **Matriz SoD (Separation of Duties)** com 3 perfis (`ADMIN`, `USUARIO`, `SOLICITANTE`) e **8 permissões granulares**. Apenas o perfil ADMIN possui acesso de escrita (criação, edição, exclusão) aos cadastros abaixo.
-- **Gestão de Sprints**: Cadastro completo de iterações de entrega com campos de nome, objetivo (goal), datas de início/fim e status (`Planejada`, `Ativa`, `Concluída`). Vinculação direta aos chamados do Kanban.
-- **Preferências de Notificação**: Configuração de gatilhos de notificação por evento (`chamado criado`, `chamado atualizado`, `vencimento de due date`, `início de sprint`) com canais (E-mail, In-App, SMS) e toggles de ativação.
-- **Matriz Dinâmica de Requisitos**: CRUD completo de requisitos customizados de segurança complementares à base estática dos 314 controles SD v4.1. Inclui campos de controle, criticidade, componente, STRIDE, OWASP, detalhamento e como testar.
-- **Auditoria de Operações**: Toda operação de criação, edição e exclusão nos cadastros gera um registro imutável na trilha de auditoria (`audit_logs`).
-- **Painel de Consumo de LLM**: Aba dedicada com métricas reais por provedor (Google Gemini, OpenAI, OpenRouter, Groq) — chamadas, taxa de falhas, tokens consumidos, custo estimado e histórico das últimas transações de IA.
+#### 7. ⚙️ Cadastros & Painel de Consumo de LLM (Admin SoD)
+- **Matriz SoD (Separation of Duties)**: Acesso de escrita restrito ao perfil ADMIN (`requireAdmin()`).
+- **Gestão de Sprints & Notificações**: CRUD de iterações de entrega e preferências de notificação por evento × canal.
+- **Matriz Dinâmica de Requisitos**: CRUD de requisitos customizados de segurança.
+- **Aba de Consumo de LLM com Inteligência de Renovação de Cotas**:
+  - Exibição de métricas reais da tabela `llm_call_logs` para Google Gemini, OpenAI, OpenRouter e Groq.
+  - **Inteligência no Cálculo de Renovação de Cotas (`calculateTokenRenewal`)**: Exibe a data/hora exata do próximo reset, contagem regressiva de tempo restante (ex: `6h 12m restantes`) e o ciclo (`Diário 00:00 UTC` para free tiers vs `Mensal Dia 1` para planos pagos).
 
 #### 8. 🛡️ Trilha de Auditoria & Política de Retenção (Governança SecOps)
-- **Trilha de Auditoria Imutável (`audit_logs`)**: Registro em tempo real de eventos operacionais e transacionais — logins/logouts, CRUD de chamados, movimentações no Kanban, cadastros, consentimentos e requisições de QA — com metadados diferenciais (`old_data`/`new_data`).
-- **Ciclo de Vida em 3 Estágios**:
-  - **HOT (0–7 dias)**: Logs recentes consultáveis na aba **Auditoria** do Dashboard e exportáveis em CSV.
-  - **ARCHIVE (7–90 dias)**: Job diário do **Inngest** (03:00 UTC) comprime os logs em **GZIP por dia** (`node:zlib`, nível 9) para `audit_logs_archive` — storage mínimo sem perda de rastreabilidade forense.
-  - **PURGE (>90 dias)**: Expurgo definitivo do arquivo **somente com consentimento explícito** do aprovador `marcus.goncalves` (`audit_purge_consent`, validade de 30 dias renovável). Sem consentimento vigente o job retém tudo e reporta pendência.
+- **Trilha de Auditoria Imutável (`audit_logs`)**: Gravação de logins/logouts, CRUD de chamados, movimentações Kanban, cadastros e requisições de QA.
+- **Ciclo em 3 Estágios**: **HOT** (0–7 dias no DB), **ARCHIVE** (7–90 dias GZIP no Storage via Inngest) e **PURGE** (>90 dias expurgo definitivo mediante consentimento de `marcus.goncalves`).
 - **Ações administrativas (ADMIN)**: Consultar o status da política, executar a rotina manualmente e conceder/revogar o consentimento de expurgo diretamente na aba Auditoria.
 
 ---
@@ -145,27 +140,25 @@ The architecture is designed for high availability and zero single points of fai
   - **Interactive Criticality Calculator**: Technical impact evaluation using `Priority * Framework * SLA Window`.
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
-- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine registers the report and enqueues it for asynchronous background processing via **Inngest**, mitigating request timeout limitations.
-- **Reordered Multiagent Pipeline (Gemini 2.0 first)**: Cascading router prioritizing **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter Free** → **Groq**, with a deterministic fallback. Every AI call (success, failure, or fallback) is recorded in `llm_call_logs` with provider, model, latency, tokens, and estimated cost.
-- **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic (tags, origin framework) and runs the analysis in the background via asynchronous worker queues, updating progress in real-time before redirecting to the finalized audit report.
+- **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine registers the report and enqueues it for asynchronous background processing via **Next.js `after()`** and **Inngest**, ensuring uninterrupted serverless execution without HTTP request timeouts.
+- **5-Layer Resilient Multiagent Pipeline**: Cascading router prioritizing **Google Gemini 2.0 (Flash/Lite)** ➔ **OpenAI GPT-4o Mini** ➔ **OpenRouter Free** ➔ **Groq Engine** ➔ **Rule-Based Deterministic Contingency Engine**. Every AI call is logged in the `llm_call_logs` table with provider, model, route, latency (ms), tokens, and estimated cost.
+- **Epic QA — Kanban ↔ Security QA Integration**: Epics from the Kanban board can be submitted directly to the Security QA engine via a dedicated modal. The system pre-loads SD v4.1 requirements related to the epic and runs background analysis via asynchronous worker queues.
 - **Security QA Analytics Dashboard**:
   - **Verdicts Volume**: Recharts graphics detailing `Conforming`, `Partial`, and `Non-Conforming` counts.
   - **SecOps Risk Calculator**: Dynamic formula `Vulnerability Severity * System Scope * Network Exposure` with interactive badges.
-- **GZIP Cold Storage & Purge**: Compresses attached artifacts (up to 10MB) and raw evidence into GZIP (.gz), storing them in Supabase Storage (`qa-logs-archive`), and purging temporary uncompressed files (Zero Data Leak).
-- **PDF Executive Reports**: Full export of audit reports, evaluated projects, and structured PDF reports natively compiled via `@react-pdf/renderer`.
-- **Analysis Deletion (ADMIN)**: Reports can be permanently deleted by ADMIN — removes the forensic artifacts (GZIP + PDF) from Storage, the database record, and orphaned projects, always logging the action to the audit trail.
+- **GZIP Cold Storage & Purge**: Compresses attached artifacts and raw evidence into GZIP (.gz), storing them in Supabase Storage (`qa-logs-archive`), and purging temporary files.
+- **PDF Executive Reports**: Full export of audit reports, evaluated projects, and structured PDF reports natively compiled via `@react-pdf/renderer` with named `renderToBuffer` import for serverless stability.
 
-#### 3. 🤖 Multiagent AI Copilot (Zero Downtime)
-A resilient fallback pipeline with RAG capabilities over the 314 security requirements. The Copilot operates with a **Strict Senior Cybersecurity Expert** persona and features automatic context hygiene on every new login (local memory wipe). Routing is dynamic per agent (automatic fallback to the first available provider):
-1. **Tier 1 — Groq Engine (`GROQ_API_KEY`)**: Ultra-fast response (< 2s) utilizing `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`, and `mixtral-8x7b-32768`.
-2. **Tier 2 — OpenRouter Free (`OPENROUTER_API_KEY`)**: Secondary routing to free open-weight models (`deepseek/deepseek-r1:free`, `deepseek/deepseek-chat:free`, `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-2.0-flash-exp:free`).
-3. **Tier 3 — Google Gemini (`GEMINI_API_KEY`)**: `gemini-2.0-flash`, `gemini-2.0-flash-lite`, and `gemini-2.5-flash` models for extensive context windows.
+#### 3. 🤖 Multiagent AI Copilot & Contingency (Zero Downtime)
+A resilient fallback pipeline with RAG capabilities over the 314 security requirements. The Copilot operates with a **Senior Cybersecurity Expert** persona and features **Tier 5 — Rule-Based Security Engine**, which leverages the accumulated `SystemContext` from all user interactions on the platform (total tickets, projects, and historical average compliance rate) to generate contextualized security advice if all external APIs are unreachable.
 
-#### 4. 🔑 Portal IAM/IGA and Settings
-- **Unified Governance & Configurations**: Integrated panel to manage identity lifecycles, SSO, and user preferences.
-- **SCIM v2.0 Provisioning (`/api/scim/v2/Users`)**: Full RFC-compliant endpoint for Entra ID, Okta, and Keycloak user lifecycle automation.
-- **SAML 2.0 SSO (`/api/saml/sso` & `/api/saml/metadata`)**: Enterprise federated Single Sign-On support.
-- **Sailpoint JIT Queue**: Access request and approval workflows with Segregation of Duties (SoD) and RBAC (`admin`, `analista`, `solicitante`).
+#### 4. 🔑 Portal IAM/IGA and Settings (Reorganized & Enhanced UX)
+- **Sub-Tab Navigation (`iamSubTab`)**: Responsive compact UI structured into 4 operational categories that eliminate empty space:
+  1. **Providers & Integrations**: IdP Management (Entra ID, Keycloak, OAM WebGate) + `OAuth2`, `SAML 2.0`, `SCIM 2.0` Connections (`IntegrationConnections`) & Enterprise Connectors (`EnterpriseTools` Jira/ServiceNow/O365).
+  2. **Synced Identities**: Responsive table of federated identities with real-time search by name, email, department, and IdP provider.
+  3. **Workflows JIT & Approvals**: Just-In-Time access request queue (SailPoint IGA) with 1-click approve/reject + JIT Request Form + Local Account Creation.
+  4. **System Users & MFA Controls**: Active local user management table with RBAC (`admin`, `analista`, `solicitante`), MFA status (2FA), lock/unlock, password reset, and deprovisioning.
+- **Real-time Header KPIs**: Counters for Synced Identities, Pending JIT Approvals, Active MFA %, and Access Requests at the top of the tab.
 
 #### 5. 📚 SD v4.1 Knowledge Base (314 Requirements)
 - Interactive searchable catalog of **314 Secure Development Requirements**.
@@ -174,23 +167,20 @@ A resilient fallback pipeline with RAG capabilities over the 314 security requir
 
 #### 6. 🔌 Outbound Connectors, MTLS & CSV Audit Logs
 - **B2B Native Connectors**: Dedicated interfaces for external integration with **Jira Software**, **ServiceNow**, and **Microsoft 365**.
-- **MTLS Security (Mutual TLS)**: Support for client certificate requirement (Client Certificate `.pem/.crt` and Private Key `.key`) for secure outbound connections with other environments.
-- **Transactional Audit and CSV Export**: Immutable traceability of operational and transactional events (HTTP, APIs, IPs) with front-end function for instant generation and download of structured reports in CSV format.
+- **MTLS Security (Mutual TLS)**: Support for client certificate requirement (`.pem/.crt` and `.key`) for secure outbound connections.
+- **Transactional Audit and CSV Export**: Immutable traceability of operational events with instant CSV download.
 
-#### 7. ⚙️ Registrations (SoD Admin Panel)
-- **Separation of Duties (SoD Matrix)**: The module is protected by a **SoD (Separation of Duties) Matrix** with 3 profiles (`ADMIN`, `USER`, `REQUESTER`) and **8 granular permissions**. Only the ADMIN profile has write access (create, edit, delete) to the registrations below.
-- **Sprint Management**: Full CRUD for delivery iterations with name, goal, start/end dates, and status (`Planned`, `Active`, `Completed`). Direct linkage to Kanban tickets.
-- **Notification Preferences**: Event-driven notification triggers (`ticket created`, `ticket updated`, `due date approaching`, `sprint start`) with channel selection (Email, In-App, SMS) and activation toggles.
-- **Dynamic Requirements Matrix**: Full CRUD for custom security requirements complementing the static 314 SD v4.1 controls base. Includes control, criticality, component, STRIDE, OWASP, details, and test procedure fields.
-- **Operations Audit Trail**: Every create, edit, and delete operation on registrations generates an immutable record in the audit trail (`audit_logs`).
-- **LLM Consumption Panel**: Dedicated tab with real per-provider metrics (Google Gemini, OpenAI, OpenRouter, Groq) — call counts, failure rate, tokens used, estimated cost, and a history of the latest AI transactions.
+#### 7. ⚙️ Registrations & LLM Usage Panel (SoD Admin)
+- **Separation of Duties (SoD Matrix)**: Write access restricted to ADMIN profile (`requireAdmin()`).
+- **Sprint Management & Notification Preferences**: Full CRUD for delivery iterations and event × channel notification triggers.
+- **Dynamic Requirements Matrix**: CRUD for custom security requirements.
+- **LLM Consumption Tab with Token Renewal Intelligence**:
+  - Displays real transaction telemetry from `llm_call_logs` for Google Gemini, OpenAI, OpenRouter, and Groq.
+  - **Quota Renewal Calculation Intelligence (`calculateTokenRenewal`)**: Displays exact next reset date/time, countdown of remaining time (e.g., `6h 12m remaining`), and cycle (`Daily 00:00 UTC` for free tiers vs `Monthly Day 1` for paid accounts).
 
 #### 8. 🛡️ Audit Trail & Retention Policy (SecOps Governance)
-- **Immutable Audit Trail (`audit_logs`)**: Real-time recording of operational and transactional events — logins/logouts, ticket CRUD, Kanban moves, registrations, consents, and QA requests — with differential metadata (`old_data`/`new_data`).
-- **3-Stage Lifecycle**:
-  - **HOT (0–7 days)**: Recent logs queryable in the **Audit** tab of the Dashboard and exportable to CSV.
-  - **ARCHIVE (7–90 days)**: A daily **Inngest** job (03:00 UTC) compresses logs into per-day **GZIP** (`node:zlib`, level 9) stored in `audit_logs_archive` — minimal storage without losing forensic traceability.
-  - **PURGE (>90 days)**: Permanent archive deletion **only with explicit consent** from approver `marcus.goncalves` (`audit_purge_consent`, renewable 30-day validity). Without a valid consent the job retains everything and reports pending status.
+- **Immutable Audit Trail (`audit_logs`)**: Real-time recording of logins/logouts, ticket CRUD, Kanban moves, registrations, consents, and QA requests.
+- **3-Stage Lifecycle**: **HOT** (0–7 days in DB), **ARCHIVE** (7–90 days per-day GZIP in Storage via Inngest), and **PURGE** (>90 days permanent deletion subject to `marcus.goncalves` consent).
 - **Admin actions (ADMIN)**: View policy status, run the routine manually, and grant/revoke purge consent directly from the Audit tab.
 
 ---

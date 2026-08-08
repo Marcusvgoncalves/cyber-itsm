@@ -30,6 +30,7 @@ import {
   BookOpen,
   Cpu,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import {
   createSprint,
@@ -857,6 +858,23 @@ function ConsumoLlmTab() {
                 </div>
               </div>
               <p className="text-[10px] text-gray-400 italic pt-1 border-t border-gray-100">{p.notes}</p>
+              
+              <div className="pt-2.5 border-t border-gray-200 bg-blue-50/60 -mx-4 -mb-4 p-3 mt-2 rounded-b-lg space-y-1">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-gray-700 flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3 text-primary" /> Renovação de Cota:
+                  </span>
+                  <span className="font-mono font-bold text-primary">
+                    {(p as any).renewal?.nextRenewal || "00:00 UTC"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-gray-500">
+                  <span>Ciclo: {(p as any).renewal?.renewalCycle || "Diário"}</span>
+                  <span className="font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded">
+                    {(p as any).renewal?.timeRemaining || "6h"} restantes
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}
