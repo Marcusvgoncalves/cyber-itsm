@@ -81,7 +81,7 @@ export function TicketModal({
   const [isEpicDropdownOpen, setIsEpicDropdownOpen] = useState(false);
 
   // States para anexos e parecer
-  const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string } | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string; url?: string } | null>(null);
   const [analyzingFile, setAnalyzingFile] = useState(false);
   const [requirementOpinion, setRequirementOpinion] = useState<string | null>(null);
 
