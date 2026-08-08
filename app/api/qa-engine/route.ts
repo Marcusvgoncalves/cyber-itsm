@@ -63,23 +63,20 @@ export async function POST(req: Request) {
         fileUrl: pending.temp_storage_path ?? storagePath,
       },
     });
+    console.log(`[Security QA Publisher] Laudo ${pending.id} enfileirado no Inngest (PROCESSANDO).`);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[Security QA Publisher] Falha ao disparar evento Inngest:', err);
-    // Evita laudo "órfão" em PROCESSANDO: marca FALHA e avisa o frontend.
-    await failQaResult(pending.id, `Falha ao enfileirar o processamento: ${message}`).catch(
-      () => undefined
+    console.warn(
+      `[Security QA Publisher] Falha ao disparar evento Inngest: ${message}. Ativando worker assíncrono local de fallback (Zero Downtime)...`
     );
-    return Response.json(
-      {
-        error:
-          'Falha ao enfileirar o processamento em background. Verifique a configuração do Inngest (`npx inngest dev`).',
-      },
-      { status: 500 }
-    );
+    
+    // Executa em segundo plano in-memory de forma assíncrona para não atrasar a resposta HTTP.
+    import('@/lib/security-qa/local-worker')
+      .then(({ runLocalQaProcess }) => runLocalQaProcess(pending.id, pending.temp_storage_path ?? storagePath))
+      .catch((localErr) => {
+        console.error('[Security QA Publisher] Falha fatal no worker assíncrono local:', localErr);
+      });
   }
-
-  console.log(`[Security QA Publisher] Laudo ${pending.id} enfileirado (PROCESSANDO).`);
 
   // 4) Sucesso imediato: o frontend assina o Realtime pelo id.
   return Response.json({ id: pending.id, status: 'PROCESSANDO' });
