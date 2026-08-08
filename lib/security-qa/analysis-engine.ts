@@ -40,7 +40,6 @@ function resolveApiKey(names: string[]): string | null {
 
 type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
 
-// O SDK do Groq mapeará perfeitamente o Zod schema (structuredOutputs false fallback nativo)
 const GROQ: ModelFactory = (apiKey) => {
   const provider = createGroq({ apiKey });
   return (modelId) => provider(modelId);
@@ -66,31 +65,30 @@ interface AgentConfig {
 
 const AGENTS: AgentConfig[] = [
   {
-    id: 'groq',
-    label: 'Groq (Llama 3.1 8B / 3.3 70B)',
-    envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
-    createModel: GROQ,
-  },
-  {
-    id: 'openrouter',
-    label: 'OpenRouter (Gemini & Llama Free)',
-    envKeys: ['OPENROUTER_API_KEY'],
-    // Adicionamos modelos Free atualizados do OpenRouter que suportam JSON robusto
-    modelIds: [
-      'google/gemini-2.0-flash-lite-preview-02-05:free',
-      'google/gemini-2.0-flash-exp:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'nvidia/llama-3.1-nemotron-70b-instruct:free'
-    ],
-    createModel: OPENROUTER,
-  },
-  {
     id: 'google',
     label: 'Google (Gemini 2.0 / 1.5 Flash)',
     envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY'],
     modelIds: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'],
     createModel: GOOGLE,
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter (Gemini & Llama Free)',
+    envKeys: ['OPENROUTER_API_KEY'],
+    modelIds: [
+      'google/gemini-2.0-flash-lite-001',
+      'deepseek/deepseek-r1:free',
+      'qwen/qwen-2.5-coder-32b-instruct:free',
+      'mistralai/mistral-7b-instruct:free',
+    ],
+    createModel: OPENROUTER,
+  },
+  {
+    id: 'groq',
+    label: 'Groq (Llama 3.3 70B / Mixtral)',
+    envKeys: ['GROQ_API_KEY'],
+    modelIds: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+    createModel: GROQ,
   },
 ];
 
@@ -257,21 +255,20 @@ export async function runQaAnalysis(
     }
   }
 
-  // Todos os provedores falharam por Rate Limit: agenda novo try no Inngest.
+  // Fallback determinístico (falhas não recuperáveis ou rate limits em todos os provedores).
+  const summary = failures.join(' | ');
+  console.warn(
+    `[Security QA Engine] Nenhum provedor LLM respondeu com sucesso (${summary}). Executando motor determinístico de segurança...`
+  );
+  onStatus?.('Executando motor de análise determinística de segurança (fallback)...');
+
+  const fallbackAnalysis = generateFallbackAnalysis(requirements, evidence);
   if (rateLimited) {
-    const summary = failures.join(' | ');
-    console.warn(`[Security QA Engine] Rate limit em todos os provedores: ${summary}`);
-    throw new QaRateLimitError(
-      'Todas as APIs de LLM retornaram Rate Limit (429). Reagendando execução no background.',
-      20_000
-    );
+    fallbackAnalysis.executiveSummary += ' [Nota: Análise executada via motor de regras determinístico de contingência devido a instabilidade temporária nas APIs de LLM].';
   }
 
-  // Fallback determinístico (falhas não recuperáveis: chaves inválidas etc.).
-  console.warn(`[Security QA Engine] Nenhum provedor LLM respondeu (${failures.join(' | ')}). Executando motor determinístico...`);
-  onStatus?.('Executando motor de análise determinística de segurança (fallback)...');
   return {
-    analysis: generateFallbackAnalysis(requirements, evidence),
+    analysis: fallbackAnalysis,
     activeAgentLabel: 'motor-deterministico',
     failures,
   };
