@@ -7,7 +7,7 @@
 [![Vercel AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-Multiagent-000000?logo=vercel)](https://sdk.vercel.ai/)
 [![License](https://img.shields.io/badge/License-Proprietary-660099.svg)](LICENSE)
 
-> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Esteira DevSecOps Multiagente e Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1.
+> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Governança de Identidades (IAM/IGA), Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente e Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1.
 
 ---
 
@@ -19,17 +19,29 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 ![Desenho de Arquitetura CyberITSM SPN](public/images/architecture.svg)
 
+### 🔄 Fluxo de Funcionamento & Ciclo de Vida de Demandas
+
+![Fluxo de Funcionamento CyberITSM SPN](public/images/workflow.png)
+
 ---
 
 ### 🚀 Módulos e Funcionalidades Principais
 
-#### 1. 📋 Quadro Kanban & Dashboard de Volumetria
-- **Gestão Visão de Fluxo**: Movimentação visual de chamados por colunas de status (Aberto, Em Andamento, Revisão, Fechado, Cancelado).
-- **Suporte a Anexos**: Upload de evidências (docx, pdf, jpg, png) comprimidas nativamente, limitadas a 10MB por arquivo.
-- **Kanban Analytics Dashboard**:
-  - **Métricas Volumétricas**: Total de backlog ativo, cumprimentos de SLA e distribuição de prioridades.
-  - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework de Origem (NIST, CIS, PCI-DSS, SABSA, LGPD) * Janela de SLA`.
-  - **Previsão de Demanda e Atendimento**: Estimativas automáticas de dias para esvaziar a fila e projeção de novos chamados.
+#### 1. 📋 Quadro Kanban Hierárquico & Dashboard Analytics
+- **Gestão Hierárquica Jira/Trello**:
+  - Classificação de demandas por tipo: **Épico** (macro demanda), **Atividade** e **Tarefa**.
+  - Vínculo **obrigatorio** de Atividades e Tarefas a um Épico Pai existente.
+  - **Imutabilidade do Tipo**: O tipo do chamado é congelado pós-criação e não pode ser alterado na edição.
+  - **Campo Responsável Obrigatório**: Todo chamado exige a atribuição expressa do Responsável (`assignee`).
+- **Máquina de Estados de Status**:
+  - Transições controladas por matriz estrita: `ABERTO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `EM_ANDAMENTO` ➔ `['FECHADO', 'BLOQUEADO', 'CANCELADO']`, `BLOQUEADO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `FECHADO` ➔ `['ABERTO', 'EM_ANDAMENTO']` (Reabertura), `CANCELADO` (Estado Terminal).
+  - **Guardrail de Fechamento de Épicos**: Um Épico SÓ PODE ser movido para `FECHADO` se todas as suas filhas (Atividades/Tarefas) estiverem em `FECHADO` ou `CANCELADO`.
+- **Componente de Checklist Integrado**:
+  - Inserção dinâmica, alternância de conclusão e remoção de itens de validação com barra de progresso visual % em tempo real.
+- **Visualização & Dashboard Analytics**:
+  - Badges coloridos por tipo (Épico: Roxo, Atividade: Azul, Tarefa: Verde) e tag com título do Épico Pai.
+  - **Alerta Visual de Drag-and-Drop**: Bloqueio imediato com aviso amigável ao tentar arrastar card para coluna cujo fluxo de status seja inválido.
+  - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework * SLA`.
 
 #### 2. 🛡️ Centro de Security QA & Dashboard SecOps
 - **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor aplica OCR e parsing avançado, cruzando cada evidência com o escopo de requisitos de arquitetura e devolvendo um laudo de conformidade %.
@@ -82,17 +94,29 @@ The architecture is designed for high availability and zero single points of fai
 
 ![CyberITSM SPN Architecture Diagram](public/images/architecture.svg)
 
+### 🔄 Operational Workflow & Demand Lifecycle
+
+![CyberITSM SPN Workflow](public/images/workflow.png)
+
 ---
 
 ### 🚀 Key Modules and Features
 
-#### 1. 📋 Kanban Board & Volumetric Dashboard
-- **Visual Workflow Management**: Drag-and-drop ticket state transitions (Open, In Progress, Review, Closed, Canceled).
-- **Attachment Support**: Upload evidence (docx, pdf, jpg, png) natively compressed, limited to 10MB per file.
-- **Kanban Analytics Dashboard**:
-  - **Volumetric Metrics**: Active backlog count, SLA compliance rate, priority breakdown.
-  - **Interactive Criticality Calculator**: Calculates ticket risk score using `Priority * Origin Framework (NIST, CIS, PCI-DSS, SABSA, LGPD) * SLA Window`.
-  - **Demand & Resolution Forecast**: Automated predictions for backlog clearance and new incoming tickets.
+#### 1. 📋 Hierarchical Kanban Board & Analytics Dashboard
+- **Jira/Trello-Style Demand Hierarchy**:
+  - Ticket types: **Epic** (macro feature), **Activity**, and **Task**.
+  - Mandatory linking of Activities and Tasks to an existing **Parent Epic**.
+  - **Type Immutability**: Ticket type is locked upon creation and cannot be changed during edits.
+  - **Mandatory Assignee Field**: Every ticket requires an assigned owner (`assignee`).
+- **Strict Status State Machine**:
+  - Controlled transitions: `ABERTO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `EM_ANDAMENTO` ➔ `['FECHADO', 'BLOQUEADO', 'CANCELADO']`, `BLOQUEADO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `FECHADO` ➔ `['ABERTO', 'EM_ANDAMENTO']` (Reopen), `CANCELADO` (Terminal State).
+  - **Epic Closing Guardrail**: An Epic CANNOT be moved to `FECHADO` unless all its child items (Activities/Tasks) are in `FECHADO` or `CANCELADO`.
+- **Integrated Interactive Checklist**:
+  - Dynamic item addition, completion toggle, and removal with real-time visual progress percentage bar.
+- **Visuals & Analytics**:
+  - Color badges per type (Epic: Purple, Activity: Blue, Task: Green) and Parent Epic tag.
+  - **Drag-and-Drop Visual Alert**: Instant block and friendly warning banner if dragging to an invalid status transition column.
+  - **Interactive Criticality Calculator**: Technical impact evaluation using `Priority * Framework * SLA Window`.
 
 #### 2. 🛡️ Security QA Center & SecOps Dashboard
 - **Autonomous QA Engine (`/api/qa-engine`)**: Ingests raw scan logs and document attachments (JSON, XML, TXT, DOCX, PDF, JPG, PNG). The engine applies OCR and advanced parsing, cross-referencing evidence line-by-line against security requirements and outputs a compliance % audit report.

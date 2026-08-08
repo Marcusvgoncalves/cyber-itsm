@@ -2,9 +2,34 @@
 
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Status, Ticket, TicketPriority, FrameworkOrigem, User } from "@/lib/types";
-import { PRIORITY_LABELS, PRIORITY_COLORS, FRAMEWORK_LABELS, FRAMEWORK_OPTIONS } from "@/lib/types";
-import { X, Loader2, Tag, Shield, Flag, AlertTriangle, Target, Users, FileText, UploadCloud, Download, CheckCircle2, FileArchive } from "lucide-react";
+import {
+  Status,
+  Ticket,
+  TicketPriority,
+  TicketType,
+  ChecklistItem,
+  User,
+  TYPE_LABELS,
+  TYPE_COLORS,
+  PRIORITY_LABELS,
+  PRIORITY_COLORS,
+} from "@/lib/types";
+import {
+  X,
+  Loader2,
+  Tag,
+  Shield,
+  User as UserIcon,
+  CheckSquare,
+  Plus,
+  Trash2,
+  UploadCloud,
+  Download,
+  CheckCircle2,
+  FileText,
+  Layers,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,33 +43,46 @@ interface TicketModalProps {
   statuses: Status[];
   defaultStatusId: string | null;
   currentUser: User;
+  allTickets?: Ticket[];
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
 }
 
-export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUser, onClose, onSubmit, isLoading }: TicketModalProps) {
+export function TicketModal({
+  ticket,
+  mode,
+  statuses,
+  defaultStatusId,
+  currentUser,
+  allTickets = [],
+  onClose,
+  onSubmit,
+  isLoading,
+}: TicketModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    status_id: defaultStatusId || statuses[0]?.id || '',
+    type: 'TAREFA' as TicketType,
+    status_id: 'ABERTO',
     priority: 'media' as TicketPriority,
-    framework_origem: '' as FrameworkOrigem | '',
-    dominio_framework: '',
-    assignee_id: '',
+    assignee: currentUser.full_name || currentUser.email || '',
+    assignee_id: currentUser.id,
+    parentEpicId: '',
     tags: '',
-    compliance_frameworks: [] as string[],
   });
 
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [newChecklistText, setNewChecklistText] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<any[]>([]);
 
-  // States para anexos multi-formato (DOCX, PDF, JPG, PNG) & Parecer de Requisitos
+  // States para anexos e parecer
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string } | null>(null);
   const [analyzingFile, setAnalyzingFile] = useState(false);
   const [requirementOpinion, setRequirementOpinion] = useState<string | null>(null);
-  const [matchedRequirements, setMatchedRequirements] = useState<string[]>([]);
 
   useEffect(() => {
     import("@/app/actions/tickets").then(({ getUsers }) => {
@@ -52,45 +90,78 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
     });
   }, []);
 
+  // Lista de Épicos disponíveis para relacionamento pai
+  const availableEpics = allTickets.filter(
+    (t) => t.type === 'EPICO' && (mode === 'create' || t.id !== ticket?.id)
+  );
+
   useEffect(() => {
     if (ticket) {
       setFormData({
         title: ticket.title,
         description: ticket.description || '',
-        status_id: ticket.status,
-        priority: ticket.priority,
-        framework_origem: ticket.framework_origem || '',
-        dominio_framework: ticket.dominio_framework || '',
+        type: ticket.type || 'TAREFA',
+        status_id: ticket.status || 'ABERTO',
+        priority: ticket.priority || 'media',
+        assignee: ticket.assignee || ticket.assignee_user?.full_name || ticket.assignee_user?.email || '',
         assignee_id: ticket.assignee_id || '',
+        parentEpicId: ticket.parentEpicId || ticket.parent_epic_id || '',
         tags: ticket.tags?.join(', ') || '',
-        compliance_frameworks: ticket.compliance_frameworks || [],
       });
+      setChecklist(Array.isArray(ticket.checklist) ? ticket.checklist : []);
     } else {
       setFormData({
         title: '',
         description: '',
-        status_id: defaultStatusId || statuses[0]?.id || '',
+        type: 'TAREFA',
+        status_id: 'ABERTO',
         priority: 'media',
-        framework_origem: '',
-        dominio_framework: '',
-        assignee_id: '',
+        assignee: currentUser.full_name || currentUser.email || '',
+        assignee_id: currentUser.id,
+        parentEpicId: '',
         tags: '',
-        compliance_frameworks: [],
       });
+      setChecklist([]);
     }
     setErrors({});
     setAttachedFile(null);
     setRequirementOpinion(null);
-    setMatchedRequirements([]);
-  }, [ticket, defaultStatusId, statuses]);
+  }, [ticket, defaultStatusId, currentUser]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.title.trim()) newErrors.title = 'Título é obrigatório';
-    if (!formData.status_id) newErrors.status_id = 'Status é obrigatório';
     if (formData.title.trim().length < 3) newErrors.title = 'Título deve ter pelo menos 3 caracteres';
+    if (!formData.assignee.trim()) newErrors.assignee = 'O preenchimento do Responsável é obrigatório';
+    if (!formData.type) newErrors.type = 'O tipo de chamado é obrigatório';
+
+    if ((formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && !formData.parentEpicId) {
+      newErrors.parentEpicId = 'Vínculo a um Épico Pai é OBRIGATÓRIO para Atividades e Tarefas';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAddChecklistItem = () => {
+    if (!newChecklistText.trim()) return;
+    const newItem: ChecklistItem = {
+      id: 'chk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      text: newChecklistText.trim(),
+      completed: false,
+    };
+    setChecklist((prev) => [...prev, newItem]);
+    setNewChecklistText('');
+  };
+
+  const handleToggleChecklistItem = (id: string) => {
+    setChecklist((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
+    );
+  };
+
+  const handleRemoveChecklistItem = (id: string) => {
+    setChecklist((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleFileUpload = async (file: File | undefined) => {
@@ -100,27 +171,18 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
     setAnalyzingFile(true);
 
     try {
-      // Simulação rápida de parsing + matching dos 314 requisitos SD v4.1
       const textLower = (file.name + ' ' + formData.description).toLowerCase();
-      const matched = (requirementsDataset as any[]).filter(req => {
+      const matched = (requirementsDataset as any[]).filter((req) => {
         const titleLower = req.titulo.toLowerCase();
         const idLower = req.id.toLowerCase();
         return textLower.includes(idLower) || titleLower.split(' ').some((word: string) => word.length > 4 && textLower.includes(word));
       }).slice(0, 3);
 
-      const matchedIds = matched.map(m => m.id);
-      setMatchedRequirements(matchedIds.length > 0 ? matchedIds : ['VIVO.SEGURA.AUT.01', 'VIVO.SEGURA.CRIP.02']);
-
+      const matchedIds = matched.map((m) => m.id);
       const opinion = matchedIds.length > 0
-        ? `Arquivo "${file.name}" analisado com sucesso. Requisitos direcionados: ${matchedIds.join(', ')}. Recomenda-se verificação das evidências de controle e compressão GZIP no storage.`
-        : `Arquivo "${file.name}" analisado. Requisitos recomendados com base no escopo: VIVO.SEGURA.AUT.01 (MFA) e VIVO.SEGURA.LOG.03 (Auditoria).`;
-      
+        ? `Arquivo "${file.name}" analisado com sucesso. Requisitos direcionados: ${matchedIds.join(', ')}.`
+        : `Arquivo "${file.name}" analisado. Requisitos recomendados: VIVO.SEGURA.AUT.01 e VIVO.SEGURA.LOG.03.`;
       setRequirementOpinion(opinion);
-
-      // Sugere o framework NIST ou CIS se não estiver selecionado
-      if (!formData.framework_origem) {
-        setFormData(prev => ({ ...prev, framework_origem: 'NIST' }));
-      }
     } catch (err) {
       console.error("Erro na análise de anexo:", err);
     } finally {
@@ -135,63 +197,144 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
     const submitData = {
       title: formData.title.trim(),
       description: formData.description.trim() || null,
-      status: formData.status_id as Ticket['status'],
+      type: formData.type,
+      status: formData.status_id,
       priority: formData.priority,
-      framework_origem: formData.framework_origem || null,
-      dominio_framework: formData.dominio_framework.trim() || null,
+      assignee: formData.assignee.trim(),
       assignee_id: formData.assignee_id || null,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-      compliance_frameworks: formData.compliance_frameworks,
+      parentEpicId: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
+      parent_epic_id: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
+      checklist,
+      tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
       reporter_id: currentUser.id,
     };
 
     onSubmit(submitData);
-    onClose();
   };
 
-  const handleChange = (field: string, value: string | string[]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
-  const toggleCompliance = (framework: string) => {
-    setFormData(prev => ({
-      ...prev,
-      compliance_frameworks: prev.compliance_frameworks.includes(framework)
-        ? prev.compliance_frameworks.filter(f => f !== framework)
-        : [...prev.compliance_frameworks, framework]
-    }));
-  };
+  // Progresso do Checklist
+  const totalChecklistCount = checklist.length;
+  const completedChecklistCount = checklist.filter((item) => item.completed).length;
+  const checklistPercentage = totalChecklistCount > 0 ? Math.round((completedChecklistCount / totalChecklistCount) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
-      {/* Modal */}
+      {/* Modal Container */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-slideUp">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {mode === 'create' ? 'Novo Chamado' : `Editar Chamado: SPN-${ticket?.id.slice(-6).toUpperCase()}`}
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-8 w-8 p-0"
-            disabled={isLoading}
-          >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-bold text-gray-900">
+              {mode === 'create' ? 'Novo Chamado' : `Editar Chamado: SPN-${ticket?.id.slice(-6).toUpperCase()}`}
+            </h2>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" disabled={isLoading}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-120px)] space-y-5">
+          {/* Tipo & Status Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo do Chamado * {mode === 'edit' && <span className="text-xs text-amber-600">(Imutável)</span>}
+              </Label>
+              <Select
+                value={formData.type}
+                onValueChange={(v: TicketType) => handleChange('type', v)}
+                disabled={isLoading || mode === 'edit'}
+              >
+                <SelectTrigger id="type" className={cn(mode === 'edit' && "bg-slate-100 cursor-not-allowed")}>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EPICO">
+                    <span className="font-semibold text-purple-700">Épico</span> (Demanda Macro / Agrupador)
+                  </SelectItem>
+                  <SelectItem value="ATIVIDADE">
+                    <span className="font-semibold text-blue-700">Atividade</span> (Requer Épico Pai)
+                  </SelectItem>
+                  <SelectItem value="TAREFA">
+                    <span className="font-semibold text-emerald-700">Tarefa</span> (Requer Épico Pai)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.type && <p className="mt-1 text-xs text-red-500 font-semibold">{errors.type}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                Status *
+              </Label>
+              {mode === 'create' ? (
+                <Input value="ABERTO (Padrão de Criação)" disabled className="bg-slate-100 text-slate-600 font-medium" />
+              ) : (
+                <Select value={formData.status_id} onValueChange={(v: string) => handleChange('status_id', v)} disabled={isLoading}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                          {s.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {/* Épico Pai (Visível e obrigatório para Atividade e Tarefa) */}
+          {(formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') && (
+            <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg space-y-1">
+              <Label htmlFor="parentEpicId" className="block text-xs font-bold text-purple-900 uppercase">
+                Épico Pai Vinculado *
+              </Label>
+              <Select
+                value={formData.parentEpicId}
+                onValueChange={(v: string) => handleChange('parentEpicId', v)}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="parentEpicId" className={cn("bg-white", errors.parentEpicId && "border-red-500")}>
+                  <SelectValue placeholder="Selecione o Épico Pai correspondente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableEpics.length === 0 ? (
+                    <SelectItem value="none" disabled>
+                      Nenhum Épico cadastrado. Crie um Épico antes!
+                    </SelectItem>
+                  ) : (
+                    availableEpics.map((epic) => (
+                      <SelectItem key={epic.id} value={epic.id}>
+                        <span className="font-semibold text-purple-800">[ÉPICO]</span> {epic.title}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {errors.parentEpicId && (
+                <p className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {errors.parentEpicId}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <Label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
@@ -201,99 +344,49 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
               id="title"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              placeholder="Ex: Adequação de autenticação MFA para API de Pagamentos"
+              placeholder="Ex: Implementar controle de MFA nas APIs de Pagamento"
               className={cn(errors.title && "border-red-500")}
               disabled={isLoading}
             />
-            {errors.title && <p className="mt-1 text-sm text-red-500">{errors.title}</p>}
+            {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title}</p>}
           </div>
 
-          {/* Description */}
-          <div>
-            <Label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Descrição Detalhada
-            </Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="Descreva o problema de cibersegurança ou controle a ser implementado..."
-              rows={4}
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* Anexos (DOCX, PDF, JPG, PNG) & Parecer Autônomo */}
-          <div className="rounded-lg border border-dashed border-gray-300 p-4 bg-gray-50/50 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold uppercase text-gray-600 flex items-center gap-1.5">
-                <UploadCloud className="h-4 w-4 text-primary" /> Anexo de Evidências (DOCX, PDF, JPG, PNG)
-              </Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".docx,.pdf,.jpg,.jpeg,.png,.json,.xml,.txt"
-                className="hidden"
-                onChange={(e) => handleFileUpload(e.target.files?.[0])}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || analyzingFile}
-                className="gap-1.5 text-xs"
-              >
-                {analyzingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
-                {analyzingFile ? "Analisando..." : "Selecionar Arquivo"}
-              </Button>
-            </div>
-
-            {attachedFile && (
-              <div className="flex items-center justify-between p-2.5 bg-white border rounded-md text-xs">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-gray-800">{attachedFile.name}</span>
-                  <span className="text-gray-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
-                </div>
-                <span className="text-emerald-600 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> GZIP Ready
-                </span>
-              </div>
-            )}
-
-            {requirementOpinion && (
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-900 space-y-1">
-                <p className="font-bold flex items-center gap-1.5">
-                  <Shield className="h-4 w-4 text-purple-700" /> Parecer de Requisitos SD v4.1 Recomendado:
-                </p>
-                <p className="leading-relaxed text-purple-800">{requirementOpinion}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Status & Priority Row */}
+          {/* Responsável & Prioridade Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Status *
+              <Label htmlFor="assignee" className="block text-sm font-medium text-gray-700 mb-1">
+                Responsável (Assignee) *
               </Label>
-              <Select value={formData.status_id} onValueChange={(v: string) => handleChange('status_id', v)} disabled={isLoading}>
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Selecione o status" />
+              <Select
+                value={formData.assignee}
+                onValueChange={(v: string) => {
+                  handleChange('assignee', v);
+                  const selectedUser = users.find((u) => (u.full_name || u.email) === v);
+                  if (selectedUser) handleChange('assignee_id', selectedUser.id);
+                }}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="assignee" className={cn(errors.assignee && "border-red-500")}>
+                  <SelectValue placeholder="Selecione o responsável" />
                 </SelectTrigger>
                 <SelectContent>
-                  {statuses.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        {s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {users.map((u) => {
+                    const name = u.full_name || u.email;
+                    return (
+                      <SelectItem key={u.id} value={name}>
+                        <div className="flex items-center gap-2">
+                          <UserIcon className="h-3.5 w-3.5 text-gray-400" />
+                          <span>{name}</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                  {!users.some((u) => (u.full_name || u.email) === formData.assignee) && formData.assignee && (
+                    <SelectItem value={formData.assignee}>{formData.assignee}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
-              {errors.status_id && <p className="mt-1 text-sm text-red-500">{errors.status_id}</p>}
+              {errors.assignee && <p className="mt-1 text-xs text-red-500">{errors.assignee}</p>}
             </div>
 
             <div>
@@ -318,100 +411,154 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
             </div>
           </div>
 
-          {/* Framework & Domain Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="framework" className="block text-sm font-medium text-gray-700 mb-1">
-                Framework de Origem
-              </Label>
-              <Select value={formData.framework_origem || 'none'} onValueChange={(v: string) => handleChange('framework_origem', v === 'none' ? '' : (v as FrameworkOrigem))} disabled={isLoading}>
-                <SelectTrigger id="framework">
-                  <SelectValue placeholder="Selecione o framework" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  {FRAMEWORK_OPTIONS.map((f) => (
-                    <SelectItem key={f} value={f as FrameworkOrigem}>
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-primary" />
-                        {FRAMEWORK_LABELS[f as FrameworkOrigem]}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="domain" className="block text-sm font-medium text-gray-700 mb-1">
-                Domínio do Framework
-              </Label>
-              <Input
-                id="domain"
-                value={formData.dominio_framework}
-                onChange={(e) => handleChange('dominio_framework', e.target.value)}
-                placeholder="Ex: ID.AM-1, PR.AC-1, A.9.2.1"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* Compliance Frameworks */}
+          {/* Description */}
           <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-2">
-              Frameworks de Conformidade
+            <Label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+              Descrição Detalhada
             </Label>
-            <div className="flex flex-wrap gap-2">
-              {FRAMEWORK_OPTIONS.map((f) => (
-                <Button
-                  key={f}
-                  type="button"
-                  variant={formData.compliance_frameworks.includes(f) ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => toggleCompliance(f)}
-                  disabled={isLoading}
-                  className="gap-1"
-                >
-                  <Shield className="h-3 w-3" />
-                  {FRAMEWORK_LABELS[f as FrameworkOrigem]}
-                </Button>
-              ))}
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="Descreva o detalhamento técnico e critérios de aceite da demanda..."
+              rows={3}
+              disabled={isLoading}
+            />
+          </div>
+
+          {/* COMPONENTE DE CHECKLIST INTEGRADO */}
+          <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold uppercase text-slate-700 flex items-center gap-1.5">
+                <CheckSquare className="h-4 w-4 text-primary" /> Checklist de Validação ({completedChecklistCount}/{totalChecklistCount})
+              </Label>
+              <span className="text-xs font-bold text-slate-600">{checklistPercentage}% Concluído</span>
+            </div>
+
+            {/* Barra de Progresso Visual */}
+            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-emerald-500 h-full transition-all duration-300 ease-out"
+                style={{ width: `${checklistPercentage}%` }}
+              />
+            </div>
+
+            {/* Input Adicionar Item */}
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                value={newChecklistText}
+                onChange={(e) => setNewChecklistText(e.target.value)}
+                placeholder="Adicionar novo item de verificação..."
+                className="h-8 text-xs bg-white"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddChecklistItem();
+                  }
+                }}
+              />
+              <Button type="button" size="sm" onClick={handleAddChecklistItem} className="h-8 text-xs gap-1 shrink-0">
+                <Plus className="h-3.5 w-3.5" /> Adicionar
+              </Button>
+            </div>
+
+            {/* Lista de Itens */}
+            <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto">
+              {checklist.length === 0 ? (
+                <p className="text-xs text-slate-400 italic py-1 text-center">Nenhum item adicionado ao checklist.</p>
+              ) : (
+                checklist.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-2 bg-white rounded border border-slate-100 hover:border-slate-200 transition-colors"
+                  >
+                    <label className="flex items-center gap-2.5 cursor-pointer text-xs flex-1 select-none">
+                      <input
+                        type="checkbox"
+                        checked={item.completed}
+                        onChange={() => handleToggleChecklistItem(item.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                      />
+                      <span className={cn(item.completed && "line-through text-slate-400 font-normal", !item.completed && "text-slate-800 font-medium")}>
+                        {item.text}
+                      </span>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveChecklistItem(item.id)}
+                      className="h-6 w-6 p-0 text-slate-400 hover:text-red-500"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          {/* Assignee & Tags Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="assignee" className="block text-sm font-medium text-gray-700 mb-1">
-                Responsável
+          {/* Anexos de Evidências */}
+          <div className="rounded-lg border border-dashed border-slate-300 p-4 bg-white space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold uppercase text-slate-600 flex items-center gap-1.5">
+                <UploadCloud className="h-4 w-4 text-primary" /> Anexo de Evidências
               </Label>
-              <Select value={formData.assignee_id || 'none'} onValueChange={(v: string) => handleChange('assignee_id', v === 'none' ? '' : v)} disabled={isLoading}>
-                <SelectTrigger id="assignee">
-                  <SelectValue placeholder="Selecione o responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Não atribuído</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.full_name || u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".docx,.pdf,.jpg,.jpeg,.png,.json,.xml,.txt"
+                className="hidden"
+                onChange={(e) => handleFileUpload(e.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading || analyzingFile}
+                className="gap-1.5 text-xs"
+              >
+                {analyzingFile ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
+                {analyzingFile ? "Analisando..." : "Selecionar Arquivo"}
+              </Button>
             </div>
 
-            <div>
-              <Label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (separadas por vírgula)
-              </Label>
-              <Input
-                id="tags"
-                value={formData.tags}
-                onChange={(e) => handleChange('tags', e.target.value)}
-                placeholder="segurança, vulnerabilidade, patch"
-                disabled={isLoading}
-              />
-            </div>
+            {attachedFile && (
+              <div className="flex items-center justify-between p-2.5 bg-slate-50 border rounded-md text-xs">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span className="font-semibold text-slate-800">{attachedFile.name}</span>
+                  <span className="text-slate-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                </div>
+                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> GZIP Ready
+                </span>
+              </div>
+            )}
+
+            {requirementOpinion && (
+              <div className="p-3 bg-purple-50 border border-purple-200 rounded-md text-xs text-purple-900">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-purple-700" /> Parecer Recomendado:
+                </p>
+                <p className="mt-1 leading-relaxed text-purple-800">{requirementOpinion}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Tags */}
+          <div>
+            <Label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
+              Tags (separadas por vírgula)
+            </Label>
+            <Input
+              id="tags"
+              value={formData.tags}
+              onChange={(e) => handleChange('tags', e.target.value)}
+              placeholder="segurança, sprint-12, backend"
+              disabled={isLoading}
+            />
           </div>
 
           {/* Actions */}
@@ -420,7 +567,7 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
               {mode === 'edit' && ticket && (
                 <a href={`/api/tickets/${ticket.id}/pdf`} target="_blank" rel="noopener noreferrer">
                   <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs text-primary border-primary/30">
-                    <Download className="h-3.5 w-3.5" /> Exportar Parecer em PDF
+                    <Download className="h-3.5 w-3.5" /> Exportar Relatório em PDF
                   </Button>
                 </a>
               )}
@@ -429,7 +576,7 @@ export function TicketModal({ ticket, mode, statuses, defaultStatusId, currentUs
               <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isLoading} className="gap-2">
+              <Button type="submit" disabled={isLoading} className="gap-2 bg-primary hover:bg-primary/90 text-white">
                 {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {mode === 'create' ? 'Criar Chamado' : 'Salvar Alterações'}
               </Button>

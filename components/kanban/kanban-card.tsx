@@ -1,9 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Ticket, TicketPriority } from "@/lib/types";
-import { PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
-import { GripVertical, Flag, User, Tag, Clock, AlertTriangle } from "lucide-react";
+import { Ticket, TicketPriority, TYPE_COLORS, TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
+import { GripVertical, User, Clock, CheckSquare, Layers } from "lucide-react";
 
 interface KanbanCardProps {
   ticket: Ticket;
@@ -13,21 +12,18 @@ interface KanbanCardProps {
   onDragEnd: () => void;
 }
 
-const PRIORITY_ICONS: Record<TicketPriority, React.ReactNode> = {
-  baixa: <Flag className="h-3 w-3 text-gray-400" />,
-  media: <Flag className="h-3 w-3 text-blue-500" />,
-  alta: <Flag className="h-3 w-3 text-orange-500" />,
-  critica: <AlertTriangle className="h-3 w-3 text-red-500" />,
-};
-
 export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd }: KanbanCardProps) {
-  const isAssignee = ticket.assignee_id === currentUserId;
-  const isReporter = ticket.reporter_id === currentUserId;
+  const typeKey = ticket.type || 'TAREFA';
+  const typeStyle = TYPE_COLORS[typeKey] || TYPE_COLORS.TAREFA;
+  const typeLabel = TYPE_LABELS[typeKey] || typeKey;
+
+  const totalChecklist = ticket.checklist?.length || 0;
+  const completedChecklist = ticket.checklist?.filter((i) => i.completed).length || 0;
 
   return (
     <article
       className={cn(
-        "kanban-card bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:shadow-md transition-all duration-200",
+        "kanban-card bg-white rounded-lg border border-gray-200 p-3.5 cursor-pointer hover:shadow-md transition-all duration-200 space-y-2",
         "dragging:opacity-50 dragging:shadow-lg"
       )}
       draggable
@@ -37,87 +33,74 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
       role="button"
-      aria-label={`${ticket.title}, prioridade ${PRIORITY_LABELS[ticket.priority]}, ${ticket.framework_origem ? `framework ${ticket.framework_origem}` : ''}`}
+      aria-label={`${ticket.title}, tipo ${typeLabel}, prioridade ${PRIORITY_LABELS[ticket.priority] || ticket.priority}`}
     >
-      {/* Drag handle */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2 text-gray-300 hover:text-gray-500" onClick={(e) => e.stopPropagation()}>
-          <GripVertical className="h-4 w-4 cursor-grab" />
+      {/* Header Row: Type Badge + Priority Dot & Drag Handle */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <div className="text-gray-300 hover:text-gray-500" onClick={(e) => e.stopPropagation()}>
+            <GripVertical className="h-4 w-4 cursor-grab" />
+          </div>
+          <span
+            className={cn(
+              "px-2 py-0.5 text-[10px] font-extrabold uppercase rounded border tracking-wider",
+              typeStyle.bg,
+              typeStyle.text,
+              typeStyle.border
+            )}
+          >
+            {typeLabel}
+          </span>
         </div>
         <div
-          className={cn(
-            "w-2 h-2 rounded-full flex-shrink-0 mt-1",
-            PRIORITY_COLORS[ticket.priority]
-          )}
-          title={`Prioridade: ${PRIORITY_LABELS[ticket.priority]}`}
+          className={cn("w-2.5 h-2.5 rounded-full shrink-0", PRIORITY_COLORS[ticket.priority])}
+          title={`Prioridade: ${PRIORITY_LABELS[ticket.priority] || ticket.priority}`}
         />
       </div>
 
+      {/* Tag/Link do Épico Pai (Para Atividade e Tarefa) */}
+      {(typeKey === 'ATIVIDADE' || typeKey === 'TAREFA') && ticket.parentEpic && (
+        <div className="flex items-center gap-1 text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100 font-medium truncate">
+          <Layers className="h-3 w-3 shrink-0 text-purple-600" />
+          <span className="truncate">Épico: {ticket.parentEpic.title}</span>
+        </div>
+      )}
+
       {/* Ticket ID & Title */}
-      <div className="mb-2">
-        <p className="text-xs text-gray-500 font-mono mb-1">SPN-{ticket.id.slice(-6).toUpperCase()}</p>
-        <h4 className="font-medium text-gray-900 text-sm line-clamp-2">{ticket.title}</h4>
+      <div>
+        <p className="text-[10px] text-gray-400 font-mono">SPN-{ticket.id.slice(-6).toUpperCase()}</p>
+        <h4 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 mt-0.5">{ticket.title}</h4>
       </div>
 
       {/* Description preview */}
       {ticket.description && (
-        <p className="text-xs text-gray-600 line-clamp-2 mb-2">{ticket.description}</p>
+        <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">{ticket.description}</p>
       )}
 
-      {/* Meta info */}
-      <div className="space-y-1.5 text-xs">
-        {/* Framework */}
-        {ticket.framework_origem && (
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <Tag className="h-3 w-3 text-gray-400" />
-            <span className="font-medium text-gray-700">{ticket.framework_origem}</span>
-            {ticket.dominio_framework && (
-              <span className="text-gray-400">/ {ticket.dominio_framework}</span>
-            )}
-          </div>
-        )}
+      {/* Footer Info: Assignee, Checklist Progress, Date */}
+      <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 gap-2">
+        <div className="flex items-center gap-1.5 truncate max-w-[60%]">
+          <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+          <span className="truncate font-medium text-gray-700">{ticket.assignee}</span>
+        </div>
 
-        {/* Assignee */}
-        {(ticket.assignee || ticket.reporter) && (
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <User className="h-3 w-3 text-gray-400" />
-            <span className="truncate">
-              {ticket.assignee ? (
-                <>
-                  <span className="font-medium text-gray-700">{ticket.assignee.full_name || ticket.assignee.email}</span>
-                  {isAssignee && <span className="ml-1 px-1 py-0.5 text-[10px] bg-primary-light text-primary rounded">Você</span>}
-                </>
-              ) : (
-                <span className="font-medium text-gray-700">{ticket.reporter?.full_name || ticket.reporter?.email || ''}</span>
-              )}
-            </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {totalChecklist > 0 && (
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+              <CheckSquare className="h-3 w-3 text-slate-500" />
+              <span>
+                {completedChecklist}/{totalChecklist}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1 text-[10px] text-gray-400">
+            <Clock className="h-3 w-3" />
+            <time dateTime={ticket.updated_at}>
+              {new Date(ticket.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            </time>
           </div>
-        )}
-
-        {/* Updated at */}
-        <div className="flex items-center gap-1.5 text-gray-500">
-          <Clock className="h-3 w-3" />
-          <time dateTime={ticket.updated_at}>
-            {new Date(ticket.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-          </time>
         </div>
       </div>
-
-      {/* Tags */}
-      {ticket.tags && ticket.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {ticket.tags.slice(0, 3).map((tag: string) => (
-            <span key={tag} className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded">
-              {tag}
-            </span>
-          ))}
-          {ticket.tags.length > 3 && (
-            <span className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded">
-              +{ticket.tags.length - 3}
-            </span>
-          )}
-        </div>
-      )}
     </article>
   );
 }

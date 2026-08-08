@@ -136,8 +136,12 @@ export function TicketPdfDocument({ ticket, requirementOpinion }: { ticket: Tick
 
         <View style={styles.kpiRow}>
           <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>Tipo</Text>
+            <Text style={styles.kpiVal}>{ticket.type || "TAREFA"}</Text>
+          </View>
+          <View style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Status</Text>
-            <Text style={styles.kpiVal}>{ticket.status.toUpperCase()}</Text>
+            <Text style={styles.kpiVal}>{ticket.status ? ticket.status.toUpperCase() : "ABERTO"}</Text>
           </View>
           <View style={styles.kpiBox}>
             <Text style={styles.kpiLabel}>Prioridade</Text>
@@ -146,8 +150,8 @@ export function TicketPdfDocument({ ticket, requirementOpinion }: { ticket: Tick
             </Text>
           </View>
           <View style={styles.kpiBox}>
-            <Text style={styles.kpiLabel}>Framework</Text>
-            <Text style={styles.kpiVal}>{ticket.framework_origem || "NIST"}</Text>
+            <Text style={styles.kpiLabel}>Responsável</Text>
+            <Text style={styles.kpiVal}>{ticket.assignee || "Não atribuído"}</Text>
           </View>
         </View>
 

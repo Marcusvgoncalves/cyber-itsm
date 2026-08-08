@@ -79,7 +79,7 @@ export function notifyTicketCreated(ticket: Ticket): void {
       priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
       frameworkOrigem: ticket.framework_origem,
       reporterName: ticket.reporter?.full_name,
-      assigneeName: ticket.assignee?.full_name,
+      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
     },
     recipients
   ).catch((err) => {
@@ -102,7 +102,7 @@ export function notifyTicketUpdated(ticket: Ticket, changes: string[]): void {
       priorityLabel: PRIORITY_LABELS[ticket.priority] ?? ticket.priority,
       frameworkOrigem: ticket.framework_origem,
       reporterName: ticket.reporter?.full_name,
-      assigneeName: ticket.assignee?.full_name,
+      assigneeName: ticket.assignee || ticket.assignee_user?.full_name,
       changes,
     },
     recipients
@@ -118,6 +118,10 @@ export function notifyTicketUpdated(ticket: Ticket, changes: string[]): void {
 function collectRecipients(ticket: Ticket): string[] {
   const recipients: string[] = [];
   if (ticket.reporter?.email) recipients.push(ticket.reporter.email);
-  if (ticket.assignee?.email) recipients.push(ticket.assignee.email);
+  if (ticket.assignee_user?.email) {
+    recipients.push(ticket.assignee_user.email);
+  } else if (ticket.assignee && ticket.assignee.includes('@')) {
+    recipients.push(ticket.assignee);
+  }
   return recipients;
 }

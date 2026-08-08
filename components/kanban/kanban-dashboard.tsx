@@ -129,8 +129,8 @@ export function KanbanDashboard({ tickets, statuses, onClose }: KanbanDashboardP
 
   // 3. Forecasts
   const forecasts = useMemo(() => {
-    const openTickets = tickets.filter(t => t.status !== "fechado" && t.status !== "cancelado").length;
-    const closedTickets = tickets.filter(t => t.status === "fechado").length;
+    const openTickets = tickets.filter(t => t.status?.toUpperCase() !== "FECHADO" && t.status?.toUpperCase() !== "CANCELADO").length;
+    const closedTickets = tickets.filter(t => t.status?.toUpperCase() === "FECHADO").length;
     
     // Vazão média simulada de 1.5 chamados por dia útil
     const resolutionDays = openTickets > 0 ? Math.ceil(openTickets / 1.5) : 0;

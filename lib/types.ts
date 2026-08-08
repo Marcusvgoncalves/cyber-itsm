@@ -31,28 +31,42 @@ export interface Status {
   updated_at: string;
 }
 
-export type TicketStatus = 'aberto' | 'em_andamento' | 'em_revisao' | 'fechado' | 'cancelado';
+export type TicketType = 'EPICO' | 'ATIVIDADE' | 'TAREFA';
+export type TicketStatus = 'ABERTO' | 'EM_ANDAMENTO' | 'BLOQUEADO' | 'FECHADO' | 'CANCELADO';
 export type TicketPriority = 'baixa' | 'media' | 'alta' | 'critica';
 export type FrameworkOrigem = 'NIST' | 'CIS' | 'SABSA' | 'ISO' | 'LGPD' | 'PCI-DSS';
 
 export const FRAMEWORK_OPTIONS: FrameworkOrigem[] = ['NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS'];
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface Ticket {
   id: string;
   title: string;
   description: string | null;
+  type: TicketType;
   status: TicketStatus;
   priority: TicketPriority;
-  framework_origem: FrameworkOrigem | null;
-  dominio_framework: string | null;
-  assignee_id: string | null;
-  reporter_id: string;
+  assignee: string; // Nome ou E-mail do Responsável (Obrigatório)
+  parentEpicId?: string | null;
+  parent_epic_id?: string | null;
+  parentEpic?: { id: string; title: string } | null;
+  childTickets?: Ticket[];
+  checklist: ChecklistItem[];
+  framework_origem?: FrameworkOrigem | null;
+  dominio_framework?: string | null;
+  assignee_id?: string | null;
+  reporter_id?: string;
   tags?: string[];
   compliance_frameworks?: string[];
   created_at: string;
   updated_at: string;
-  closed_at: string | null;
-  assignee?: User | null;
+  closed_at?: string | null;
+  assignee_user?: User | null;
   reporter?: User;
   comments?: Comment[];
 }
@@ -121,11 +135,11 @@ export interface IdentityRequest {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
-  backlog: 'bg-status-backlog',
-  todo: 'bg-status-todo',
-  progress: 'bg-status-progress',
-  review: 'bg-status-review',
-  done: 'bg-status-done',
+  ABERTO: 'bg-blue-500 text-white',
+  EM_ANDAMENTO: 'bg-amber-500 text-white',
+  BLOQUEADO: 'bg-red-500 text-white',
+  FECHADO: 'bg-emerald-600 text-white',
+  CANCELADO: 'bg-slate-500 text-white',
 };
 
 export const PRIORITY_COLORS: Record<TicketPriority, string> = {
@@ -142,13 +156,33 @@ export const PRIORITY_LABELS: Record<TicketPriority, string> = {
   critica: 'Crítica',
 };
 
-export const STATUS_LABELS: Record<TicketStatus, string> = {
-  aberto: 'Aberto',
-  em_andamento: 'Em Andamento',
-  em_revisao: 'Em Revisão',
-  fechado: 'Fechado',
-  cancelado: 'Cancelado',
+export const TYPE_LABELS: Record<TicketType, string> = {
+  EPICO: 'Épico',
+  ATIVIDADE: 'Atividade',
+  TAREFA: 'Tarefa',
 };
+
+export const TYPE_COLORS: Record<TicketType, { bg: string; text: string; border: string }> = {
+  EPICO: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
+  ATIVIDADE: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300' },
+  TAREFA: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+};
+
+export const STATUS_LABELS: Record<TicketStatus, string> = {
+  ABERTO: 'Aberto',
+  EM_ANDAMENTO: 'Em Andamento',
+  BLOQUEADO: 'Bloqueado',
+  FECHADO: 'Fechado',
+  CANCELADO: 'Cancelado',
+};
+
+export const DEFAULT_STATUSES: Status[] = [
+  { id: 'ABERTO', name: 'Aberto', color: '#3b82f6', position: 1, is_default: true, created_at: '', updated_at: '' },
+  { id: 'EM_ANDAMENTO', name: 'Em Andamento', color: '#f59e0b', position: 2, is_default: false, created_at: '', updated_at: '' },
+  { id: 'BLOQUEADO', name: 'Bloqueado', color: '#ef4444', position: 3, is_default: false, created_at: '', updated_at: '' },
+  { id: 'FECHADO', name: 'Fechado', color: '#10b981', position: 4, is_default: false, created_at: '', updated_at: '' },
+  { id: 'CANCELADO', name: 'Cancelado', color: '#64748b', position: 5, is_default: false, created_at: '', updated_at: '' },
+];
 
 export const FRAMEWORK_LABELS: Record<FrameworkOrigem, string> = {
   NIST: 'NIST CSF',

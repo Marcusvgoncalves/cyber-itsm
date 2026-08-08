@@ -105,8 +105,12 @@ CREATE TABLE public.tickets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title TEXT NOT NULL,
   description TEXT,
+  type TEXT NOT NULL DEFAULT 'TAREFA' CHECK (type IN ('EPICO', 'ATIVIDADE', 'TAREFA')),
   status TEXT NOT NULL REFERENCES public.ticket_statuses(id) ON UPDATE CASCADE,
   priority TEXT NOT NULL DEFAULT 'media' CHECK (priority IN ('baixa', 'media', 'alta', 'critica')),
+  assignee TEXT NOT NULL DEFAULT 'Não atribuído',
+  parent_epic_id UUID REFERENCES public.tickets(id) ON DELETE SET NULL,
+  checklist JSONB DEFAULT '[]'::jsonb,
   framework_origem TEXT CHECK (framework_origem IN ('NIST', 'CIS', 'SABSA', 'ISO', 'LGPD', 'PCI-DSS')),
   dominio_framework TEXT,
   assignee_id UUID REFERENCES public.users_profiles(id) ON DELETE SET NULL,
@@ -120,6 +124,9 @@ CREATE TABLE public.tickets (
 
 -- Indexes for common queries
 CREATE INDEX idx_tickets_status ON public.tickets(status);
+CREATE INDEX idx_tickets_type ON public.tickets(type);
+CREATE INDEX idx_tickets_parent_epic_id ON public.tickets(parent_epic_id);
+CREATE INDEX idx_tickets_priority ON public.tickets(priority);
 CREATE INDEX idx_tickets_priority ON public.tickets(priority);
 CREATE INDEX idx_tickets_framework_origem ON public.tickets(framework_origem);
 CREATE INDEX idx_tickets_assignee_id ON public.tickets(assignee_id);
@@ -383,11 +390,11 @@ CREATE TRIGGER trigger_ticket_closed
 
 -- Seed default ticket statuses
 INSERT INTO public.ticket_statuses (id, name, color, position, is_default) VALUES
-  ('aberto', 'Aberto', '#4f6ef7', 1, true),
-  ('em_andamento', 'Em Andamento', '#FF9900', 2, false),
-  ('em_revisao', 'Em Revisão', '#a254b9', 3, false),
-  ('fechado', 'Fechado', '#1a9e5c', 4, false),
-  ('cancelado', 'Cancelado', '#8a8f98', 5, false)
+  ('ABERTO', 'Aberto', '#3b82f6', 1, true),
+  ('EM_ANDAMENTO', 'Em Andamento', '#f59e0b', 2, false),
+  ('BLOQUEADO', 'Bloqueado', '#ef4444', 3, false),
+  ('FECHADO', 'Fechado', '#10b981', 4, false),
+  ('CANCELADO', 'Cancelado', '#64748b', 5, false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed default IAM providers

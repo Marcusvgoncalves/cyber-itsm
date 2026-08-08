@@ -2,13 +2,14 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Status, Ticket, User } from "@/lib/types";
+import { Status, Ticket, TicketStatus, User, DEFAULT_STATUSES } from "@/lib/types";
 import { KanbanColumn } from "./kanban-column";
 import { TicketModal } from "./ticket-modal";
-import { PlusIcon, RefreshCw, BarChart3, LayoutGrid } from "lucide-react";
+import { PlusIcon, RefreshCw, BarChart3, LayoutGrid, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KanbanDashboard } from "./kanban-dashboard";
-import { createTicket, moveTicket, getTickets, getStatuses, getUsers } from "@/app/actions/tickets";
+import { createTicket, moveTicket, updateTicket, getTickets, getStatuses } from "@/app/actions/tickets";
+import { isAllowedTransition, ALLOWED_TRANSITIONS, canCloseEpic } from "@/lib/domain/ticketRules";
 import { useTransition } from "react";
 
 interface KanbanBoardProps {
@@ -21,30 +22,66 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTicketSelect, openCreateSignal = 0 }: KanbanBoardProps) {
-  const [statuses, setStatuses] = useState<Status[]>(initialStatuses);
+  const [statuses, setStatuses] = useState<Status[]>(
+    initialStatuses.length > 0 ? initialStatuses : DEFAULT_STATUSES
+  );
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
   const [newTicketStatusId, setNewTicketStatusId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [_, startTransition] = useTransition();
 
   const handleTicketMove = useCallback((ticketId: string, newStatusId: string) => {
+    setValidationError(null);
+    const targetStatus = newStatusId.toUpperCase() as TicketStatus;
+    const ticketToMove = tickets.find((t) => t.id === ticketId);
+
+    if (ticketToMove) {
+      const currentStatus = ticketToMove.status;
+      
+      // Validação de Transição de Estado
+      if (!isAllowedTransition(currentStatus, targetStatus)) {
+        const allowed = ALLOWED_TRANSITIONS[currentStatus] || [];
+        const allowedStr = allowed.length > 0 ? allowed.join(', ') : 'Nenhuma (estado terminal)';
+        setValidationError(
+          `Movimento bloqueado! De "${currentStatus}" só é permitido ir para: [${allowedStr}].`
+        );
+        return;
+      }
+
+      // Guardrail de Fechamento de Épico
+      if (ticketToMove.type === 'EPICO' && targetStatus === 'FECHADO') {
+        const childTickets = tickets.filter(
+          (t) => t.parentEpicId === ticketId || t.parent_epic_id === ticketId
+        );
+        const epicGuardrail = canCloseEpic(childTickets);
+        if (!epicGuardrail.allowed) {
+          setValidationError(`Movimento bloqueado! ${epicGuardrail.reason}`);
+          return;
+        }
+      }
+    }
+
     startTransition(async () => {
       setIsLoading(true);
       try {
-        await moveTicket(ticketId, newStatusId);
-        setTickets(prev => prev.map(t => 
-          t.id === ticketId ? { ...t, status: newStatusId as Ticket['status'], updated_at: new Date().toISOString() } : t
-        ));
-      } catch (error) {
+        await moveTicket(ticketId, targetStatus);
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === ticketId ? { ...t, status: targetStatus, updated_at: new Date().toISOString() } : t
+          )
+        );
+      } catch (error: any) {
         console.error('Erro ao mover ticket:', error);
+        setValidationError(error.message || 'Erro ao mover chamado.');
       } finally {
         setIsLoading(false);
       }
     });
-  }, []);
+  }, [tickets]);
 
   const handleTicketClick = useCallback((ticket: Ticket) => {
     setSelectedTicket(ticket);
@@ -64,8 +101,6 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     setModalMode('create');
   }, []);
 
-  // Abre o modal de criação quando o sinal externo (ex.: botão "Novo Chamado"
-  // do Copiloto) é incrementado.
   const lastHandledSignal = useRef(0);
   useEffect(() => {
     if (openCreateSignal > lastHandledSignal.current && statuses.length > 0) {
@@ -74,15 +109,17 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     }
   }, [openCreateSignal, statuses, handleAddTicket]);
 
-  const handleTicketCreated = useCallback(async (ticketData: Omit<Ticket, 'id' | 'created_at' | 'updated_at' | 'closed_at' | 'assignee' | 'reporter' | 'comments'>) => {
+  const handleTicketCreated = useCallback(async (ticketData: any) => {
+    setValidationError(null);
     startTransition(async () => {
       setIsLoading(true);
       try {
         const newTicket = await createTicket({ ...ticketData, reporter_id: currentUser.id });
-        setTickets(prev => [newTicket, ...prev]);
+        setTickets((prev) => [newTicket, ...prev]);
         handleCloseModal();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao criar ticket:', error);
+        setValidationError(error.message || 'Erro ao criar chamado.');
       } finally {
         setIsLoading(false);
       }
@@ -90,14 +127,16 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
   }, [currentUser.id, handleCloseModal]);
 
   const handleTicketUpdated = useCallback(async (ticketId: string, updates: Partial<Ticket>) => {
+    setValidationError(null);
     startTransition(async () => {
       setIsLoading(true);
       try {
         const updated = await updateTicket(ticketId, updates);
-        setTickets(prev => prev.map(t => t.id === ticketId ? updated : t));
+        setTickets((prev) => prev.map((t) => (t.id === ticketId ? updated : t)));
         handleCloseModal();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao atualizar ticket:', error);
+        setValidationError(error.message || 'Erro ao atualizar chamado.');
       } finally {
         setIsLoading(false);
       }
@@ -114,20 +153,21 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
+    setValidationError(null);
     try {
       const [freshTickets, freshStatuses] = await Promise.all([getTickets(), getStatuses()]);
       setTickets(freshTickets);
-      setStatuses(freshStatuses);
-    } catch (error) {
+      setStatuses(freshStatuses.length > 0 ? freshStatuses : DEFAULT_STATUSES);
+    } catch (error: any) {
       console.error('Erro ao atualizar:', error);
+      setValidationError(error.message || 'Erro ao atualizar lista.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Group tickets by status
   const ticketsByStatus = statuses.reduce((acc, status) => {
-    acc[status.id] = tickets.filter(t => t.status === status.id);
+    acc[status.id] = tickets.filter((t) => t.status === status.id);
     return acc;
   }, {} as Record<string, Ticket[]>);
 
@@ -136,7 +176,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
       {/* Toolbar */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-gray-900">Quadro Kanban</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Quadro Kanban Hierárquico</h2>
           <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
             <span>Total: {tickets.length} chamados</span>
           </div>
@@ -145,7 +185,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowDashboard(prev => !prev)}
+            onClick={() => setShowDashboard((prev) => !prev)}
             className="gap-1.5"
           >
             {showDashboard ? (
@@ -170,12 +210,25 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
             <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
             Atualizar
           </Button>
-          <Button size="sm" onClick={() => { setNewTicketStatusId(statuses[0]?.id || null); setModalMode('create'); setSelectedTicket(null); }}>
+          <Button size="sm" onClick={() => { setNewTicketStatusId(statuses[0]?.id || 'ABERTO'); setModalMode('create'); setSelectedTicket(null); }}>
             <PlusIcon className="h-4 w-4 mr-1" />
             Novo Chamado
           </Button>
         </div>
       </div>
+
+      {/* Alerta Visual de Regra de Negócio / Erro de Validação */}
+      {validationError && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-center justify-between text-xs text-red-800 font-semibold animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+            <span>{validationError}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setValidationError(null)} className="h-6 w-6 p-0 text-red-600 hover:text-red-900">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Content Area */}
       {showDashboard ? (
@@ -211,8 +264,9 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           ticket={selectedTicket}
           mode={modalMode}
           statuses={statuses}
-          defaultStatusId={newTicketStatusId || statuses[0]?.id}
+          defaultStatusId={newTicketStatusId || statuses[0]?.id || 'ABERTO'}
           currentUser={currentUser}
+          allTickets={tickets}
           onClose={handleCloseModal}
           onSubmit={handleTicketSubmit}
           isLoading={isLoading}
@@ -221,6 +275,3 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     </div>
   );
 }
-
-// Import updateTicket for the callback
-import { updateTicket } from "@/app/actions/tickets";
