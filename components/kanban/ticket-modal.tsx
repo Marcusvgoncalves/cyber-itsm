@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { createClient } from "@/utils/supabase/client";
 
 interface TicketModalProps {
   ticket: Ticket | null;
@@ -69,6 +70,8 @@ export function TicketModal({
     assignee_id: currentUser.id,
     parentEpicId: '',
     tags: '',
+    attachmentName: '',
+    attachmentUrl: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -142,7 +145,20 @@ export function TicketModal({
         assignee_id: ticket.assignee_id || '',
         parentEpicId: ticket.parentEpicId || ticket.parent_epic_id || '',
         tags: ticket.tags?.join(', ') || '',
+        attachmentName: ticket.attachmentName || '',
+        attachmentUrl: ticket.attachmentUrl || '',
       });
+
+      if (ticket.attachmentName) {
+        setAttachedFile({
+          name: ticket.attachmentName,
+          size: 0,
+          ext: ticket.attachmentName.split('.').pop() || '',
+          url: ticket.attachmentUrl || '',
+        });
+      } else {
+        setAttachedFile(null);
+      }
     } else {
       setFormData({
         title: '',
@@ -154,10 +170,12 @@ export function TicketModal({
         assignee_id: currentUser.id,
         parentEpicId: '',
         tags: '',
+        attachmentName: '',
+        attachmentUrl: '',
       });
+      setAttachedFile(null);
     }
     setErrors({});
-    setAttachedFile(null);
     setRequirementOpinion(null);
     setEpicSearch("");
   }, [ticket, defaultStatusId, currentUser]);
@@ -184,6 +202,25 @@ export function TicketModal({
     setAnalyzingFile(true);
 
     try {
+      const client = createClient();
+      const storagePath = `tickets/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const { error: uploadError } = await client.storage
+        .from("qa-temp-evidences")
+        .upload(storagePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(`Erro ao enviar arquivo: ${uploadError.message}`);
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        attachmentName: file.name,
+        attachmentUrl: storagePath,
+      }));
+
       const requirementsDataset = (await import("@/requisitos-sd.json")).default;
       const textLower = (file.name + ' ' + formData.description).toLowerCase();
       const matched = (requirementsDataset as any[]).filter((req) => {
@@ -197,11 +234,20 @@ export function TicketModal({
         ? `Arquivo "${file.name}" analisado com sucesso. Requisitos direcionados: ${matchedIds.join(', ')}.`
         : `Arquivo "${file.name}" analisado. Requisitos recomendados: VIVO.SEGURA.AUT.01 e VIVO.SEGURA.LOG.03.`;
       setRequirementOpinion(opinion);
-    } catch (err) {
-      console.error("Erro na análise de anexo:", err);
+    } catch (err: any) {
+      console.error("Erro na análise/upload de anexo:", err);
+      setErrors((prev) => ({ ...prev, file: err.message || 'Erro no upload' }));
     } finally {
       setAnalyzingFile(false);
     }
+  };
+
+  const getDownloadUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const client = createClient();
+    const { data } = client.storage.from("qa-temp-evidences").getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -220,6 +266,8 @@ export function TicketModal({
       parent_epic_id: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
       tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
       reporter_id: currentUser.id,
+      attachmentName: formData.attachmentName || null,
+      attachmentUrl: formData.attachmentUrl || null,
     };
 
     onSubmit(submitData);
@@ -576,13 +624,30 @@ export function TicketModal({
               <div className="flex items-center justify-between p-2.5 bg-slate-50 border rounded-md text-xs">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
-                  <span className="font-semibold text-slate-800">{attachedFile.name}</span>
-                  <span className="text-slate-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                  {attachedFile.url || formData.attachmentUrl ? (
+                    <a
+                      href={getDownloadUrl(attachedFile.url || formData.attachmentUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-primary hover:underline"
+                    >
+                      {attachedFile.name}
+                    </a>
+                  ) : (
+                    <span className="font-semibold text-slate-800">{attachedFile.name}</span>
+                  )}
+                  {attachedFile.size > 0 && (
+                    <span className="text-slate-400">({(attachedFile.size / 1024).toFixed(1)} KB)</span>
+                  )}
                 </div>
                 <span className="text-emerald-600 font-bold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> GZIP Ready
                 </span>
               </div>
+            )}
+
+            {errors.file && (
+              <p className="text-xs text-red-600 font-semibold">{errors.file}</p>
             )}
 
             {requirementOpinion && (

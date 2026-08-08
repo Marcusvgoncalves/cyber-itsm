@@ -85,6 +85,9 @@ model Ticket {
   updatedAt       DateTime     @updatedAt @map("updated_at")
   closedAt        DateTime?    @map("closed_at")
 
+  attachmentName  String?      @map("attachment_name")
+  attachmentUrl   String?      @map("attachment_url")
+
   @@index([status])
   @@index([type])
   @@index([parentEpicId])

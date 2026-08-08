@@ -47,6 +47,8 @@ export async function getTickets(): Promise<Ticket[]> {
     status: (t.status ? t.status.toUpperCase() : 'ABERTO') as TicketStatus,
     assignee: t.assignee || t.assignee_user?.full_name || t.assignee_user?.email || 'Não atribuído',
     parentEpicId: t.parent_epic_id || t.parentEpicId || null,
+    attachmentName: t.attachment_name || null,
+    attachmentUrl: t.attachment_url || null,
   }));
 
   // Popula os títulos dos Épicos Pais nos objetos filhos
@@ -93,6 +95,8 @@ export async function getTicketById(id: string): Promise<Ticket | null> {
     status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
     assignee: data.assignee || data.assignee_user?.full_name || data.assignee_user?.email || 'Não atribuído',
     parentEpicId: data.parent_epic_id || data.parentEpicId || null,
+    attachmentName: data.attachment_name || null,
+    attachmentUrl: data.attachment_url || null,
   };
 
   if (ticket.parentEpicId) {
@@ -158,6 +162,8 @@ export async function createTicket(
         assignee_id: formData.assignee_id || null,
         reporter_id: formData.reporter_id,
         tags: formData.tags || [],
+        attachment_name: formData.attachmentName || null,
+        attachment_url: formData.attachmentUrl || null,
       })
       .select(`
         *,
@@ -177,6 +183,8 @@ export async function createTicket(
       status: (data.status ? data.status.toUpperCase() : 'ABERTO') as TicketStatus,
       assignee: data.assignee || formData.assignee,
       parentEpicId: data.parent_epic_id || parentEpicId,
+      attachmentName: data.attachment_name,
+      attachmentUrl: data.attachment_url,
     };
 
     if (newTicket.parentEpicId) {
@@ -262,6 +270,8 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
     if (updates.assignee !== undefined && updates.assignee.trim()) sanitized.assignee = updates.assignee.trim();
     if (updates.tags !== undefined) sanitized.tags = updates.tags;
     if (updates.assignee_id !== undefined) sanitized.assignee_id = updates.assignee_id;
+    if (updates.attachmentName !== undefined) sanitized.attachment_name = updates.attachmentName;
+    if (updates.attachmentUrl !== undefined) sanitized.attachment_url = updates.attachmentUrl;
 
     const parentEpicVal = updates.parentEpicId !== undefined ? updates.parentEpicId : updates.parent_epic_id;
     if (parentEpicVal !== undefined) {
@@ -290,6 +300,8 @@ export async function updateTicket(id: string, updates: Partial<Ticket>): Promis
       status: (data.status ? data.status.toUpperCase() : newStatus) as TicketStatus,
       assignee: data.assignee || previous.assignee,
       parentEpicId: data.parent_epic_id || previous.parent_epic_id,
+      attachmentName: data.attachment_name,
+      attachmentUrl: data.attachment_url,
     };
 
     if (updatedTicket.parentEpicId) {

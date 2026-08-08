@@ -56,6 +56,8 @@ export interface Ticket {
   reporter_id?: string;
   tags?: string[];
   compliance_frameworks?: string[];
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
   created_at: string;
   updated_at: string;
   closed_at?: string | null;
