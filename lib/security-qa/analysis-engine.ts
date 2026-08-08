@@ -93,18 +93,17 @@ const AGENTS: AgentConfig[] = [
     label: 'OpenRouter (Gemini & Llama)',
     envKeys: ['OPENROUTER_API_KEY'],
     modelIds: [
+      'meta-llama/llama-3.1-8b-instruct',
       'google/gemini-2.0-flash-001',
-      'meta-llama/llama-3.3-70b-instruct',
-      'deepseek/deepseek-r1',
-      'mistralai/mistral-small-24b-instruct-2501',
+      'qwen/qwen-2.5-coder-32b-instruct',
     ],
     createModel: OPENROUTER,
   },
   {
     id: 'groq',
-    label: 'Groq (Llama 3.3 70B / 3.1 8B)',
+    label: 'Groq (Llama 3.1 8B / 3.3 70B)',
     envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+    modelIds: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile'],
     createModel: GROQ,
   },
 ];
@@ -369,6 +368,7 @@ export async function runQaAnalysis(
             temperature: 0.25,
             maxOutputTokens: 4096,
             maxRetries: 0,
+            abortSignal: AbortSignal.timeout(6000),
           });
         } catch (sdkErr) {
           const errMsg = sdkErr instanceof Error ? sdkErr.message : String(sdkErr);
@@ -384,6 +384,7 @@ export async function runQaAnalysis(
               temperature: 0.25,
               maxOutputTokens: 4096,
               maxRetries: 0,
+              abortSignal: AbortSignal.timeout(6000),
             });
 
             const jsonMatch = textRes.text.match(/\{[\s\S]*\}/);
