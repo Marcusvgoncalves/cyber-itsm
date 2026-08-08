@@ -108,7 +108,7 @@ export const processQaReport = inngest.createFunction(
       return { text, evidence: truncateForLlm(text) };
     });
 
-    // 3) Motor multiagente: cruza os requisitos com as evidências.
+    // 3) Motor multiagente: cruza os requisitos com as evidências (até 5 tentativas via Inngest backoff).
     const analyzed = await step.run("run-multiagent-analysis", async () => {
       try {
         const { analysis } = await runQaAnalysis(
@@ -118,11 +118,27 @@ export const processQaReport = inngest.createFunction(
         );
         return analysis;
       } catch (err) {
-        // Rate limit em TODOS os provedores: falha graciosa -> Inngest reagenda.
-        if (err instanceof QaRateLimitError) {
-          throw new RetryAfterError(err.message, err.retryAfterMs, { cause: err });
+        // Rate limit ou cota esgotada nos provedores LLM: lança RetryAfterError forçando o Inngest a segurar o evento na fila!
+        if (
+          err instanceof QaRateLimitError ||
+          (err instanceof Error && /rate limit|quota|429/i.test(err.message))
+        ) {
+          throw new RetryAfterError(
+            err.message ?? "Rate limit exceeded across LLM providers",
+            15_000,
+            { cause: err }
+          );
         }
-        throw err;
+        
+        // Se for outro erro de infraestrutura na última retentativa, executa o motor determinístico estruturado
+        console.warn(`[Worker QA ${qaResultId}] LLMs indisponíveis. Executando motor determinístico de contingência...`);
+        const { analysis } = await runQaAnalysis(
+          loaded.requirements,
+          downloaded.evidence,
+          (message) => console.log(`[Worker QA ${qaResultId}] ${message}`),
+          { allowFallback: true }
+        );
+        return analysis;
       }
     });
 

@@ -159,7 +159,7 @@ export interface SystemContext {
   avgCompliance: number;
 }
 
-/** Motor de análise determinístico de fallback caso todas as APIs externas falhem. */
+/** Motor de análise determinístico de fallback (Parser Estruturado JSON/XML). */
 export function generateFallbackAnalysis(
   requirementsText: string,
   evidenceText: string,
@@ -170,29 +170,125 @@ export function generateFallbackAnalysis(
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
 
-  const evidenceLower = evidenceText.toLowerCase();
+  // 1) Tentar parsear a evidência como JSON estruturado
+  let parsedJson: any = null;
+  try {
+    parsedJson = JSON.parse(evidenceText);
+  } catch {
+    parsedJson = null;
+  }
+
+  // Se for objeto/array JSON, achar lista de achados/requisitos avaliados
+  let jsonItems: any[] = [];
+  if (parsedJson) {
+    if (Array.isArray(parsedJson)) {
+      jsonItems = parsedJson;
+    } else if (typeof parsedJson === 'object') {
+      jsonItems =
+        parsedJson.evaluatedRequirements ||
+        parsedJson.findings ||
+        parsedJson.results ||
+        parsedJson.requirements ||
+        parsedJson.items ||
+        parsedJson.vulnerabilities ||
+        parsedJson.issues ||
+        [];
+    }
+  }
 
   const findings: QaFinding[] = reqLines.map((reqLine, idx) => {
     const idMatch = reqLine.match(/([A-Z0-9._-]+)/i);
     const reqId = idMatch ? idMatch[1] : `REQ-${idx + 1}`;
     const name = reqLine.length > 40 ? reqLine.slice(0, 40) + '...' : reqLine;
 
-    const tokens = reqLine.toLowerCase().split(/[^a-z0-9]+/);
-    const matches = tokens.filter((t) => t.length > 3 && evidenceLower.includes(t));
-
     let status: 'conforme' | 'parcial' | 'nao_conforme' = 'nao_conforme';
-    let evidenceStr = `Requisito '${reqId}' não teve evidências técnicas diretas identificadas no arquivo de origem submetido.`;
-    let recStr = `Extrair evidências específicas de homologação ou corrigir as fragilidades apontadas para '${name}'.`;
+    let evidenceStr = `Nenhum detalhe técnico localizado no arquivo para o requisito ${reqId}.`;
+    const recStr = `Consultar os logs da pipeline DevSecOps e o código-fonte correspondente à tag/ID ${reqId} para aplicar a remediação técnica.`;
 
-    if (matches.length >= 2) {
-      if (evidenceLower.includes('vulnerabil') || evidenceLower.includes('fail') || evidenceLower.includes('error')) {
-        status = 'parcial';
-        evidenceStr = `Achado técnico identificado no relatório relacionado aos termos '${matches.slice(0, 3).join(', ')}' com reporte de vulnerabilidade.`;
-        recStr = `Mitigar a vulnerabilidade específica identificada para o controle '${reqId}' (${name}) e reexecutar a varredura.`;
+    let foundInJson = false;
+
+    // A) Parser Estruturado JSON
+    if (jsonItems.length > 0) {
+      const match = jsonItems.find((item) => {
+        const itemCode = String(
+          item.requirementCode || item.requirementId || item.id || item.code || item.ruleId || ''
+        ).toLowerCase();
+        const itemTitle = String(
+          item.title || item.name || item.requirementName || ''
+        ).toLowerCase();
+        return (
+          (itemCode && reqId.toLowerCase().includes(itemCode)) ||
+          (itemCode && itemCode.includes(reqId.toLowerCase())) ||
+          (itemTitle && name.toLowerCase().includes(itemTitle))
+        );
+      });
+
+      if (match) {
+        foundInJson = true;
+        const detailsVal =
+          match.details ||
+          match.description ||
+          match.evidence ||
+          match.reason ||
+          match.finding ||
+          match.message ||
+          match.summary;
+        if (detailsVal && typeof detailsVal === 'string') {
+          evidenceStr = detailsVal.trim();
+        } else if (detailsVal) {
+          evidenceStr = JSON.stringify(detailsVal);
+        } else {
+          evidenceStr = `Registro de evidência estruturada identificado no JSON para o requisito ${reqId}.`;
+        }
+
+        const rawStatus = String(match.status || match.verdict || '').toLowerCase();
+        if (rawStatus.includes('conforme') && !rawStatus.includes('nao') && !rawStatus.includes('parcial')) {
+          status = 'conforme';
+        } else if (rawStatus.includes('parcial')) {
+          status = 'parcial';
+        } else if (match.passed === true) {
+          status = 'conforme';
+        } else {
+          status = 'nao_conforme';
+        }
+      }
+    }
+
+    // B) Parser Estruturado XML (se não encontrou em JSON)
+    if (!foundInJson) {
+      const xmlFindingRegex = new RegExp(
+        `<Finding[^>]*requirementCode=["']?([^"'>\\s]*${reqId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^"'>\\s]*)["']?[^>]*>([\\s\\S]*?)</Finding>`,
+        'i'
+      );
+      const xmlMatch = evidenceText.match(xmlFindingRegex);
+
+      if (xmlMatch) {
+        const findingBlock = xmlMatch[2];
+        const detailsMatch = findingBlock.match(/<Details>([\s\S]*?)<\/Details>/i) || findingBlock.match(/<Description>([\s\S]*?)<\/Description>/i);
+        if (detailsMatch && detailsMatch[1].trim()) {
+          evidenceStr = detailsMatch[1].trim();
+        } else {
+          evidenceStr = `Achado técnico extraído da tag <Finding> do XML para o requisito ${reqId}.`;
+        }
+
+        const statusMatch = findingBlock.match(/status=["']?([^"'>\s]+)["']?/i) || findingBlock.match(/<Status>([^<]+)<\/Status>/i);
+        const rawStatus = statusMatch ? statusMatch[1].toLowerCase() : '';
+        if (rawStatus.includes('conforme') && !rawStatus.includes('nao') && !rawStatus.includes('parcial')) {
+          status = 'conforme';
+        } else if (rawStatus.includes('parcial')) {
+          status = 'parcial';
+        } else {
+          status = 'nao_conforme';
+        }
       } else {
-        status = 'conforme';
-        evidenceStr = `Evidência técnica confirmada no arquivo de origem para o controle '${reqId}' (correspondência: ${matches.slice(0, 3).join(', ')}).`;
-        recStr = `Manter o monitoramento contínuo sobre a implementação do controle '${reqId}'.`;
+        const reqIndex = evidenceText.indexOf(reqId);
+        if (reqIndex !== -1) {
+          const snippet = evidenceText.slice(Math.max(0, reqIndex - 100), Math.min(evidenceText.length, reqIndex + 400));
+          const detailsSnippetMatch = snippet.match(/<Details>([\s\S]*?)<\/Details>/i);
+          if (detailsSnippetMatch && detailsSnippetMatch[1].trim()) {
+            evidenceStr = detailsSnippetMatch[1].trim();
+          }
+        }
       }
     }
 
@@ -226,6 +322,10 @@ export function generateFallbackAnalysis(
   };
 }
 
+export interface RunQaAnalysisOptions {
+  allowFallback?: boolean;
+}
+
 export interface RunQaAnalysisResult {
   analysis: QaAnalysis;
   activeAgentLabel: string;
@@ -235,7 +335,8 @@ export interface RunQaAnalysisResult {
 export async function runQaAnalysis(
   requirements: string,
   evidence: string,
-  onStatus?: (message: string) => void
+  onStatus?: (message: string) => void,
+  options?: RunQaAnalysisOptions
 ): Promise<RunQaAnalysisResult> {
   const failures: string[] = [];
   let rateLimited = false;
@@ -311,7 +412,13 @@ export async function runQaAnalysis(
     }
   }
 
-  // Fallback determinístico (falhas não recuperáveis ou rate limits em todos os provedores).
+  // Se todos os provedores LLM falharem por Rate Limit e fallback não estiver forçado:
+  // Lança exceção para o Inngest realizar o retry com exponential backoff na fila!
+  if (rateLimited && !options?.allowFallback) {
+    throw new QaRateLimitError("Rate limit exceeded across LLM providers. Retrying via Inngest backoff...", 15_000);
+  }
+
+  // Fallback determinístico (acionado quando retentativas se esgotam ou em falhas definitivas).
   const summary = failures.join(' | ');
   console.warn(
     `[Security QA Engine] Nenhum provedor LLM respondeu com sucesso (${summary}). Executando motor determinístico de segurança...`
