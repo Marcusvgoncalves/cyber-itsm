@@ -6,7 +6,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%2016-3ecf8e?logo=supabase)](https://supabase.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-660099.svg)](LICENSE)
 
-> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente, Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1, **Portal IAM/IGA e Configurações** e **Painel de Cadastros com Segregação de Funções (SoD)**.
+> **CyberITSM SPN** é uma plataforma corporativa de *IT Service Management* (ITSM) voltada à Cibersegurança, Gestão Hierárquica de Demandas (Jira/Trello), Esteira DevSecOps Multiagente, Auditoria Autônoma de Conformidade sobre a Matriz dos 314 Requisitos Segura SD v4.1, **Base de Conhecimento Vetorial (RAG/pgvector)**, **Motor Embarcável (Embeddable Engine)**, **Portal IAM/IGA e Configurações** e **Painel de Cadastros com Segregação de Funções (SoD)**.
 
 ---
 
@@ -21,6 +21,8 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 ### 🔄 Fluxo de Funcionamento & Ciclo de Vida de Demandas
 
 ![Fluxo de Funcionamento CyberITSM SPN](public/images/workflow.png)
+
+![Fluxo de Seed da Base Vetorial (RAG)](public/images/rag-seed-flow.svg)
 
 ---
 
@@ -65,7 +67,7 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 - **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) e realizando o expurgo da evidência temporária.
 
 #### 3. 🤖 Copiloto de IA Multiagente & Contingência (Zero Downtime)
-Esteira de resiliência encadeada com RAG sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis.
+Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis. A recuperação vetorial semântica utiliza a tabela `knowledge_articles` (pgvector), pré-populada pelos embeddings `gemini-embedding-2`.
 
 #### 4. 🔑 Portal IAM/IGA e Configurações (Reorganizado & UX Aprimorada)
 - **Sub-Navegação por Abas Dinâmicas (`iamSubTab`)**: Interface responsiva e compacta dividida em 4 categorias operacionais que eliminam espaços vazios:
@@ -75,10 +77,17 @@ Esteira de resiliência encadeada com RAG sobre os 314 Requisitos. O Copiloto op
   4. **Usuários do Sistema & Controles MFA**: Tabela de gestão de contas locais ativas com RBAC (`admin`, `analista`, `solicitante`), status de MFA (2FA), bloqueio/desbloqueio, liberação de senha e desprovisionamento.
 - **KPIs em Tempo Real**: Métricas de Identidades Sincronizadas, Pendências JIT, Usuários com MFA Ativo e Requisições no topo da tela.
 
-#### 5. 📚 Base de Conhecimento SD v4.1 (314 Requisitos)
+#### 5. 📚 Base de Conhecimento SD v4.1 (314 Requisitos) & RAG Vetorial
 - Catálogo interativo navegável dos **314 Requisitos de Segurança de Desenvolvimento**.
 - Filtros por criticidade (Crítico, Alto, Médio, Baixo) e busca instantânea.
 - Mapeamento explícito com os frameworks: **NIST CSF**, **CIS Controls**, **OWASP Top 10**, **ISO 27001** e vetores de ameaça **STRIDE LM**.
+- **Base Vetorial (RAG/pgvector)**: Tabela `knowledge_articles` com coluna `embedding vector(3072)` para busca semântica sobre os requisitos consolidados (`title`, `source`, `content`).
+- **Seed de Carga Massiva (`scripts/seed-production-rag.ts`)**: ingestão 100% isolada via terminal (impacto zero na aplicação), em **lotes de 10** com **delay de 2s** entre lotes (anti Rate Limit 429), **idempotente** (pula `title`/`code` já existentes), embeddings `gemini-embedding-2` (3072 dimensões) com retry/backoff e fallback item-a-item:
+  ```bash
+  npm run db:seed:rag                 # carga de produção
+  npm run db:seed:rag -- --dry-run    # validação sem gravar nada
+  ```
+  O mapeamento de metadados grava `title` = código do requisito (ex: `VIVO.SEGURA.AUT.01`), `source` = `Base-SD-v4.1` e `content` = `"{code} - {descrição}"` (string consolidada que alimenta o vetor).
 
 #### 6. 🔌 Conectores Outbound, MTLS & Logs de Auditoria CSV
 - **Conectores Nativos B2B**: Interfaces dedicadas para integração externa com **Jira Software**, **ServiceNow** e **Microsoft 365**.
@@ -195,12 +204,23 @@ A resilient fallback pipeline with RAG capabilities over the 314 security requir
 
 ### 💻 Stack Tecnológica / Tech Stack
 
-- **Framework Core**: Next.js 16.3 (App Router, Turbopack) & React 19
-- **ORM / Database**: Prisma ORM 7.9 with `SqlDriverAdapter` + Supabase PostgreSQL 16
-- **AI Infrastructure**: Vercel AI SDK 3.3, Groq, OpenRouter, Google Gemini, OpenAI GPT-4o Mini, Zod Schemas
+- **Framework Core**: Next.js 16.3 (App Router, Turbopack, Edge `proxy.ts`) & React 19
+- **ORM / Database**: Prisma ORM 7.9 (`@prisma/adapter-pg`) + Supabase PostgreSQL 16 com **pgvector**
+- **AI Infrastructure**: Vercel AI SDK 7 (`ai`), Groq, OpenRouter, Google Gemini 2.0, **`gemini-embedding-2`** (embeddings 3072 dims), Zod Schemas
 - **UI & Styling**: Tailwind CSS v4, Recharts, Lucide Icons, Radix UI
 - **Storage & PDF**: Supabase Storage (`qa-logs-archive`), `@react-pdf/renderer`
-- **Security & Governance**: RBAC/SoD Matrix, SCIM v2.0, SAML 2.0, MTLS, MFA/TOTP (RFC 6238)
+- **RAG Vetorial**: `knowledge_articles` (pgvector `vector(3072)`), seed `scripts/seed-production-rag.ts` (batch + idempotente + tsx)
+- **Security & Governance**: RBAC/SoD Matrix, SCIM v2.0, SAML 2.0, MTLS, MFA/TOTP (RFC 6238), Kill Switch de feature flags
+
+---
+
+### 📚 Documentação Técnica
+
+| Documento | Conteúdo |
+| :--- | :--- |
+| [`docs/official_documentation.md`](docs/official_documentation.md) | Especificação técnica oficial, arquitetura C4, módulos, schema Prisma, catálogo de rotas |
+| [`docs/deploy-gate.md`](docs/deploy-gate.md) | Pipeline `Enterprise Security Scan` (Gitleaks, CodeQL, Semgrep, Trivy, ZAP) e bloqueio de deploy |
+| [`ROLLBACK_EMBEDDABLE.md`](ROLLBACK_EMBEDDABLE.md) | Kill Switch e plano de contingência do Motor Embarcável |
 
 ---
 
@@ -221,10 +241,16 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="sua-chave-anon"
 SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role"
 DATABASE_URL="postgresql://postgres:senha@db.sua-instancia.supabase.co:5432/postgres"
 
-# Provedores de IA (Fallback Multiagente)
+# Provedores de IA (Fallback Multiagente + Embeddings RAG)
 GROQ_API_KEY="gsk_..."
 OPENROUTER_API_KEY="sk-or-..."
 GEMINI_API_KEY="AIzaSy..."
+
+# Motor Embarcável (Embeddable Engine) — Kill Switch, nasce DESLIGADO
+NEXT_PUBLIC_ENABLE_EMBEDDABLE_ENGINE=false
+
+# APIs Externas v1 (/api/external/v1/*) — exigida no header x-api-key
+EXTERNAL_API_KEY="sua-chave-de-api-externa"
 ```
 
 #### 3. Gerar Prisma Client & Executar Localmente
@@ -233,6 +259,14 @@ npx prisma generate
 npm run dev
 ```
 Acesse [http://localhost:3000](http://localhost:3000).
+
+#### 4. Popular a Base de Conhecimento Vetorial (RAG)
+> Requer `data/requisitos-sd.json` (array de `{ "code", "description" }`) e a tabela `knowledge_articles` criada.
+
+```bash
+npm run db:seed:rag                 # carga em lotes (10) com delay de 2s
+npm run db:seed:rag -- --dry-run    # simula sem gravar no banco
+```
 
 ---
 

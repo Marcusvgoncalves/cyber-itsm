@@ -48,7 +48,7 @@
 
   <!-- Title -->
   <text x="40" y="46" font-family="'Outfit','Segoe UI',sans-serif" font-size="28" font-weight="bold" fill="#0f172a">CyberITSM SPN — Desenho de Arquitetura da Solução (C4 Nível 2)</text>
-  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Portal IAM/IGA e Configurações, Esteira DevSecOps Multiagente, RAG dos 314 Requisitos &amp; Cadastros</text>
+  <text x="40" y="72" font-family="'Outfit','Segoe UI',sans-serif" font-size="14" fill="#64748b">Plataforma Corporativa de Cibersegurança, Portal IAM/IGA e Configurações, Esteira DevSecOps Multiagente, RAG Vetorial dos 314 Requisitos, Motor Embarcável &amp; Cadastros</text>
 
   <!-- LAYER 1: USER & PERIMETER -->
   <g transform="translate(40,100)">
@@ -56,7 +56,6 @@
     <rect x="0" y="0" width="1200" height="30" rx="12" fill="#f1f5f9" />
     <rect x="0" y="18" width="1200" height="12" fill="#f1f5f9" />
     <text x="16" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#334155">PERÍMETRO DE CLIENTE &amp; ACESSO REATIVO (Sessão 1h / 15m Idle Timeout · TOTP MFA · Matriz SoD)</text>
-    
     <g transform="translate(20,42)">
       <circle cx="18" cy="18" r="14" fill="url(#gUser)" />
       <text x="42" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#1f2937">Analista SecOps</text>
@@ -71,6 +70,11 @@
       <circle cx="18" cy="18" r="14" fill="url(#gSupabase)" />
       <text x="42" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#1f2937">Solicitante de Acesso</text>
       <text x="42" y="34" font-family="'Outfit',sans-serif" font-size="10" fill="#64748b">Abertura de Chamados &amp; JIT</text>
+    </g>
+    <g transform="translate(940,42)">
+      <circle cx="18" cy="18" r="14" fill="url(#gQA)" />
+      <text x="42" y="20" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#1f2937">Portais Corporativos</text>
+      <text x="42" y="34" font-family="'Outfit',sans-serif" font-size="10" fill="#64748b">iframe /embed/* (Motor Embarcável)</text>
     </g>
   </g>
 
@@ -115,7 +119,7 @@
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#16a34a">Base de Conhecimento SD v4.1</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Catálogo interativo dos 314 requisitos</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Mapeamentos NIST, CIS, OWASP, STRIDE</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Fonte de contexto para o RAG de IA</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Base Vetorial (pgvector / gemini-embedding-2)</text>
     </g>
 
     <!-- NEW: Cadastros & SoD -->
@@ -143,6 +147,7 @@
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Interceptação contra estouro de cotas (429)</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Motor Embarcável (/api/external/v1/*)</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Kill Switch (NEXT_PUBLIC_ENABLE_EMBEDDABLE_ENGINE)</text>
+      <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• /embed/* com headers de frame isolados (CSP)</text>
       <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Módulo Cadastros &amp; Agent Router</text>
       <text x="12" y="132" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• CRUD Sprints com auditoria granular</text>
       <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Agent Router Inteligente de LLM</text>
@@ -212,13 +217,17 @@
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#166534">Supabase PostgreSQL 16 &amp; Prisma ORM v7</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• PostgreSQL 16 com RLS (Row Level Security)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Prisma Client v7 com SqlDriverAdapter</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Tabelas: tickets, qa_results, audit_logs</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Tabelas: tickets, qa_results, audit_logs, knowledge_articles</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Isolação multi-tenant e hash forense</text>
       <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Novos Models (Cadastros SoD)</text>
       <text x="12" y="132" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• sprints (id, name, goal, datas, status)</text>
       <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• notification_settings (evento×canal)</text>
       <text x="12" y="164" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• tickets.sprint_id FK + tickets.due_date</text>
       <text x="12" y="180" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• security_requirements (custom=true)</text>
+      <text x="12" y="204" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#dc2626">RAG Vetorial (pgvector)</text>
+      <text x="12" y="222" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• knowledge_articles (embedding vector 3072)</text>
+      <text x="12" y="238" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Embeddings gemini-embedding-2 (3072 dims)</text>
+      <text x="12" y="254" font-family="'Outfit',sans-serif" font-size="10" fill="#334155">• Seed: scripts/seed-production-rag.ts (lotes de 10)</text>
     </g>
 
     <!-- Supabase Storage -->
