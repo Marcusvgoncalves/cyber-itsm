@@ -78,7 +78,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
   - **Prompt Calibrado & Cobertura 100% de Escopo**: System Prompt orientado a Engenheiro de AppSec Sênior (recomendações técnicas acionáveis com comandos e configs diretas) e pós-processador de backfill que garante que 100% dos requisitos fornecidos no escopo (ex: 30 de 30) estejam presentes no laudo sem omissões.
   - **Pipeline Multiagente & Resiliência Inngest**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter** → **Groq** (via OpenAI-compatible endpoint). Em falha de cota (429), lança `QaRateLimitError` forçando 5 retentativas com exponential backoff no Inngest.
   - **Motor Determinístico de Contingência**: Parser estruturado de JSON e XML com extração direta das tags `<Details>` / campos `details` e recomendações com instrução explícita SecOps.
-  - Security QA Analytics Dashboard com vereditos (`conforme`, `parcial`, `nao_conforme`), botão de navegação "Voltar" (`ArrowLeft`) e calculadora SecOps.
+  - Security QA Analytics Dashboard com vereditos (`conforme`, `parcial`, `nao_conforme`) e calculadora SecOps.
   - Cold Storage em GZIP (.gz) no bucket `qa-logs-archive` e expurgo automático da evidência bruta descomprimida (Zero Data Leak).
   - Exportação nativa de relatórios executivos e auditorias completas em formato PDF compilados via `@react-pdf/renderer`.
   - **Exclusão de análises (ADMIN)**: Server Action `deleteQaAnalysis` remove os artefatos forenses (GZIP + PDF) do Storage, o registro em `qa_results` e projetos órfãos, registrando a ação em `audit_logs`.

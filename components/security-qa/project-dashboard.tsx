@@ -32,7 +32,6 @@ import {
   FileText,
   Link2,
   Trash2,
-  ArrowLeft,
 } from "lucide-react";
 
 interface ProjectDashboardProps {
@@ -125,19 +124,6 @@ export function ProjectDashboard({ result, evidenceUrl, currentUser }: ProjectDa
 
   return (
     <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Botão de Navegação Voltar */}
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-            className="gap-1.5 text-gray-600 hover:text-gray-900 -ml-2 mb-2 font-semibold"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
-          </Button>
-        </div>
-
         {/* Cabeçalho do resultado */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

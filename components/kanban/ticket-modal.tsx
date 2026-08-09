@@ -110,8 +110,33 @@ export function TicketModal({
   const [users, setUsers] = useState<any[]>([]);
   const [sprints, setSprints] = useState<any[]>([]);
   const [epicSearch, setEpicSearch] = useState("");
+  const [vpSearch, setVpSearch] = useState("");
   const [isEpicDropdownOpen, setIsEpicDropdownOpen] = useState(false);
   const [isVpDropdownOpen, setIsVpDropdownOpen] = useState(false);
+
+  const vpContainerRef = useRef<HTMLDivElement>(null);
+  const epicContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fechar dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (vpContainerRef.current && !vpContainerRef.current.contains(event.target as Node)) {
+        setIsVpDropdownOpen(false);
+      }
+      if (epicContainerRef.current && !epicContainerRef.current.contains(event.target as Node)) {
+        setIsEpicDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // VPs filtradas pela busca
+  const filteredVps = VP_OPTIONS.filter((vp) =>
+    vp.toLowerCase().includes(vpSearch.trim().toLowerCase())
+  );
 
   // States para anexos e parecer
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string; url?: string } | null>(null);
@@ -346,15 +371,6 @@ export function TicketModal({
             <h2 className="text-xl font-bold text-gray-900">
               {mode === 'create' ? 'Novo Chamado' : `Editar Chamado: SPN-${ticket?.id.slice(-6).toUpperCase()}`}
             </h2>
-            <Button
-              variant="ghost"
-              onClick={() => router.back()}
-              disabled={isLoading}
-              className="ml-2"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" disabled={isLoading}>
             <X className="h-4 w-4" />
@@ -497,7 +513,7 @@ export function TicketModal({
                   </Button>
                 </div>
               ) : (
-                <div className="relative">
+                <div ref={epicContainerRef} className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-purple-400" />
                   <Input
                     type="text"
@@ -517,13 +533,7 @@ export function TicketModal({
 
                   {/* Dropdown de Resultados da Busca */}
                   {isEpicDropdownOpen && (
-                    <>
-                      {/* Overlay para fechar ao clicar fora */}
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsEpicDropdownOpen(false)}
-                      />
-                      <div className="absolute left-0 right-0 top-10 z-50 max-h-52 overflow-y-auto rounded-md border border-purple-200 bg-white shadow-xl animate-fadeIn">
+                    <div className="absolute left-0 right-0 top-10 z-50 max-h-52 overflow-y-auto rounded-md border border-purple-200 bg-white shadow-xl animate-fadeIn">
                         {filteredEpics.length === 0 ? (
                           <div className="p-3 text-center text-xs text-slate-500 font-medium">
                             {availableEpics.length === 0
@@ -553,7 +563,6 @@ export function TicketModal({
                           })
                         )}
                       </div>
-                    </>
                   )}
                 </div>
               )}
@@ -785,65 +794,103 @@ export function TicketModal({
             )}
           </div>
 
-          {/* Tags — Multi-select de VPs */}
+          {/* Tags — Multi-select & Busca de VPs */}
           <div>
-            <Label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+            <Label htmlFor="vp-input" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
               <Tag className="h-3.5 w-3.5 text-gray-400" />
               Tags (Selecione a VP)
             </Label>
-            <div className="relative">
-              <button
-                type="button"
-                id="tags"
-                onClick={() => setIsVpDropdownOpen((prev) => !prev)}
-                disabled={isLoading}
-                className="flex w-full min-h-[40px] items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {formData.tags.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="gap-1 py-0 pr-1">
-                        {tag}
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Remover ${tag}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleTag(tag);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              toggleTag(tag);
-                            }
-                          }}
-                          className="ml-0.5 rounded-full p-0.5 cursor-pointer hover:bg-gray-200"
-                        >
-                          <X className="h-3 w-3" />
-                        </span>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">Selecione uma ou mais VPs...</span>
+            <div ref={vpContainerRef} className="relative">
+              <div
+                className={cn(
+                  "flex flex-wrap items-center gap-1.5 w-full min-h-[40px] rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                  isLoading && "opacity-50 cursor-not-allowed"
                 )}
-                <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
-              </button>
+                onClick={() => {
+                  if (!isLoading) {
+                    setIsVpDropdownOpen(true);
+                  }
+                }}
+              >
+                {formData.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="gap-1 py-0 pr-1 select-none">
+                    {tag}
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Remover ${tag}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTag(tag);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleTag(tag);
+                        }
+                      }}
+                      className="ml-0.5 rounded-full p-0.5 cursor-pointer hover:bg-gray-200"
+                    >
+                      <X className="h-3 w-3" />
+                    </span>
+                  </Badge>
+                ))}
+                <input
+                  id="vp-input"
+                  type="text"
+                  placeholder={formData.tags.length === 0 ? "Digite para buscar ou selecione a VP..." : "Adicionar VP..."}
+                  value={vpSearch}
+                  onChange={(e) => {
+                    setVpSearch(e.target.value);
+                    setIsVpDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsVpDropdownOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = vpSearch.trim();
+                      if (trimmed) {
+                        const exactVp = VP_OPTIONS.find((v) => v.toLowerCase() === trimmed.toLowerCase());
+                        const tagToAdd = exactVp || trimmed;
+                        if (!formData.tags.includes(tagToAdd)) {
+                          toggleTag(tagToAdd);
+                        }
+                        setVpSearch("");
+                      }
+                    } else if (e.key === "Backspace" && !vpSearch && formData.tags.length > 0) {
+                      toggleTag(formData.tags[formData.tags.length - 1]);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-[120px] py-1"
+                />
+                <ChevronDown
+                  className="h-4 w-4 opacity-50 shrink-0 ml-auto cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsVpDropdownOpen((prev) => !prev);
+                  }}
+                />
+              </div>
 
               {/* Dropdown de VPs */}
               {isVpDropdownOpen && (
-                <>
-                  {/* Overlay para fechar ao clicar fora */}
-                  <div className="fixed inset-0 z-40" onClick={() => setIsVpDropdownOpen(false)} />
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-xl animate-fadeIn">
-                    {VP_OPTIONS.map((vp) => {
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-xl animate-fadeIn">
+                  {filteredVps.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-500 font-medium">
+                      Nenhuma VP encontrada para "{vpSearch}". Pressione Enter para adicionar.
+                    </div>
+                  ) : (
+                    filteredVps.map((vp) => {
                       const selected = formData.tags.includes(vp);
                       return (
                         <div
                           key={vp}
-                          onClick={() => toggleTag(vp)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTag(vp);
+                          }}
                           className={cn(
                             "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-0",
                             selected && "bg-primary/5 font-semibold text-primary"
@@ -853,9 +900,9 @@ export function TicketModal({
                           {selected && <Check className="h-4 w-4 text-primary" />}
                         </div>
                       );
-                    })}
-                  </div>
-                </>
+                    })
+                  )}
+                </div>
               )}
             </div>
           </div>
