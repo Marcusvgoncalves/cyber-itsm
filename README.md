@@ -26,12 +26,17 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 ### 🚀 Módulos e Funcionalidades Principais
 
-#### 1. 📋 Quadro Kanban Hierárquico & Dashboard Analytics
-- **Gestão Hierárquica Jira/Trello**:
+#### 1. 📋 Quadro Kanban Hierárquico & Redesign Modal (Mistica UI/UX)
+- **Gestão Hierárquica Jira/Trello & Clonagem**:
   - Classificação de demandas por tipo: **Épico** (macro demanda), **Atividade** e **Tarefa**.
-  - Vínculo **obrigatorio** de Atividades e Tarefas a um Épico Pai existente.
+  - Vínculo **obrigatório** de Atividades e Tarefas a um Épico Pai existente.
   - **Imutabilidade do Tipo**: O tipo do chamado é congelado pós-criação e não pode ser alterado na edição.
   - **Campo Responsável Obrigatório**: Todo chamado exige a atribuição expressa do Responsável (`assignee`).
+  - **Recurso de Clonagem de Chamados**: Botão de clonagem instantânea (`onClone`) que duplica o ticket preenchendo automaticamente o formulário para agilizar novas entradas.
+- **Redesign de UI/UX do Modal de Chamados (Mistica Design System)**:
+  - **Despoluição Visual & Leis de UX (Fitts & Hick)**: Reorganização da distribuição de botões para eliminar sobrecarga cognitiva e colisão visual.
+  - **Header Toolbar Contextual**: Utilitários de registro (**Exportar PDF** e **Clonar Chamado**) promovidos para a barra superior direita com Tooltips e suporte responsivo (`hidden sm:inline`).
+  - **Footer com Isolamento Destrutivo**: Canto esquerdo dedicado exclusivamente ao botão de **Excluir Chamado** (vermelho outline/ghost), prevenindo cliques acidentais. Canto direito restrito a **Cancelar** e **Salvar Alterações** (botão primário roxo Mistica `#660099`).
 - **Máquina de Estados de Status**:
   - Transições controladas por matriz estrita: `ABERTO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `EM_ANDAMENTO` ➔ `['FECHADO', 'BLOQUEADO', 'CANCELADO']`, `BLOQUEADO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `FECHADO` ➔ `['ABERTO', 'EM_ANDAMENTO']` (Reabertura), `CANCELADO` (Estado Terminal).
   - **Guardrail de Fechamento de Épicos**: Um Épico SÓ PODE ser movido para `FECHADO` se todas as suas filhas (Atividades/Tarefas) estiverem em `FECHADO` ou `CANCELADO`.
@@ -46,8 +51,13 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
   - **Alerta Visual de Drag-and-Drop**: Bloqueio imediato com aviso amigável ao tentar arrastar card para coluna cujo fluxo de status seja inválido.
   - **Calculadora de Criticidade Interativa**: Avalia o impacto técnico do ticket cruzando `Prioridade * Framework * SLA`.
 
-#### 2. 🛡️ Centro de Security QA & Dashboard SecOps
+#### 2. 🛡️ Centro de Security QA, Dashboard SecOps & Motor Embarcável (Embeddable Engine)
 - **Engine de Análise Autônoma (`/api/qa-engine`)**: Ingestão de relatórios de varredura bruta e anexos documentais (JSON, XML, TXT, DOCX, PDF, JPG, PNG). O motor registra a transação e enfileira o processamento em background via **Inngest** (`retries: 5` com exponential backoff) e fallback local via **Next.js `after()`**.
+- **Motor Embarcável & APIs Externas v1 (`/api/external/v1/*` & `/embed/*`)**:
+  - Disponibilização de widgets de análise embarcáveis (`/embed/security-qa/[id]`) para integração com portais corporativos terceiros.
+  - Endpoints de API externa para Security QA (`/api/external/v1/security-qa`) e Proxy LLM (`/api/external/v1/llm-proxy`) com autenticação via API Key.
+  - **Kill Switch & Fail-Closed**: Controlado via flag de ambiente `NEXT_PUBLIC_ENABLE_EMBEDDABLE_ENGINE`. Plano de rollback completo documentado em `ROLLBACK_EMBEDDABLE.md`.
+  - **Roteador Inteligente de Agentes (`AgentRouter`)**: Roteamento autônomo de chamadas LLM externas para seleção otimizada de modelos.
 - **Prompt Calibrado & Cobertura 100% do Escopo**: System Prompt com persona de Engenheiro de AppSec Sênior (recomendações acionáveis com comandos e configs técnicas diretas) e pós-processador de backfill que garante 100% dos requisitos do escopo presentes no laudo sem omissões.
 - **Esteira Multiagente & Resiliência**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** ➔ **OpenAI GPT-4o Mini** ➔ **OpenRouter** ➔ **Groq Engine** (via OpenAI-compatible endpoint). Limite de 6s por chamada via `AbortSignal.timeout(6000)` e `maxRetries: 0` para evitar estouros de tempo limite na Vercel.
 - **Motor Determinístico de Contingência**: Parser estruturado de JSON e XML com extração nativa de tags `<Details>` / campos `details` e recomendações com instrução explícita SecOps.

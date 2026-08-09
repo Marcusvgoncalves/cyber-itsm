@@ -83,13 +83,13 @@
 
     <g transform="translate(20,50)">
       <rect width="270" height="190" rx="8" fill="#fcf7ff" stroke="#e9d5ff" />
-      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#660099">Módulo Kanban &amp; Dashboard</text>
+      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#660099">Módulo Kanban &amp; Redesign Modal</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Drag-and-drop de chamados e anexos</text>
-      <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Volumetria em gráficos Recharts</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de criticidade de tickets</text>
+      <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Redesign Mistica: Header &amp; Footer limpos</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de criticidade e Clonagem</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Sprints, Due Date e badges visuais</text>
       <text x="12" y="106" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Epic QA: Kanban ↔ Security QA Engine</text>
-      <text x="12" y="122" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Compressão nativa de anexos &lt; 10MB</text>
+      <text x="12" y="122" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Tooltips e ações destrutivas isoladas</text>
     </g>
 
     <g transform="translate(310,50)">
@@ -97,7 +97,7 @@
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#dc2626">Centro de Security QA &amp; Dashboard</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Ingestão de relatórios e anexos (OCR)</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Security QA Analytics Dashboard</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Calculadora de risco SecOps</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Widget Embarcável (/embed/security-qa)</text>
       <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Exportação de relatórios PDF estruturados</text>
     </g>
 
@@ -135,17 +135,17 @@
     <rect y="18" width="1200" height="16" fill="url(#gVercel)" />
     <text x="16" y="22" font-family="'Outfit',sans-serif" font-size="13" font-weight="bold" fill="#ffffff">CAMADA BACKEND — Edge Proxy, Security QA Engine, Cadastros SoD &amp; Esteira Multiagente de IA</text>
 
-    <!-- Edge Proxy -->
+    <!-- Edge Proxy & Embed Engine -->
     <g transform="translate(20,50)">
       <rect width="360" height="310" rx="8" fill="#f8fafc" stroke="#e2e8f0" />
-      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Edge Proxy &amp; Middleware (proxy.ts)</text>
+      <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#0f172a">Edge Proxy &amp; Motor Embarcável</text>
       <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Validação síncrona de sessão e RBAC</text>
-      <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Interceptação contra estouro de cotas (HTTP 429)</text>
-      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• SCIM, OAuth e Connectors B2B (MTLS)</text>
-      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Server Actions para Kanban e Identidades</text>
-      <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Módulo Cadastros (cadastros.ts)</text>
+      <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Interceptação contra estouro de cotas (429)</text>
+      <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Motor Embarcável (/api/external/v1/*)</text>
+      <text x="12" y="90" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Kill Switch (NEXT_PUBLIC_ENABLE_EMBEDDABLE_ENGINE)</text>
+      <text x="12" y="114" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Módulo Cadastros &amp; Agent Router</text>
       <text x="12" y="132" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• CRUD Sprints com auditoria granular</text>
-      <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Upsert notificações (evento×canal)</text>
+      <text x="12" y="148" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Agent Router Inteligente de LLM</text>
       <text x="12" y="164" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• CRUD requisitos dinâmicos (custom=true)</text>
       <text x="12" y="188" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Matriz RBAC/SoD (rbac.ts)</text>
       <text x="12" y="206" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 3 perfis: ADMIN, USUARIO, SOLICITANTE</text>

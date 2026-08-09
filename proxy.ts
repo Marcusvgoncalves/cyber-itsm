@@ -1,8 +1,15 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleEmbedRequest } from './lib/embed/embed-proxy'
 
 export default async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  // Motor Embarcável (Additive): /embed/* — Kill Switch + headers de frame.
+  // Retorna a resposta pronta (404 ou pass-through com headers) sem tocar
+  // no restante da aplicação.
+  const embedResponse = handleEmbedRequest(request);
+  if (embedResponse) return embedResponse;
 
   // Let static assets and authentication endpoints bypass
   if (

@@ -57,12 +57,18 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 
 ## 3. Especificação dos Módulos e Componentes
 
-### 3.1 Módulo Kanban Hierárquico & Dashboard Analytics
+### 3.1 Módulo Kanban Hierárquico, Redesign Modal & Dashboard Analytics
 - **Localização**: `components/kanban/kanban-board.tsx`, `components/kanban/ticket-modal.tsx`, `components/kanban/kanban-card.tsx`
 - **Capacidades**:
   - Classificação hierárquica por tipo: `Épico`, `Atividade` e `Tarefa`.
   - Obrigatoriedade do campo `assignee` e do vínculo com `parentEpicId` para Atividades e Tarefas.
   - Imutabilidade do tipo `type` pós-criação.
+  - **Redesign de UI/UX do Modal (Design System Mistica)**:
+    - Utilitários de registro (`Exportar PDF` e `Clonar`) integrados ao Header superior em formato compacto com Tooltips.
+    - Isolamento da ação destrutiva (`Excluir`) na extremidade esquerda do footer.
+    - Manutenção estrita das ações de decisão de formulário (`Cancelar` e `Salvar Alterações` em Roxo Mistica `#660099`) no lado direito.
+    - Suporte responsivo flexível (`flex-col-reverse sm:flex-row`).
+  - **Clonagem de Chamados**: Ação rápida de clonagem (`onClone`) que duplica o ticket preenchendo automaticamente o modal com os dados base.
   - Máquina de estados estrita: `ABERTO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `EM_ANDAMENTO` ➔ `['FECHADO', 'BLOQUEADO', 'CANCELADO']`, `BLOQUEADO` ➔ `['EM_ANDAMENTO', 'CANCELADO']`, `FECHADO` ➔ `['ABERTO', 'EM_ANDAMENTO']`, `CANCELADO`.
   - Guardrail de fechamento de Épico (impede fechar Épico se houver filhas abertas).
   - Componente de checklist interativo com barra de progresso visual % em tempo real.
@@ -70,11 +76,16 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
   - **Sprints**: Associação de chamados a iterações de entrega cadastradas, com badge visual no card.
   - **Due Date**: Campo de vencimento com alertas visuais de proximidade/estouro diretamente no card.
 
-### 3.2 Centro de Security QA & Dashboard SecOps
-- **Localização**: `app/(app)/security-qa/` & `components/security-qa/`
+### 3.2 Centro de Security QA, Dashboard SecOps & Motor Embarcável (Embeddable Engine)
+- **Localização**: `app/(app)/security-qa/`, `components/security-qa/`, `app/embed/security-qa/`, `app/api/external/v1/`
 - **Capacidades**:
   - Ingestão de relatórios brutos e anexos documentais de vulnerabilidade (.json, .xml, .txt, .docx, .pdf, .jpg, .png).
   - OCR e parsing de anexos (limite 10MB) cruzando automaticamente os achados com os requisitos de arquitetura via Zod e IA.
+  - **Motor Embarcável (Embeddable Engine & External APIs v1)**:
+    - Página e widget de embedding `/embed/security-qa/[id]` (`components/embed/security-qa-widget.tsx`).
+    - Endpoint público de Security QA `/api/external/v1/security-qa` e proxy LLM `/api/external/v1/llm-proxy` protegidos por API Key.
+    - Flag de ambiente e Kill Switch `NEXT_PUBLIC_ENABLE_EMBEDDABLE_ENGINE` para desligamento instantâneo em produção (fail-closed 404).
+    - Roteador autônomo de agentes `lib/llm/agent-router.ts` e middleware de validação `lib/embed/embed-proxy.ts`.
   - **Prompt Calibrado & Cobertura 100% de Escopo**: System Prompt orientado a Engenheiro de AppSec Sênior (recomendações técnicas acionáveis com comandos e configs diretas) e pós-processador de backfill que garante que 100% dos requisitos fornecidos no escopo (ex: 30 de 30) estejam presentes no laudo sem omissões.
   - **Pipeline Multiagente & Resiliência Inngest**: Roteador em cascata priorizando **Google Gemini 2.0 (Flash/Lite)** → **OpenAI GPT-4o Mini** → **OpenRouter** → **Groq** (via OpenAI-compatible endpoint). Em falha de cota (429), lança `QaRateLimitError` forçando 5 retentativas com exponential backoff no Inngest.
   - **Motor Determinístico de Contingência**: Parser estruturado de JSON e XML com extração direta das tags `<Details>` / campos `details` e recomendações com instrução explícita SecOps.
