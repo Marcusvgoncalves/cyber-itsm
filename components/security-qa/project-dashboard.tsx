@@ -32,6 +32,7 @@ import {
   FileText,
   Link2,
   Trash2,
+  ArrowLeft,
 } from "lucide-react";
 
 interface ProjectDashboardProps {
@@ -125,36 +126,54 @@ export function ProjectDashboard({ result, evidenceUrl, currentUser }: ProjectDa
   return (
     <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Cabeçalho do resultado */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{result.project_name}</h1>
-            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
-              <Link2 className="h-3.5 w-3.5" /> {result.environment_url}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Avaliado em {new Date(result.created_at).toLocaleString("pt-BR")} · {result.original_file_name}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 sm:items-center">
-            <div className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 ${rating.bg}`}>
-              <ShieldAlert className={`h-5 w-5 ${rating.color}`} />
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Classificação de Risco</p>
-                <p className={`text-lg font-bold leading-tight ${rating.color}`}>{rating.label}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4 mb-6">
+          {/* Grupo da esquerda: Navegação & Contexto */}
+          <div className="flex items-start gap-3 sm:items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{result.project_name}</h1>
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 ${rating.bg}`}>
+                  <ShieldAlert className={`h-3.5 w-3.5 ${rating.color}`} />
+                  <span className={`text-xs font-bold ${rating.color}`}>Risco {rating.label}</span>
+                </span>
               </div>
+              <p className="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" /> {result.environment_url}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Avaliado em {new Date(result.created_at).toLocaleString("pt-BR")} · {result.original_file_name}
+              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting} className="gap-1.5">
+          </div>
+
+          {/* Grupo da direita: Ações Principais & Utilitários */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={exporting}
+              className="gap-1.5 shadow-sm"
+            >
               {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
               Exportar PDF
             </Button>
             {isAdmin && (
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50"
-                title="Excluir análise (somente ADMIN)"
+                className="gap-1.5 text-red-600 hover:bg-red-50 hover:text-red-700"
               >
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 Excluir

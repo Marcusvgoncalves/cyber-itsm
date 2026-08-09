@@ -79,14 +79,17 @@ export function SecurityQaClient({ initialResults, currentUser }: SecurityQaClie
 
   return (
     <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4 mb-6">
+        {/* Grupo da esquerda: Contexto */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Avaliações de Segurança</h1>
           <p className="text-sm text-gray-600 mt-1">
             Ingestão de relatórios, cruzamento com requisitos via IA e arquivamento forense comprimido em GZIP.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Grupo da direita: Ações Principais */}
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             onClick={() => setShowDashboard(true)}
@@ -95,7 +98,7 @@ export function SecurityQaClient({ initialResults, currentUser }: SecurityQaClie
             <BarChart3 className="h-4 w-4" /> Dashboard
           </Button>
           <Link href="/security-qa/assess">
-            <Button className="gap-2">
+            <Button className="gap-2 shadow-sm">
               <PlusCircle className="h-4 w-4" /> Nova Avaliação
             </Button>
           </Link>

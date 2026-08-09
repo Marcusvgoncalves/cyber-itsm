@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createClient } from "@/utils/supabase/client";
 
 interface TicketModalProps {
@@ -397,16 +398,45 @@ export function TicketModal({
       {/* Modal Container */}
       <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-slideUp">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-50">
+        <div className="flex flex-col gap-4 px-6 py-4 border-b border-gray-200 bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
+          {/* Grupo da esquerda: Navegação & Contexto */}
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.back()}
+              disabled={isLoading}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
             <Layers className="h-5 w-5 text-primary" />
             <h2 className="text-xl font-bold text-gray-900">
               {mode === 'create' ? 'Novo Chamado' : `Editar Chamado: SPN-${ticket?.id.slice(-6).toUpperCase()}`}
             </h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" disabled={isLoading}>
-            <X className="h-4 w-4" />
-          </Button>
+
+          {/* Grupo da direita: Ações Principais & Utilitários */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClose}
+                    className="h-8 w-8 p-0"
+                    disabled={isLoading}
+                    aria-label="Fechar"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Fechar</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
 
         {/* Form */}
