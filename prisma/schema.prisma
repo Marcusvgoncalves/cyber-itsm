@@ -217,3 +217,17 @@ model LlmCallLog {
   @@index([createdAt(sort: Desc)])
   @@map("llm_call_logs")
 }
+
+// ---------------------------------------------------------------------------
+// KnowledgeArticle — Artigos de conhecimento para RAG via pgvector.
+// ---------------------------------------------------------------------------
+model KnowledgeArticle {
+  id        String                    @id @default(uuid()) @db.Uuid
+  title     String
+  source    String
+  content   String
+  embedding Unsupported("vector(3072)")?
+  createdAt DateTime                  @default(now()) @map("created_at")
+
+  @@map("knowledge_articles")
+}

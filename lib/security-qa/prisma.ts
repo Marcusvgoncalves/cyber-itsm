@@ -5,12 +5,15 @@
  * O client gerado vive em lib/generated/prisma (gitignored). Nunca importar
  * em componentes client (Bounded Context isolado do ITSM).
  */
+import pg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/lib/generated/prisma/client';
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL!;
-  const adapter = new PrismaPg(connectionString);
+  console.log("[Prisma Debug] Criando cliente com URL:", connectionString ? connectionString.replace(/:([^:@]+)@/, ":***@") : "vazio");
+  const pool = new pg.Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
 
