@@ -32,6 +32,7 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,12 +49,16 @@ interface TicketModalProps {
   defaultStatusId: string | null;
   currentUser: User;
   allTickets?: Ticket[];
+  /** Chamado de origem usado para pré-preencher o formulário de criação (modo "Clonar"). */
+  prefillTicket?: Ticket | null;
   onClose: () => void;
   onSubmit: (data: any) => void;
   isLoading: boolean;
   /** Exclusão exclusiva de ADMIN (Matriz SoD). */
   canDelete?: boolean;
   onDelete?: (ticket: Ticket) => void;
+  /** Abre o formulário de criação pré-preenchido a partir do chamado atual. */
+  onClone?: (ticket: Ticket) => void;
 }
 
 /** VPs disponíveis para o multi-select de tags (ordem alfabética). */
@@ -80,11 +85,13 @@ export function TicketModal({
   defaultStatusId,
   currentUser,
   allTickets = [],
+  prefillTicket = null,
   onClose,
   onSubmit,
   isLoading,
   canDelete,
   onDelete,
+  onClone,
 }: TicketModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +205,28 @@ export function TicketModal({
   const selectedEpic = availableEpics.find((e) => e.id === formData.parentEpicId);
 
   useEffect(() => {
-    if (ticket) {
+    const cloneSource = mode === 'create' ? prefillTicket : null;
+
+    if (cloneSource) {
+      // Clone: pré-preenche os padrões do chamado original, zerando o ciclo de vida.
+      const baseTitle = (cloneSource.title || '').replace(/^\[CLONE\]\s*/i, '');
+      setFormData({
+        title: `[CLONE] ${baseTitle}`,
+        description: cloneSource.description || '',
+        type: cloneSource.type || 'TAREFA',
+        status_id: 'ABERTO',
+        priority: cloneSource.priority || 'media',
+        assignee: currentUser.full_name || currentUser.email || '',
+        assignee_id: currentUser.id,
+        parentEpicId: cloneSource.parentEpicId || cloneSource.parent_epic_id || '',
+        tags: cloneSource.tags || [],
+        attachmentName: '',
+        attachmentUrl: '',
+        dueDate: '',
+        sprintId: cloneSource.sprintId || '',
+      });
+      setAttachedFile(null);
+    } else if (ticket) {
       setFormData({
         title: ticket.title,
         description: ticket.description || '',
@@ -246,7 +274,7 @@ export function TicketModal({
     setErrors({});
     setRequirementOpinion(null);
     setEpicSearch("");
-  }, [ticket, defaultStatusId, currentUser]);
+  }, [ticket, prefillTicket, defaultStatusId, currentUser, mode]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -322,6 +350,8 @@ export function TicketModal({
     e.preventDefault();
     if (!validate()) return;
 
+    const cloneSource = mode === 'create' ? prefillTicket : null;
+
     const submitData = {
       title: formData.title.trim(),
       description: formData.description.trim() || null,
@@ -338,6 +368,8 @@ export function TicketModal({
       attachmentUrl: formData.attachmentUrl || null,
       dueDate: formData.dueDate ? new Date(formData.dueDate + 'T12:00:00').toISOString() : null,
       sprintId: formData.sprintId || null,
+      framework_origem: cloneSource?.framework_origem || null,
+      compliance_frameworks: cloneSource?.compliance_frameworks || [],
     };
 
     onSubmit(submitData);
@@ -916,6 +948,18 @@ export function TicketModal({
                     <Download className="h-3.5 w-3.5" /> Exportar Relatório em PDF
                   </Button>
                 </a>
+              )}
+              {mode === 'edit' && ticket && onClone && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onClone(ticket)}
+                  disabled={isLoading}
+                  className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/10"
+                >
+                  <Copy className="h-3.5 w-3.5" /> Clonar Chamado
+                </Button>
               )}
               {mode === 'edit' && ticket && canDelete && onDelete && (
                 <Button

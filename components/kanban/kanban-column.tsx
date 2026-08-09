@@ -19,9 +19,11 @@ interface KanbanColumnProps {
   /** Exclusão exclusiva de ADMIN (Matriz SoD). */
   canDelete?: boolean;
   onDelete?: (ticket: Ticket) => void;
+  /** Abre o formulário de criação pré-preenchido a partir do chamado atual. */
+  onClone?: (ticket: Ticket) => void;
 }
 
-export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket, onQaRequest, canDelete, onDelete }: KanbanColumnProps) {
+export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onTicketClick, onAddTicket, onQaRequest, canDelete, onDelete, onClone }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -105,6 +107,7 @@ export function KanbanColumn({ status, tickets, currentUserId, onTicketMove, onT
               onQaRequest={onQaRequest}
               canDelete={canDelete}
               onDelete={onDelete}
+              onClone={onClone}
             />
           ))
         )}

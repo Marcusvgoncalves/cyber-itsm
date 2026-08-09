@@ -36,6 +36,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
   const [validationError, setValidationError] = useState<string | null>(null);
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [qaTicket, setQaTicket] = useState<Ticket | null>(null);
+  const [cloneSource, setCloneSource] = useState<Ticket | null>(null);
   const [, startTransition] = useTransition();
 
   const handleTicketMove = useCallback((ticketId: string, newStatusId: string) => {
@@ -97,10 +98,19 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
     setSelectedTicket(null);
     setNewTicketStatusId(null);
     setModalMode('edit');
+    setCloneSource(null);
   }, []);
 
   const handleAddTicket = useCallback((statusId: string) => {
     setNewTicketStatusId(statusId);
+    setSelectedTicket(null);
+    setModalMode('create');
+  }, []);
+
+  /** Abre o formulário de criação pré-preenchido a partir de um chamado existente. */
+  const handleCloneTicket = useCallback((ticket: Ticket) => {
+    setValidationError(null);
+    setCloneSource(ticket);
     setSelectedTicket(null);
     setModalMode('create');
   }, []);
@@ -124,6 +134,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           return;
         }
         setTickets((prev) => [result, ...prev]);
+        setCloneSource(null);
         handleCloseModal();
       } catch (error: any) {
         console.error('Erro ao criar ticket:', error);
@@ -305,6 +316,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
                   onQaRequest={handleQaTicket}
                   canDelete={isAdmin}
                   onDelete={handleTicketDelete}
+                  onClone={handleCloneTicket}
                 />
               </div>
             ))}
@@ -317,6 +329,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
         <TicketModal
           ticket={selectedTicket}
           mode={modalMode}
+          prefillTicket={cloneSource}
           statuses={statuses}
           defaultStatusId={newTicketStatusId || statuses[0]?.id || 'ABERTO'}
           currentUser={currentUser}
@@ -326,6 +339,7 @@ export function KanbanBoard({ initialStatuses, initialTickets, currentUser, onTi
           isLoading={isLoading}
           canDelete={isAdmin}
           onDelete={handleTicketDelete}
+          onClone={handleCloneTicket}
         />
       ) : null}
 

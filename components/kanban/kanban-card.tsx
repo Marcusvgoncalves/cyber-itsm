@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Ticket, TicketPriority, TYPE_COLORS, TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS } from "@/lib/types";
-import { GripVertical, User, Clock, Layers, ShieldCheck, Trash2 } from "lucide-react";
+import { GripVertical, User, Clock, Layers, ShieldCheck, Trash2, Copy } from "lucide-react";
 
 interface KanbanCardProps {
   ticket: Ticket;
@@ -14,9 +14,11 @@ interface KanbanCardProps {
   /** Exclusão exclusiva de ADMIN (Matriz SoD). */
   canDelete?: boolean;
   onDelete?: (ticket: Ticket) => void;
+  /** Abre o formulário de criação pré-preenchido a partir do chamado atual. */
+  onClone?: (ticket: Ticket) => void;
 }
 
-export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd, onQaRequest, canDelete, onDelete }: KanbanCardProps) {
+export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDragEnd, onQaRequest, canDelete, onDelete, onClone }: KanbanCardProps) {
   const typeKey = ticket.type || 'TAREFA';
   const typeStyle = TYPE_COLORS[typeKey] || TYPE_COLORS.TAREFA;
   const typeLabel = TYPE_LABELS[typeKey] || typeKey;
@@ -86,6 +88,20 @@ export function KanbanCard({ ticket, currentUserId, onClick, onDragStart, onDrag
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onClone && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClone(ticket);
+              }}
+              className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-white p-1 text-gray-500 transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+              title="Clonar Chamado"
+              aria-label={`Clonar chamado ${ticket.title}`}
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          )}
           {typeKey === 'EPICO' && onQaRequest && (
             <button
               type="button"
