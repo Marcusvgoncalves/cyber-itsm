@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Status,
@@ -28,11 +29,15 @@ import {
   CircleHelp,
   Search,
   Trash2,
+  ArrowLeft,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createClient } from "@/utils/supabase/client";
 
@@ -51,6 +56,23 @@ interface TicketModalProps {
   onDelete?: (ticket: Ticket) => void;
 }
 
+/** VPs disponíveis para o multi-select de tags (ordem alfabética). */
+const VP_OPTIONS = [
+  "CEO",
+  "COO",
+  "VP B2B",
+  "VP B2C",
+  "VP Canais Digitais",
+  "VP CFO",
+  "VP Comunicação",
+  "VP Engenharia",
+  "VP Estratégia/Regulatório/CSO",
+  "VP Jurídico",
+  "VP Novos Negócios",
+  "VP Pessoas",
+  "VP TI",
+];
+
 export function TicketModal({
   ticket,
   mode,
@@ -64,6 +86,7 @@ export function TicketModal({
   canDelete,
   onDelete,
 }: TicketModalProps) {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -75,7 +98,7 @@ export function TicketModal({
     assignee: currentUser.full_name || currentUser.email || '',
     assignee_id: currentUser.id,
     parentEpicId: '',
-    tags: '',
+    tags: [] as string[],
     attachmentName: '',
     attachmentUrl: '',
     dueDate: '',
@@ -88,6 +111,7 @@ export function TicketModal({
   const [sprints, setSprints] = useState<any[]>([]);
   const [epicSearch, setEpicSearch] = useState("");
   const [isEpicDropdownOpen, setIsEpicDropdownOpen] = useState(false);
+  const [isVpDropdownOpen, setIsVpDropdownOpen] = useState(false);
 
   // States para anexos e parecer
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: number; ext: string; url?: string } | null>(null);
@@ -159,7 +183,7 @@ export function TicketModal({
         assignee: ticket.assignee || ticket.assignee_user?.full_name || ticket.assignee_user?.email || '',
         assignee_id: ticket.assignee_id || '',
         parentEpicId: ticket.parentEpicId || ticket.parent_epic_id || '',
-        tags: ticket.tags?.join(', ') || '',
+        tags: ticket.tags || [],
         attachmentName: ticket.attachmentName || '',
         attachmentUrl: ticket.attachmentUrl || '',
         dueDate: ticket.dueDate ? new Date(ticket.dueDate).toISOString().slice(0, 10) : '',
@@ -186,7 +210,7 @@ export function TicketModal({
         assignee: currentUser.full_name || currentUser.email || '',
         assignee_id: currentUser.id,
         parentEpicId: '',
-        tags: '',
+        tags: [],
         attachmentName: '',
         attachmentUrl: '',
         dueDate: '',
@@ -283,7 +307,7 @@ export function TicketModal({
       assignee_id: formData.assignee_id || null,
       parentEpicId: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
       parent_epic_id: (formData.type === 'ATIVIDADE' || formData.type === 'TAREFA') ? formData.parentEpicId : null,
-      tags: formData.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      tags: formData.tags.map((t) => t.trim()).filter(Boolean),
       reporter_id: currentUser.id,
       attachmentName: formData.attachmentName || null,
       attachmentUrl: formData.attachmentUrl || null,
@@ -297,6 +321,15 @@ export function TicketModal({
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const toggleTag = (tag: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter((t) => t !== tag)
+        : [...prev.tags, tag],
+    }));
   };
 
   return (
@@ -313,6 +346,15 @@ export function TicketModal({
             <h2 className="text-xl font-bold text-gray-900">
               {mode === 'create' ? 'Novo Chamado' : `Editar Chamado: SPN-${ticket?.id.slice(-6).toUpperCase()}`}
             </h2>
+            <Button
+              variant="ghost"
+              onClick={() => router.back()}
+              disabled={isLoading}
+              className="ml-2"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar
+            </Button>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" disabled={isLoading}>
             <X className="h-4 w-4" />
@@ -743,18 +785,79 @@ export function TicketModal({
             )}
           </div>
 
-          {/* Tags */}
+          {/* Tags — Multi-select de VPs */}
           <div>
-            <Label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1">
-              Tags (separadas por vírgula)
+            <Label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5 text-gray-400" />
+              Tags (Selecione a VP)
             </Label>
-            <Input
-              id="tags"
-              value={formData.tags}
-              onChange={(e) => handleChange('tags', e.target.value)}
-              placeholder="segurança, sprint-12, backend"
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <button
+                type="button"
+                id="tags"
+                onClick={() => setIsVpDropdownOpen((prev) => !prev)}
+                disabled={isLoading}
+                className="flex w-full min-h-[40px] items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {formData.tags.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {formData.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="gap-1 py-0 pr-1">
+                        {tag}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Remover ${tag}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTag(tag);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleTag(tag);
+                            }
+                          }}
+                          className="ml-0.5 rounded-full p-0.5 cursor-pointer hover:bg-gray-200"
+                        >
+                          <X className="h-3 w-3" />
+                        </span>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">Selecione uma ou mais VPs...</span>
+                )}
+                <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+              </button>
+
+              {/* Dropdown de VPs */}
+              {isVpDropdownOpen && (
+                <>
+                  {/* Overlay para fechar ao clicar fora */}
+                  <div className="fixed inset-0 z-40" onClick={() => setIsVpDropdownOpen(false)} />
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-xl animate-fadeIn">
+                    {VP_OPTIONS.map((vp) => {
+                      const selected = formData.tags.includes(vp);
+                      return (
+                        <div
+                          key={vp}
+                          onClick={() => toggleTag(vp)}
+                          className={cn(
+                            "flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-0",
+                            selected && "bg-primary/5 font-semibold text-primary"
+                          )}
+                        >
+                          <span>{vp}</span>
+                          {selected && <Check className="h-4 w-4 text-primary" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
