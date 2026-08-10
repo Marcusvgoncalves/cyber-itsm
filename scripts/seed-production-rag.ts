@@ -45,19 +45,29 @@ const DELAY_BETWEEN_BATCHES_MS = 2000;
 const MAX_ATTEMPTS = 4;
 const SOURCE_LABEL = 'Base-SD-v4.1';
 
-// Localiza `data/requisitos-sd.json` relativo ao script (funciona em CJS e ESM).
+// Localiza `requisitos-sd.json` (checa pasta data/ e raiz do projeto).
 const scriptDir =
   typeof __dirname !== 'undefined'
     ? __dirname
     : fileURLToPath(new URL('.', import.meta.url));
-const DATA_FILE = resolve(scriptDir, '..', 'data', 'requisitos-sd.json');
+const dataFileCandidate1 = resolve(scriptDir, '..', 'data', 'requisitos-sd.json');
+const dataFileCandidate2 = resolve(scriptDir, '..', 'requisitos-sd.json');
+const DATA_FILE = fs.existsSync(dataFileCandidate1) ? dataFileCandidate1 : dataFileCandidate2;
 
 // ----------------------------------------------------------------------------
 // Tipos
 // ----------------------------------------------------------------------------
 interface Requisito {
-  code: string;
-  description: string;
+  id?: string;
+  code?: string;
+  controle?: string;
+  detalhamento?: string;
+  description?: string;
+  componente?: string;
+  propriedade?: string;
+  strideLM?: string;
+  owasp?: string;
+  criticidade?: string;
 }
 
 interface Counters {
@@ -66,6 +76,11 @@ interface Counters {
   inserted: number;
   dimsMismatch: number;
   failed: number;
+}
+
+// Helper para obter o código único do requisito
+function getReqCode(req: Requisito): string {
+  return (req.id || req.code || '').trim();
 }
 
 // ----------------------------------------------------------------------------
@@ -80,7 +95,13 @@ function vectorLiteral(values: number[]): string {
 
 /** String consolidada que alimenta o embedding (e a coluna `content`). */
 function buildContent(req: Requisito): string {
-  return `${req.code} - ${req.description}`;
+  const code = getReqCode(req);
+  const title = req.controle ? `${req.controle}: ` : '';
+  const desc = req.detalhamento || req.description || '';
+  const meta = [req.componente, req.propriedade, req.owasp, req.strideLM, req.criticidade]
+    .filter(Boolean)
+    .join(' | ');
+  return `${code} - ${title}${desc}${meta ? ` [${meta}]` : ''}`;
 }
 
 /** Backoff exponencial com teto (ex.: 2s → 4s → 8s → 15s). */
@@ -222,8 +243,9 @@ async function main() {
   }
 
   const requisitos: Requisito[] = raw.filter((item: any) => {
-    if (typeof item?.code !== 'string' || item.code.trim() === '') {
-      console.warn('[DADOS] Ignorando item sem "code" válido:', JSON.stringify(item));
+    const code = getReqCode(item);
+    if (!code) {
+      console.warn('[DADOS] Ignorando item sem "code" ou "id" válido:', JSON.stringify(item));
       return false;
     }
     return true;
@@ -265,13 +287,14 @@ async function main() {
     );
 
     // 6.1 Filtra os que já existem (idempotência) antes de gastar cota de embedding.
-    const pending: Array<{ req: Requisito; content: string }> = [];
+    const pending: Array<{ req: Requisito; code: string; content: string }> = [];
     for (const req of batch) {
-      if (existingTitles.has(req.code)) {
+      const code = getReqCode(req);
+      if (existingTitles.has(code)) {
         counters.skippedExisting += 1;
-        console.log(`  SKIP (já existe)  ${req.code}`);
+        console.log(`  SKIP (já existe)  ${code}`);
       } else {
-        pending.push({ req, content: buildContent(req) });
+        pending.push({ req, code, content: buildContent(req) });
       }
     }
 
@@ -283,18 +306,18 @@ async function main() {
 
       // 6.3 Insere cada vetor (pgvector via Prisma raw query).
       for (let i = 0; i < pending.length; i++) {
-        const { req, content } = pending[i];
+        const { req, code, content } = pending[i];
         const vector = vectors[i];
 
         if (!vector) {
           counters.failed += 1;
-          console.error(`  FALHA (sem embedding)  ${req.code}`);
+          console.error(`  FALHA (sem embedding)  ${code}`);
           continue;
         }
         if (vector.length !== EMBEDDING_DIMENSIONS) {
           counters.dimsMismatch += 1;
           console.error(
-            `  FALHA (dimensão ${vector.length} ≠ ${EMBEDDING_DIMENSIONS})  ${req.code}`
+            `  FALHA (dimensão ${vector.length} ≠ ${EMBEDDING_DIMENSIONS})  ${code}`
           );
           continue;
         }
@@ -302,14 +325,14 @@ async function main() {
         try {
           await prisma.$executeRaw`
             INSERT INTO public.knowledge_articles (title, source, content, embedding)
-            VALUES (${req.code}, ${SOURCE_LABEL}, ${content}, ${vectorLiteral(vector)}::vector)
+            VALUES (${code}, ${SOURCE_LABEL}, ${content}, ${vectorLiteral(vector)}::vector)
           `;
-          existingTitles.add(req.code);
+          existingTitles.add(code);
           counters.inserted += 1;
-          console.log(`  OK   ${req.code}`);
+          console.log(`  OK   ${code}`);
         } catch (err: any) {
           counters.failed += 1;
-          console.error(`  ERRO ao inserir  ${req.code}:`, err?.message ?? err);
+          console.error(`  ERRO ao inserir  ${code}:`, err?.message ?? err);
         }
       }
     }
