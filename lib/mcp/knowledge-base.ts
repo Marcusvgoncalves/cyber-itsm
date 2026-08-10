@@ -166,13 +166,15 @@ async function searchPgvector(
         FROM knowledge_articles
        WHERE embedding IS NOT NULL
        ORDER BY embedding <=> ${vectorLiteral}::vector
-       LIMIT ${Math.min(limit, 10)}
+       LIMIT ${Math.min(limit, 2)}
     `;
 
     return rows.map((row) => ({
       id: row.id,
       controle: row.title,
-      detalhamento: row.content.slice(0, 2000),
+      // PODA DE TOKENS — máximo 400 caracteres por artigo para não inflar o
+      // payload e causar HTTP 413 (TPM Limit) nos provedores gratuitos.
+      detalhamento: row.content.slice(0, 400),
       componente: row.source,
       propriedade: null,
       categoria: null,

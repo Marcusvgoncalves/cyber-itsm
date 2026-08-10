@@ -108,7 +108,8 @@ const AGENTS: AgentConfig[] = [
 // ============================================================================
 const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM, um Especialista Sênior em AppSec e DevSecOps.
 ATENÇÃO: Você DEVE atuar ESTRITAMENTE dentro de contextos de segurança cibernética, tratamento de chamados (tickets), frameworks de mercado (NIST, CIS, OWASP) e processos de Security QA. Recuse educadamente qualquer pergunta fora deste escopo.
-REGRA DE MODELAGEM DE AMEAÇAS E REQUISITOS: Ao analisar incidentes, código ou arquiteturas (STRIDE, MITRE), responda EXCLUSIVAMENTE em tópicos curtos (bullet points) conectando o vetor de ataque e o plano técnico de mitigação. Seja muito rápido, direto, e nunca utilize tabelas.`;
+REGRA DE MODELAGEM DE AMEAÇAS E REQUISITOS: Ao analisar incidentes, código ou arquiteturas (STRIDE, MITRE), responda EXCLUSIVAMENTE em tópicos curtos (bullet points) conectando o vetor de ataque e o plano técnico de mitigação. Seja muito rápido, direto, e nunca utilize tabelas.
+DIRETRIZ DE KANBAN: Você tem acesso a ferramentas de Kanban. Se o usuário pedir para criar um chamado de segurança e não informar o Épico (que é obrigatório), VOCÊ É PROIBIDO de perguntar cegamente. Você DEVE obrigatoriamente chamar a ferramenta 'list_active_epics' primeiro, ler os épicos disponíveis no sistema, e então listá-los no chat perguntando ao usuário qual ele prefere.`;
 
 // ============================================================================
 // MCP LOCAL — Bloco de orientação para as ferramentas (aditivo).
@@ -117,10 +118,11 @@ REGRA DE MODELAGEM DE AMEAÇAS E REQUISITOS: Ao analisar incidentes, código ou 
 // permanece intacto.
 // ============================================================================
 const MCP_TOOLS_GUIDANCE = `VOCÊ POSSUI FERRAMENTAS MCP LOCAIS (Model Context Protocol) DISPONÍVEIS PARA AUTOMATIZAR AÇÕES NO ITSM. Acione-as SOMENTE quando o usuário demonstrar intenção explícita de EXECUTAR uma ação:
-- create_kanban_ticket: abrir um chamado no Kanban. Parâmetros: title (título), description (descrição), severity (LOW, MEDIUM, HIGH ou CRITICAL) e, opcionalmente, requirement_code (código do requisito da Base de Conhecimento, ex.: VIVO.SEGURA.CRIP.01).
+- list_active_epics: listar os Épicos Pai ativos do Kanban (id + título). Use SEMPRE ANTES de create_kanban_ticket quando o Épico não tiver sido informado, pois ele é um campo OBRIGATÓRIO (ver DIRETRIZ DE KANBAN no system prompt).
+- create_kanban_ticket: abrir um chamado no Kanban. Parâmetros: title (título), description (descrição), severity (LOW, MEDIUM, HIGH ou CRITICAL), epic_id (ID do Épico Pai, OBRIGATÓRIO) e, opcionalmente, requirement_code (código do requisito da Base de Conhecimento, ex.: VIVO.SEGURA.CRIP.01).
 - move_kanban_card: alterar o status de um card existente. Parâmetros: ticket_id (ID do chamado) e status (ABERTO, EM_ANDAMENTO, BLOQUEADO, FECHADO ou CANCELADO).
 - search_knowledge_base: buscar requisitos na Base de Conhecimento para fundamentar respostas com contexto normativo (NIST, CIS, OWASP).
-Se o usuário apenas fizer perguntas, análises ou consultas SEM pedir para abrir/mover/alterar nada, responda em texto normal SEM acionar ferramentas. Antes de executar create_kanban_ticket ou move_kanban_card, confirme com o usuário quando faltar informação essencial (ex.: severidade ou título).`;
+Se o usuário apenas fizer perguntas, análises ou consultas SEM pedir para abrir/mover/alterar nada, responda em texto normal SEM acionar ferramentas. Antes de executar create_kanban_ticket, confirme com o usuário quando faltar informação essencial (ex.: severidade ou título). SE FALTAR O ÉPICO, NUNCA pergunte cegamente: chame 'list_active_epics' primeiro e apresente as opções (DIRETRIZ DE KANBAN).`;
 
 interface Requisito {
   id: string | null;
@@ -150,7 +152,7 @@ function tokenize(text: string): string[] {
   return Array.from(new Set(tokens));
 }
 
-function retrieveRelevantRequisitos(question: string, context: string, limit = 6): Requisito[] {
+function retrieveRelevantRequisitos(question: string, context: string, limit = 2): Requisito[] {
   const queryTokens = [...tokenize(question), ...tokenize(context)];
   const scored = (requisitos as unknown as Requisito[]).map((req) => {
     const weighted = {
@@ -173,14 +175,25 @@ function retrieveRelevantRequisitos(question: string, context: string, limit = 6
     .map((s) => s.req);
 }
 
+/**
+ * PODA DE TOKENS — trunca qualquer texto a um limite máximo de caracteres
+ * (padrão 400) para impedir que conteúdos RAG gigantescos explodam o payload
+ * e causem HTTP 413 (TPM Limit) nos provedores gratuitos.
+ */
+function clip(text: string | null | undefined, max = 400): string {
+  if (!text) return 'N/A';
+  const value = String(text).trim();
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
 function formatRequerimento(req: Requisito): string {
   return [
-    `[${req.id ?? 'S/ID'}] ${req.controle ?? ''}`,
-    `  Detalhamento: ${req.detalhamento ?? 'N/A'}`,
-    `  Componente: ${req.componente ?? 'N/A'} | Propriedade: ${req.propriedade ?? req.categoria ?? 'N/A'}`,
-    `  STRIDE: ${req.strideLM ?? 'N/A'} | OWASP: ${req.owasp ?? 'N/A'}`,
-    `  Riscos: ${req.riscos ?? 'N/A'}`,
-    `  Categoria: ${req.categoria ?? 'N/A'} | Criticidade: ${req.criticidade ?? 'N/A'} | Tipo: ${req.tipoControle ?? 'N/A'}`,
+    `[${req.id ?? 'S/ID'}] ${clip(req.controle)}`,
+    `  Detalhamento: ${clip(req.detalhamento, 400)}`,
+    `  Componente: ${clip(req.componente)} | Propriedade: ${clip(req.propriedade ?? req.categoria)}`,
+    `  STRIDE: ${clip(req.strideLM)} | OWASP: ${clip(req.owasp)}`,
+    `  Riscos: ${clip(req.riscos, 400)}`,
+    `  Categoria: ${clip(req.categoria)} | Criticidade: ${clip(req.criticidade)} | Tipo: ${clip(req.tipoControle)}`,
   ].join('\n');
 }
 
@@ -284,10 +297,11 @@ export async function POST(req: Request) {
     const rawMessages = Array.isArray(body?.messages) ? body.messages : [];
     const ticketContext = sanitizeText(body?.ticketContext);
 
-    // PROTEÇÃO DE TOKENS — context window mínima: envia apenas as últimas 4
-    // mensagens ao modelo, reduzindo drasticamente o consumo no plano gratuito
-    // e prevenindo rejeições por tamanho de contexto.
-    const historySource = rawMessages.slice(-4);
+    // PODA DE CONTEXTO / TOKEN LIMITING — envia apenas as últimas 5 mensagens
+    // ao modelo. Histórico longo esgota a cota (TPM) rapidamente e causa
+    // HTTP 413 no plano gratuito; o contexto do chamado + RAG são injetados
+    // apenas na última mensagem do usuário.
+    const historySource = rawMessages.slice(-5);
 
     if (historySource.length === 0) {
       return Response.json(
