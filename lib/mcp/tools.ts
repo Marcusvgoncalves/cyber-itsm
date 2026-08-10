@@ -49,6 +49,62 @@ function successResult(
   };
 }
 
+/** Épicos considerados ativos (não fechados nem cancelados). */
+const ACTIVE_EPIC_STATUSES = ['ABERTO', 'EM_ANDAMENTO', 'BLOQUEADO'] as const;
+
+interface ActiveEpic {
+  id: string;
+  title: string;
+  status: string;
+}
+
+/**
+ * Consulta os Épicos Pai ativos diretamente na tabela `tickets` (type = EPICO)
+ * via Prisma. O client do Prisma é carregado LAZY (mesmo padrão da camada
+ * pgvector) para não acoplar o carregamento do módulo à conexão do pool.
+ */
+async function fetchActiveEpics(limit: number): Promise<ActiveEpic[]> {
+  const [{ prisma }, { TicketType }] = await Promise.all([
+    import('@/lib/security-qa/prisma'),
+    import('@/lib/generated/prisma/enums'),
+  ]);
+
+  const rows = await prisma.ticket.findMany({
+    where: {
+      type: TicketType.EPICO,
+      status: { in: [...ACTIVE_EPIC_STATUSES] },
+    },
+    select: { id: true, title: true, status: true },
+    orderBy: { title: 'asc' },
+    take: Math.max(1, Math.min(100, limit)),
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    status: row.status,
+  }));
+}
+
+/** Busca um único Épico ativo por ID (usado na criação para validar o vínculo). */
+async function findActiveEpicById(epicId: string): Promise<ActiveEpic | null> {
+  const [{ prisma }, { TicketType }] = await Promise.all([
+    import('@/lib/security-qa/prisma'),
+    import('@/lib/generated/prisma/enums'),
+  ]);
+
+  const row = await prisma.ticket.findFirst({
+    where: {
+      id: epicId,
+      type: TicketType.EPICO,
+      status: { in: [...ACTIVE_EPIC_STATUSES] },
+    },
+    select: { id: true, title: true, status: true },
+  });
+
+  return row ? { id: row.id, title: row.title, status: row.status } : null;
+}
+
 /**
  * Helper que infere o tipo dos argumentos a partir do `inputSchema` Zod,
  * garantindo `execute` tipada (args validados e com autocompletar).
@@ -68,8 +124,11 @@ const createKanbanTicket = defineTool({
   name: 'create_kanban_ticket',
   title: 'Abrir Chamado no Kanban',
   description: [
-    'Cria um novo chamado (ticket) no quadro Kanban do CyberITSM.',
-    'Requer o título, a descrição e a severidade (LOW, MEDIUM, HIGH ou CRITICAL).',
+    'Cria um novo chamado. O campo Épico é obrigatório. Se o usuário não informar o Épico,',
+    'NÃO execute esta ferramenta. Em vez disso, use a ferramenta \'list_active_epics\' para buscar',
+    'as opções disponíveis no sistema, apresente-as ao usuário no chat e pergunte qual ele deseja',
+    'selecionar antes de prosseguir.',
+    'Requer o título, a severidade (LOW, MEDIUM, HIGH ou CRITICAL) e o epic_id (Épico Pai ativo).',
     'Use o argumento "requirement_code" quando a falha estiver associada a um requisito',
     'da Base de Conhecimento (ex.: VIVO.SEGURA.CRIP.01) para enriquecer o chamado.',
   ].join(' '),
@@ -87,6 +146,11 @@ const createKanbanTicket = defineTool({
     severity: z
       .enum(SEVERITY_ENUM)
       .describe('Severidade do problema: LOW, MEDIUM, HIGH ou CRITICAL.'),
+    epic_id: z
+      .string()
+      .min(1)
+      .max(64)
+      .describe('ID (UUID) do Épico Pai ativo no Kanban. Use a ferramenta "list_active_epics" para obter as opções disponíveis.'),
     requirement_code: z
       .string()
       .max(64)
@@ -97,6 +161,15 @@ const createKanbanTicket = defineTool({
     if (!ctx.auth) {
       return errorResult(
         'Não foi possível abrir o chamado: é necessário estar autenticado na plataforma CyberITSM. Solicite o login e tente novamente.',
+      );
+    }
+
+    // 0) Épico Pai é obrigatório pela regra de negócio — valida existência e
+    //    estado ativo ANTES de qualquer escrita, evitando erro de FK obscuro.
+    const epic = await findActiveEpicById(args.epic_id);
+    if (!epic) {
+      return errorResult(
+        'Não foi possível criar o chamado: o Épico informado não existe ou não está ativo no Kanban. Use a ferramenta "list_active_epics" para ver as opções disponíveis e informe o "epic_id" correto.',
       );
     }
 
@@ -134,6 +207,7 @@ const createKanbanTicket = defineTool({
       type: 'TAREFA',
       status: 'ABERTO',
       priority,
+      parentEpicId: epic.id,
       assignee: assigneeName,
       assignee_id: ctx.auth.user.id,
       reporter_id: reporter.id,
@@ -147,7 +221,7 @@ const createKanbanTicket = defineTool({
 
     const ticket = result;
     return successResult(
-      `Chamado criado com sucesso: "${ticket.title}" (ID ${ticket.id}), status ${ticket.status}, prioridade ${ticket.priority}, severidade ${severity}.${requirementFound ? ' Associado ao requisito ' + args.requirement_code + '.' : ''}`,
+      `Chamado criado com sucesso: "${ticket.title}" (ID ${ticket.id}), vinculado ao Épico "${epic.title}" (${epic.id}), status ${ticket.status}, prioridade ${ticket.priority}, severidade ${severity}.${requirementFound ? ' Associado ao requisito ' + args.requirement_code + '.' : ''}`,
       {
         success: true,
         ticket: {
@@ -156,6 +230,7 @@ const createKanbanTicket = defineTool({
           status: ticket.status,
           priority: ticket.priority,
           severity,
+          epic: { id: epic.id, title: epic.title },
           requirement_code: args.requirement_code ?? null,
           assignee: assigneeName,
           url: '/dashboard',
@@ -281,8 +356,60 @@ const searchKnowledgeBaseTool = defineTool({
   },
 });
 
+/**
+ * Ferramenta `list_active_epics`
+ * Lista os Épicos Pai ativos do Kanban (type = EPICO, status não terminal).
+ * Usada pelo agente para apresentar as opções ao usuário quando o Épico não
+ * for informado, ANTES de executar `create_kanban_ticket` (campo obrigatório).
+ */
+const listActiveEpics = defineTool({
+  name: 'list_active_epics',
+  title: 'Listar Épicos Ativos',
+  description: [
+    'Lista os Épicos Pai ativos (ABERTO, EM_ANDAMENTO ou BLOQUEADO) do Kanban do CyberITSM.',
+    'Use ANTES de "create_kanban_ticket" quando o usuário não informar o Épico: recupere as opções',
+    '(id + título), apresente-as no chat e pergunte qual o usuário deseja selecionar.',
+  ].join(' '),
+  inputSchema: z.object({
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe('Quantidade máxima de épicos a retornar (padrão 20).'),
+  }),
+  async execute(args) {
+    try {
+      const epics = await fetchActiveEpics(args.limit ?? 20);
+
+      if (epics.length === 0) {
+        return errorResult(
+          'Nenhum Épico ativo encontrado no Kanban. Crie um Épico antes de abrir chamados ou informe o Épico manualmente.',
+        );
+      }
+
+      const text = [
+        `Épicos ativos no Kanban (${epics.length}):`,
+        ...epics.map((e, i) => `${i + 1}. ${e.title} (ID: ${e.id}) — ${e.status}`),
+        'Pergunte ao usuário qual Épico ele deseja selecionar antes de criar o chamado.',
+      ].join('\n');
+
+      return successResult(text, {
+        success: true,
+        count: epics.length,
+        epics: epics.map((e) => ({ id: e.id, title: e.title, status: e.status })),
+      });
+    } catch (err) {
+      console.error('[MCP] Falha ao listar Épicos ativos:', err);
+      return errorResult('Não foi possível listar os Épicos neste momento. Tente novamente.');
+    }
+  },
+});
+
 /** Registro completo de ferramentas expostas pelo MCP local. */
 export const mcpToolsRegistry: McpToolDefinition[] = [
+  listActiveEpics,
   createKanbanTicket,
   moveKanbanCard,
   searchKnowledgeBaseTool,
