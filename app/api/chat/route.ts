@@ -1,8 +1,11 @@
-import { streamText, type LanguageModel, type ModelMessage } from 'ai';
+import { streamText, isStepCount, type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import requisitos from '../../../requisitos-sd.json';
+import { getAuthService } from '@/lib/auth/authService';
+import type { AuthContext } from '@/lib/auth/types';
+import { createCopilotTools } from '@/lib/mcp/adapter';
 
 // ============================================================================
 // COPILOTO DE IA GLOBAL — ESTEIRA MULTIAGENTE 100% GRATUITA (Zero Downtime).
@@ -107,6 +110,18 @@ const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM,
 ATENÇÃO: Você DEVE atuar ESTRITAMENTE dentro de contextos de segurança cibernética, tratamento de chamados (tickets), frameworks de mercado (NIST, CIS, OWASP) e processos de Security QA. Recuse educadamente qualquer pergunta fora deste escopo.
 REGRA DE MODELAGEM DE AMEAÇAS E REQUISITOS: Ao analisar incidentes, código ou arquiteturas (STRIDE, MITRE), responda EXCLUSIVAMENTE em tópicos curtos (bullet points) conectando o vetor de ataque e o plano técnico de mitigação. Seja muito rápido, direto, e nunca utilize tabelas.`;
 
+// ============================================================================
+// MCP LOCAL — Bloco de orientação para as ferramentas (aditivo).
+// Instrui o modelo a acionar as Tools SOMENTE diante de intenção explícita do
+// usuário em executar uma ação no ITSM. Sem intenção, o fluxo de texto normal
+// permanece intacto.
+// ============================================================================
+const MCP_TOOLS_GUIDANCE = `VOCÊ POSSUI FERRAMENTAS MCP LOCAIS (Model Context Protocol) DISPONÍVEIS PARA AUTOMATIZAR AÇÕES NO ITSM. Acione-as SOMENTE quando o usuário demonstrar intenção explícita de EXECUTAR uma ação:
+- create_kanban_ticket: abrir um chamado no Kanban. Parâmetros: title (título), description (descrição), severity (LOW, MEDIUM, HIGH ou CRITICAL) e, opcionalmente, requirement_code (código do requisito da Base de Conhecimento, ex.: VIVO.SEGURA.CRIP.01).
+- move_kanban_card: alterar o status de um card existente. Parâmetros: ticket_id (ID do chamado) e status (ABERTO, EM_ANDAMENTO, BLOQUEADO, FECHADO ou CANCELADO).
+- search_knowledge_base: buscar requisitos na Base de Conhecimento para fundamentar respostas com contexto normativo (NIST, CIS, OWASP).
+Se o usuário apenas fizer perguntas, análises ou consultas SEM pedir para abrir/mover/alterar nada, responda em texto normal SEM acionar ferramentas. Antes de executar create_kanban_ticket ou move_kanban_card, confirme com o usuário quando faltar informação essencial (ex.: severidade ou título).`;
+
 interface Requisito {
   id: string | null;
   controle: string | null;
@@ -204,7 +219,8 @@ function buildUserMessage(
 type StreamResult = Awaited<ReturnType<typeof streamText>>;
 
 async function routeToAvailableAgent(
-  history: ModelMessage[]
+  history: ModelMessage[],
+  options: { system: string; tools?: ToolSet }
 ): Promise<{ result: StreamResult; agentLabel: string; modelId: string }> {
   const failures: string[] = [];
 
@@ -221,10 +237,17 @@ async function routeToAvailableAgent(
       try {
         const result = streamText({
           model: model(modelId),
-          system: SYSTEM_PROMPT,
+          system: options.system,
           messages: history,
           temperature: 0.2,
           maxOutputTokens: 4096,
+          // MCP LOCAL (aditivo): injeta as ferramentas. Se o modelo não as
+          // acionar, o fluxo de texto normal permanece intacto.
+          tools: options.tools,
+          // Habilita multi-step: permite ao modelo executar tools e, em
+          // seguida, gerar a resposta final usando o resultado delas.
+          // Sem tool calls, `stopWhen` não altera o comportamento padrão.
+          stopWhen: isStepCount(5),
           // Erros de streaming que ocorrem DEPOIS do retorno da Response são
           // logados no servidor para troubleshooting.
           onError({ error }) {
@@ -308,7 +331,22 @@ export async function POST(req: Request) {
       }
     }
 
-    const { result } = await routeToAvailableAgent(history);
+    // MCP LOCAL (aditivo) — Resolve a autenticação EAGERLY (antes do streaming)
+    // e injeta as ferramentas via adaptador. Se o modelo não acionar nenhuma
+    // tool, o fluxo de resposta em texto normal permanece 100% intacto.
+    let authContext: AuthContext | null = null;
+    try {
+      authContext = await getAuthService().getUser();
+    } catch {
+      authContext = null;
+    }
+    const mcpTools = createCopilotTools(authContext);
+    const systemWithTools = `${SYSTEM_PROMPT}\n\n${MCP_TOOLS_GUIDANCE}`;
+
+    const { result } = await routeToAvailableAgent(history, {
+      system: systemWithTools,
+      tools: mcpTools,
+    });
 
     // Retorna a resposta em streaming no formato consumido pelo useChat.
     return result.toUIMessageStreamResponse();
