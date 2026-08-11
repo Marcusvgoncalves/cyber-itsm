@@ -124,13 +124,12 @@ const createKanbanTicket = defineTool({
   name: 'create_kanban_ticket',
   title: 'Abrir Chamado no Kanban',
   description: [
-    'Cria um novo chamado. O campo Épico é obrigatório. Se o usuário não informar o Épico,',
-    'NÃO execute esta ferramenta. Em vez disso, use a ferramenta \'list_active_epics\' para buscar',
-    'as opções disponíveis no sistema, apresente-as ao usuário no chat e pergunte qual ele deseja',
-    'selecionar antes de prosseguir.',
-    'Requer o título, a severidade (LOW, MEDIUM, HIGH ou CRITICAL) e o epic_id (Épico Pai ativo).',
-    'Use o argumento "requirement_code" quando a falha estiver associada a um requisito',
-    'da Base de Conhecimento (ex.: VIVO.SEGURA.CRIP.01) para enriquecer o chamado.',
+    'Cria um novo chamado. ATENÇÃO: O parâmetro epic_id é OBRIGATÓRIO e DEVE SER UM UUID VÁLIDO.',
+    'REGRA CRÍTICA: Você ESTÁ PROIBIDO de \'adivinhar\' um Épico ou escolher um sozinho.',
+    'Se o usuário pedir para criar um chamado e não disser explicitamente o nome de qual Épico',
+    'ele quer usar, VOCÊ NÃO PODE CHAMAR ESTA FERRAMENTA. Você tem a obrigação de abortar a criação,',
+    'rodar a ferramenta \'list_active_epics\', mostrar a lista pro usuário no chat e dizer:',
+    '\'Em qual destes Épicos devo vincular?\'. Só chame o \'create_kanban_ticket\' DEPOIS que ele responder.',
   ].join(' '),
   inputSchema: z.object({
     title: z
@@ -147,10 +146,8 @@ const createKanbanTicket = defineTool({
       .enum(SEVERITY_ENUM)
       .describe('Severidade do problema: LOW, MEDIUM, HIGH ou CRITICAL.'),
     epic_id: z
-      .string()
-      .min(1)
-      .max(64)
-      .describe('ID (UUID) do Épico Pai ativo no Kanban. Use a ferramenta "list_active_epics" para obter as opções disponíveis.'),
+      .uuid('O parâmetro epic_id é obrigatório e deve ser um UUID válido.')
+      .describe('ID (UUID) do Épico Pai ativo no Kanban. Obrigatório. Obtenha SEMPRE via "list_active_epics" — nunca adivinhe ou invente o ID.'),
     requirement_code: z
       .string()
       .max(64)
