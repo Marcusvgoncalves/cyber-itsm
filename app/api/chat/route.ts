@@ -1,37 +1,29 @@
 import { streamText, isStepCount, type LanguageModel, type ModelMessage, type ToolSet } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createOpenAI } from '@ai-sdk/openai';
-import { createCohere } from '@ai-sdk/cohere';
 import requisitos from '../../../requisitos-sd.json';
 import { getAuthService } from '@/lib/auth/authService';
 import type { AuthContext } from '@/lib/auth/types';
 import { createCopilotTools } from '@/lib/mcp/adapter';
 
 // ============================================================================
-// COPILOTO DE IA GLOBAL — ESTEIRA MULTIAGENTE 100% GRATUITA (Zero Downtime).
+// COPILOTO DE IA GLOBAL — ESTEIRA MULTIAGENTE ENXUTA (Zero Downtime).
 //
 // Pipeline: useChat (@ai-sdk/react) → POST /api/chat → ROTEADOR DE AGENTES.
 //
-// Prioridade de execução (CUSTO ZERO):
-//   1. SambaNova  → Meta-Llama-3.3-70B-Instruct (PRIMÁRIO — alta capacidade Free)
-//   2. Cohere     → command-r-08-2024           (Alta capacidade Free)
-//   3. Google     → gemini-2.5-flash            (Contingência — bypass de cota do Groq/TPD)
-//   4. Groq       → llama-3.1-8b-instant        (Velocidade & Resposta Rápida)
-//   5. OpenRouter → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
-//                    deepseek/deepseek-chat:free
-//                    meta-llama/llama-3.3-70b-instruct:free
-//                    google/gemini-2.0-flash-exp:free
+// Prioridade de execução:
+//   1. SambaNova  → Meta-Llama-3.3-70B-Instruct (Primário — alta capacidade Free)
+//   2. SambaNova  → Meta-Llama-3.1-8B-Instruct  (Secundário — Free)
+//   3. OpenRouter → deepseek/deepseek-chat      (Fallback Pago 1)
+//   4. OpenRouter → anthropic/claude-3-5-haiku-20241022 (Fallback Pago 2)
 //
 // Se um provedor gratuito atingir o limite de requisições (429), o roteador
 // chaveia automaticamente para o próximo agente em milissegundos (try/catch
 // encadeado com disparo EAGER da requisição via `result.response`).
 //
 // Tokens lidos ESTRITAMENTE do ambiente do processo (nunca fixados no código):
-//   process.env.GROQ_API_KEY
+//   process.env.SAMBANOVA_API_KEY
 //   process.env.OPENROUTER_API_KEY
-//   process.env.GEMINI_API_KEY (ou GOOGLE_GENERATIVE_AI_API_KEY)
 // ============================================================================
 
 // Lê a primeira chave de API válida dentre os nomes fornecidos. Retorna null se
@@ -50,18 +42,8 @@ function resolveApiKey(names: string[]): string | null {
 // Normaliza a assinatura dos provedores para permitir chamada uniforme no loop.
 type ModelFactory = (apiKey: string) => (modelId: string) => LanguageModel;
 
-const GROQ: ModelFactory = (apiKey) => {
-  const provider = createGroq({ apiKey });
-  return (modelId) => provider(modelId);
-};
-
 const OPENROUTER: ModelFactory = (apiKey) => {
   const provider = createOpenRouter({ apiKey });
-  return (modelId) => provider(modelId);
-};
-
-const GOOGLE: ModelFactory = (apiKey) => {
-  const provider = createGoogleGenerativeAI({ apiKey });
   return (modelId) => provider(modelId);
 };
 
@@ -74,12 +56,6 @@ const SAMBANOVA: ModelFactory = (apiKey) => {
   return (modelId) => provider(modelId);
 };
 
-// Cohere — modelo gratuito de alta capacidade.
-const COHERE: ModelFactory = (apiKey) => {
-  const provider = createCohere({ apiKey });
-  return (modelId) => provider(modelId);
-};
-
 interface AgentConfig {
   id: string;
   label: string;
@@ -88,49 +64,38 @@ interface AgentConfig {
   createModel: ModelFactory;
 }
 
-// Esteira de agentes em ordem de prioridade (100% gratuita).
+// Esteira enxuta de agentes em ordem de prioridade.
 const AGENTS: AgentConfig[] = [
-  // ── 1ª Prioridade — Gratuito (Alta Capacidade / SambaNova Free) ────────────
+  // ── 1º Tier — Gratuito (Primário / Alta Capacidade) ────────────────────────
   {
-    id: 'sambanova-llama-70b',
+    id: 'sambanova-70b',
     label: 'SambaNova (Meta Llama 3.3 70B Instruct)',
     envKeys: ['SAMBANOVA_API_KEY'],
     modelIds: ['Meta-Llama-3.3-70B-Instruct'],
     createModel: SAMBANOVA,
   },
-  // ── 2ª Prioridade — Gratuito (Alta Capacidade / Cohere) ────────────────────
+  // ── 2º Tier — Gratuito (Secundário / Modelo Rápido) ────────────────────────
   {
-    id: 'cohere-command-r',
-    label: 'Cohere (Command R 08-2024)',
-    envKeys: ['COHERE_API_KEY'],
-    modelIds: ['command-r-08-2024'],
-    createModel: COHERE,
+    id: 'sambanova-8b',
+    label: 'SambaNova (Meta Llama 3.1 8B Instruct)',
+    envKeys: ['SAMBANOVA_API_KEY'],
+    modelIds: ['Meta-Llama-3.1-8B-Instruct'],
+    createModel: SAMBANOVA,
   },
-  // ── 3ª Prioridade em diante — agentes atuais preservados ───────────────────
+  // ── 3º Tier — PAGO (Fallback 1 / OpenRouter) ───────────────────────────────
   {
-    id: 'google',
-    label: 'Google (Gemini 2.5 Flash)',
-    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
-    modelIds: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest'],
-    createModel: GOOGLE,
-  },
-  {
-    id: 'groq',
-    label: 'Groq (Llama 3.1 8B / 3.3 70B)',
-    envKeys: ['GROQ_API_KEY'],
-    modelIds: ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
-    createModel: GROQ,
-  },
-  {
-    id: 'openrouter',
-    label: 'OpenRouter (DeepSeek / Llama)',
+    id: 'openrouter-deepseek',
+    label: 'OpenRouter (DeepSeek V3)',
     envKeys: ['OPENROUTER_API_KEY'],
-    modelIds: [
-      'deepseek/deepseek-r1:free',
-      'deepseek/deepseek-chat:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'google/gemini-2.0-flash-exp:free',
-    ],
+    modelIds: ['deepseek/deepseek-chat'],
+    createModel: OPENROUTER,
+  },
+  // ── 4º Tier — PAGO (Fallback 2 / OpenRouter) ───────────────────────────────
+  {
+    id: 'openrouter-claude',
+    label: 'OpenRouter (Claude 3.5 Haiku)',
+    envKeys: ['OPENROUTER_API_KEY'],
+    modelIds: ['anthropic/claude-3-5-haiku-20241022'],
     createModel: OPENROUTER,
   },
 ];
@@ -141,7 +106,8 @@ const AGENTS: AgentConfig[] = [
 const SYSTEM_PROMPT = `Você é o Copiloto de IA Global da plataforma CyberITSM, um Especialista Sênior em AppSec e DevSecOps.
 ATENÇÃO: Você DEVE atuar ESTRITAMENTE dentro de contextos de segurança cibernética, tratamento de chamados (tickets), frameworks de mercado (NIST, CIS, OWASP) e processos de Security QA. Recuse educadamente qualquer pergunta fora deste escopo.
 REGRA DE MODELAGEM DE AMEAÇAS E REQUISITOS: Ao analisar incidentes, código ou arquiteturas (STRIDE, MITRE), responda EXCLUSIVAMENTE em tópicos curtos (bullet points) conectando o vetor de ataque e o plano técnico de mitigação. Seja muito rápido, direto, e nunca utilize tabelas.
-DIRETRIZ DE KANBAN: Você tem acesso a ferramentas de Kanban. Se o usuário pedir para criar um chamado de segurança e não informar o Épico (que é obrigatório), VOCÊ É PROIBIDO de perguntar cegamente. Você DEVE obrigatoriamente chamar a ferramenta 'list_active_epics' primeiro, ler os épicos disponíveis no sistema, e então listá-los no chat perguntando ao usuário qual ele prefere.`;
+DIRETRIZ DE KANBAN: Você tem acesso a ferramentas de Kanban. Se o usuário pedir para criar um chamado de segurança e não informar o Épico (que é obrigatório), VOCÊ É PROIBIDO de perguntar cegamente. Você DEVE obrigatoriamente chamar a ferramenta 'list_active_epics' primeiro, ler os épicos disponíveis no sistema, e então listá-los no chat perguntando ao usuário qual ele prefere.
+DIRETRIZ CRÍTICA DE ECONOMIA DE TOKENS: Você deve operar em modo de compressão de contexto. Elimine saudações, cordialidades, introduções e conclusões. Vá direto ao ponto. Ao gerar atividades, análises ou tarefas, seja estritamente objetivo. Nunca explique o que vai fazer, apenas entregue o artefato ou chame a tool correspondente.`;
 
 // ============================================================================
 // MCP LOCAL — Bloco de orientação para as ferramentas (aditivo).
@@ -154,6 +120,7 @@ const MCP_TOOLS_GUIDANCE = `VOCÊ POSSUI FERRAMENTAS MCP LOCAIS (Model Context P
 - create_kanban_ticket: abrir um chamado no Kanban. Parâmetros: title (título), description (descrição), severity (LOW, MEDIUM, HIGH ou CRITICAL), epic_id (ID do Épico Pai, OBRIGATÓRIO) e, opcionalmente, requirement_code (código do requisito da Base de Conhecimento, ex.: CYBER.SEGURA.CRIP.01).
 - move_kanban_card: alterar o status de um card existente. Parâmetros: ticket_id (ID do chamado) e status (ABERTO, EM_ANDAMENTO, BLOQUEADO, FECHADO ou CANCELADO).
 - search_knowledge_base: buscar requisitos na Base de Conhecimento para fundamentar respostas com contexto normativo (NIST, CIS, OWASP).
+- generate_security_assessment: gerar um PARECER de arquitetura e modelagem de ameaças (STRIDE). DEVE ser chamada quando o usuário pedir um parecer, relatório ou modelagem de projeto. Use search_knowledge_base antes para obter os códigos de requisitos, monte o structured content (project_context, threats[], requirements[], executive_summary) e passe para a ferramenta — o resultado é entregue em Markdown para download.
 Se o usuário apenas fizer perguntas, análises ou consultas SEM pedir para abrir/mover/alterar nada, responda em texto normal SEM acionar ferramentas. Antes de executar create_kanban_ticket, confirme com o usuário quando faltar informação essencial (ex.: severidade ou título). SE FALTAR O ÉPICO, NUNCA pergunte cegamente: chame 'list_active_epics' primeiro e apresente as opções (DIRETRIZ DE KANBAN).`;
 
 interface Requisito {
@@ -318,7 +285,7 @@ async function routeToAvailableAgent(
   throw new Error(
     failures.length > 0
       ? failures.join(' | ')
-      : 'Nenhum agente de IA configurado. Defina GROQ_API_KEY, OPENROUTER_API_KEY ou GEMINI_API_KEY.'
+      : 'Nenhum agente de IA configurado. Defina SAMBANOVA_API_KEY ou OPENROUTER_API_KEY.'
   );
 }
 

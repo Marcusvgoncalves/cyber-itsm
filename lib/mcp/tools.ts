@@ -470,13 +470,13 @@ const searchKnowledgeBaseTool = defineTool({
       .number()
       .int()
       .min(1)
-      .max(10)
+      .max(3)
       .optional()
-      .describe('Quantidade de resultados desejada (padrão 5).'),
+      .describe('Quantidade máxima de resultados (Top-K: 1 a 3, padrão 3).'),
   }),
   async execute(args) {
     try {
-      const results = await searchKnowledgeBase(args.query, args.limit ?? 5);
+      const results = await searchKnowledgeBase(args.query, args.limit ?? 3);
 
       if (results.length === 0) {
         return errorResult(
@@ -488,7 +488,7 @@ const searchKnowledgeBaseTool = defineTool({
         `Resultados da Base de Conhecimento para "${args.query}" (${results.length}):`,
         ...results.map(
           (r, i) =>
-            `${i + 1}. [${r.id ?? 'S/ID'}] ${r.controle ?? ''} — Criticidade: ${r.criticidade ?? 'N/A'} | Categoria: ${r.categoria ?? r.componente ?? 'N/A'} | OWASP: ${r.owasp ?? 'N/A'}`,
+            `${i + 1}. [${r.requirement_code ?? 'S/ID'}] ${r.content ?? ''}`,
         ),
       ].join('\n');
 
@@ -501,6 +501,95 @@ const searchKnowledgeBaseTool = defineTool({
       console.error('[MCP] Falha na busca da Base de Conhecimento:', err);
       return errorResult('Não foi possível consultar a Base de Conhecimento neste momento. Tente novamente.');
     }
+  },
+});
+
+/**
+ * Ferramenta `generate_security_assessment`
+ * Gera um parecer de arquitetura e modelagem de ameaças (STRIDE) em Markdown.
+ * O modelo coleta ameaças/requisitos (via search_knowledge_base) e entrega a
+ * estrutura; a ferramenta devolve o artefato final para download no chat.
+ */
+const generateSecurityAssessment = defineTool({
+  name: 'generate_security_assessment',
+  title: 'Parecer de Arquitetura e Modelagem de Ameaças',
+  description: [
+    'Analisa a documentação ou descrição de um projeto, realiza modelagem de ameaças',
+    '(metodologia STRIDE) e lista os requisitos de segurança exigidos.',
+    'DEVE ser chamada quando o usuário pedir um parecer, relatório ou modelagem de projeto.',
+  ].join(' '),
+  inputSchema: z.object({
+    project_context: z
+      .string()
+      .min(10, 'Forneça o contexto do projeto (descrição da arquitetura) com ao menos 10 caracteres.')
+      .max(8000)
+      .describe('Descrição do projeto/arquitetura analisada (componentes, fluxos, fronteiras de confiança).'),
+    threats: z
+      .array(
+        z.object({
+          title: z.string().min(1).max(200).describe('Título curto da ameaça identificada.'),
+          description: z.string().min(1).max(2000).describe('Descrição da ameaça e do vetor de ataque.'),
+          stride_category: z
+            .enum([
+              'SPOOFING',
+              'TAMPERING',
+              'REPUDIATION',
+              'INFORMATION_DISCLOSURE',
+              'DENIAL_OF_SERVICE',
+              'ELEVATION_OF_PRIVILEGE',
+            ])
+            .describe('Categoria STRIDE da ameaça.'),
+          severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).describe('Severidade da ameaça.'),
+        }),
+      )
+      .min(1, 'Informe ao menos uma ameaça identificada.')
+      .max(50),
+    requirements: z
+      .array(z.string().min(1).max(64))
+      .min(1, 'Liste ao menos um código de requisito de segurança.')
+      .max(50)
+      .describe('Códigos dos requisitos da Base de Conhecimento (ex.: CYBER.SEGURA.CRIP.01).'),
+    executive_summary: z
+      .string()
+      .min(10)
+      .max(4000)
+      .describe('Resumo executivo do parecer (postura de segurança e prioridades).'),
+  }),
+  async execute(args) {
+    const markdown = [
+      '# Parecer de Arquitetura e Modelagem de Ameaças',
+      '',
+      '## Resumo Executivo',
+      args.executive_summary,
+      '',
+      '## Contexto do Projeto',
+      args.project_context,
+      '',
+      '## Modelagem de Ameaças (STRIDE)',
+      '',
+      ...args.threats.map((t, i) => [
+        `### ${i + 1}. ${t.title}`,
+        '',
+        `- **Categoria STRIDE:** ${t.stride_category.replace(/_/g, ' ').toLowerCase()}`,
+        `- **Severidade:** ${t.severity}`,
+        `- **Descrição:** ${t.description}`,
+        '',
+      ]),
+      '## Requisitos de Segurança Exigidos',
+      '',
+      ...args.requirements.map((r) => `- \`${r}\``),
+    ]
+      .flat()
+      .join('\n');
+
+    return successResult(markdown, {
+      success: true,
+      markdown,
+      counts: {
+        threats: args.threats.length,
+        requirements: args.requirements.length,
+      },
+    });
   },
 });
 
@@ -567,4 +656,5 @@ export const mcpToolsRegistry: McpToolDefinition[] = [
   createKanbanTicket,
   moveKanbanCard,
   searchKnowledgeBaseTool,
+  generateSecurityAssessment,
 ];

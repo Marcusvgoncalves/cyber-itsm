@@ -55,12 +55,12 @@ function tokenize(text: string): string[] {
 }
 
 /**
- * Busca léxica ponderada sobre a matriz de requisitos.
+ * Busca léxica ponderada sobre a matriz de requisitos (Top-K = 3).
  * Relevância: código/controle/componente/framework > detalhamento > criticidade.
  */
 export function searchRequirementMatrix(
   query: string,
-  limit = 6,
+  limit = 3,
   context = '',
 ): Requirement[] {
   const queryTokens = [...tokenize(query), ...tokenize(context)];
@@ -107,31 +107,23 @@ export function formatRequirement(req: Requirement): string {
 }
 
 export interface KnowledgeSearchResult {
-  id: string | null;
-  controle: string | null;
-  detalhamento: string | null;
-  componente: string | null;
-  propriedade: string | null;
-  categoria: string | null;
-  criticidade: string | null;
-  owasp: string | null;
-  strideLM: string | null;
-  riscos: string | null;
+  /** Código do requisito (ex.: CYBER.SEGURA.CRIP.01) ou ID do artigo. */
+  requirement_code: string | null;
+  /** Texto essencial — payload mínimo para o contexto do LLM. */
+  content: string | null;
 }
 
-/** Serializa um requisito para o payload estruturado retornado ao agente. */
+/** Serializa um requisito para o payload comprimido retornado ao agente. */
 function toSearchResult(req: Requirement): KnowledgeSearchResult {
+  const id = req.id ?? 'S/ID';
+  const controle = req.controle ?? '';
+  const detalhamento = req.detalhamento ?? '';
+  const content = detalhamento
+    ? `[${id}] ${controle} — ${detalhamento}`
+    : `[${id}] ${controle}`;
   return {
-    id: req.id,
-    controle: req.controle,
-    detalhamento: req.detalhamento,
-    componente: req.componente,
-    propriedade: req.propriedade,
-    categoria: req.categoria,
-    criticidade: req.criticidade,
-    owasp: req.owasp,
-    strideLM: req.strideLM,
-    riscos: req.riscos,
+    requirement_code: req.id,
+    content: content.slice(0, 300),
   };
 }
 
@@ -139,6 +131,9 @@ function toSearchResult(req: Requirement): KnowledgeSearchResult {
  * Camada vetorial opcional (pgvector). Exige `MCP_RAG_USE_PGVECTOR=1` e chave
  * Gemini configurada. Falhas são capturadas e retornam `[]` — a camada
  * determinística assume o controle.
+ *
+ * ASSERTIVIDADE: Top-K ≤ 3 chunks e corte de similaridade de cosseno > 0.78
+ * (distância `<=>` < 0.22) — apenas "Strong Matches" chegam ao LLM.
  */
 async function searchPgvector(
   query: string,
@@ -161,27 +156,19 @@ async function searchPgvector(
     });
 
     const vectorLiteral = `[${embedding.join(',')}]`;
-    const rows = await prisma.$queryRaw<Array<{ id: string; title: string; source: string; content: string }>>`
-      SELECT id, title, source, content
+    const rows = await prisma.$queryRaw<Array<{ id: string; content: string }>>`
+      SELECT id, content
         FROM knowledge_articles
        WHERE embedding IS NOT NULL
+         AND embedding <=> ${vectorLiteral}::vector < 0.22
        ORDER BY embedding <=> ${vectorLiteral}::vector
-       LIMIT ${Math.min(limit, 2)}
+       LIMIT ${Math.min(limit, 3)}
     `;
 
+    // PODA DE TOKENS — apenas requirement_code + content (sem metadados longos).
     return rows.map((row) => ({
-      id: row.id,
-      controle: row.title,
-      // PODA DE TOKENS — máximo 400 caracteres por artigo para não inflar o
-      // payload e causar HTTP 413 (TPM Limit) nos provedores gratuitos.
-      detalhamento: row.content.slice(0, 400),
-      componente: row.source,
-      propriedade: null,
-      categoria: null,
-      criticidade: null,
-      owasp: null,
-      strideLM: null,
-      riscos: null,
+      requirement_code: row.id,
+      content: row.content.slice(0, 300),
     }));
   } catch (err) {
     console.warn('[MCP RAG] Camada pgvector indisponível — degradando para matriz local:', err);
@@ -190,22 +177,23 @@ async function searchPgvector(
 }
 
 /**
- * Busca unificada na Base de Conhecimento.
+ * Busca unificada na Base de Conhecimento (alta assertividade).
  * Sempre retorna a camada determinística; adiciona a vetorial apenas se ativa.
+ * Limite global de resultados: no máximo 3 chunks para baixo consumo de tokens.
  */
 export async function searchKnowledgeBase(
   query: string,
-  limit = 5,
+  limit = 3,
 ): Promise<KnowledgeSearchResult[]> {
-  const safeLimit = Math.max(1, Math.min(10, limit));
+  const safeLimit = Math.max(1, Math.min(3, limit));
   const lexical = searchRequirementMatrix(query, safeLimit);
   const results = lexical.map(toSearchResult);
 
   if (process.env.MCP_RAG_USE_PGVECTOR === '1') {
     const vector = await searchPgvector(query, safeLimit);
     if (vector.length > 0) {
-      const seen = new Set(results.map((r) => r.id ?? r.controle));
-      return [...vector.filter((v) => !seen.has(v.id ?? v.controle)), ...results].slice(0, safeLimit);
+      const seen = new Set(results.map((r) => r.requirement_code));
+      return [...vector.filter((v) => !seen.has(v.requirement_code)), ...results].slice(0, safeLimit);
     }
   }
 

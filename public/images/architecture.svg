@@ -117,7 +117,7 @@
     <g transform="translate(890,50)">
       <rect width="290" height="90" rx="8" fill="#f0fdf4" stroke="#bbf7d0" />
       <text x="12" y="22" font-family="'Outfit',sans-serif" font-size="12" font-weight="bold" fill="#16a34a">Base de Conhecimento SD v4.1</text>
-      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Catálogo interativo dos 314 requisitos</text>
+      <text x="12" y="42" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Catálogo dos 314 requisitos CYBER.SEGURA.*</text>
       <text x="12" y="58" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Mapeamentos NIST, CIS, OWASP, STRIDE</text>
       <text x="12" y="74" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• Base Vetorial (pgvector / gemini-embedding-2)</text>
     </g>

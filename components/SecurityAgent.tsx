@@ -98,6 +98,45 @@ function getMessageText(message: { parts: Array<{ type: string; text?: string }>
   return textPart?.text ?? "";
 }
 
+/**
+ * Intercepta as `toolInvocations` da mensagem. Quando a tool
+ * `generate_security_assessment` estiver com status de sucesso
+ * (state 'output-available'), devolve o Markdown do parecer — usado para
+ * renderizar o botão de download em vez do JSON bruto na tela.
+ */
+function extractAssessmentMarkdown(message: {
+  parts?: Array<{ type?: string; state?: string; output?: unknown }>;
+}): string | null {
+  if (!Array.isArray(message?.parts)) return null;
+
+  for (const part of message.parts) {
+    if (
+      part?.type === "tool-generate_security_assessment" &&
+      part.state === "output-available"
+    ) {
+      const output = part.output as { markdown?: string } | null | undefined;
+      if (output && typeof output.markdown === "string" && output.markdown.trim() !== "") {
+        return output.markdown;
+      }
+    }
+  }
+
+  return null;
+}
+
+/** Dispara o download nativo no navegador de um conteúdo Markdown (.md). */
+function downloadMarkdown(markdown: string, filename = "parecer-seguranca.md") {
+  const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // Estilo dos elementos markdown renderizados pelo Copiloto.
 const MARKDOWN_COMPONENTS = {
   ul: ({ children }: { children?: React.ReactNode }) => (
@@ -298,6 +337,7 @@ export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onActi
         ) : (
           messages.map((msg, idx) => {
             const isLastAssistant = idx === messages.length - 1 && msg.role === "assistant";
+            const assessmentMarkdown = extractAssessmentMarkdown(msg);
             return (
               <div key={msg.id}>
                 <div
@@ -339,6 +379,21 @@ export function SecurityAgent({ ticketData, isOpen, onClose, currentUser, onActi
                   </div>
                   </div>
                 </div>
+
+                {/* Parecer de Arquitetura — botão de download (.md) em vez do JSON */}
+                {assessmentMarkdown && (
+                  <div className="ml-10 mt-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadMarkdown(assessmentMarkdown)}
+                      className="gap-1.5 rounded-full border-gray-300 text-xs"
+                    >
+                      📥 Baixar Parecer de Segurança (.md)
+                    </Button>
+                  </div>
+                )}
 
                 {/* Botões de ação + follow-ups do modo guia */}
                 {isLastAssistant && (isGuideMode || followUps.length > 0) && !isLoading && (
