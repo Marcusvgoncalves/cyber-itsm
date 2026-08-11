@@ -155,6 +155,9 @@
       <text x="12" y="188" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#0891b2">Matriz RBAC/SoD (rbac.ts)</text>
       <text x="12" y="206" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 3 perfis: ADMIN, USUARIO, SOLICITANTE</text>
       <text x="12" y="222" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 8 permissões granulares com SoD check</text>
+      <text x="12" y="242" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#16a34a">MCP Local · Copiloto (in-process)</text>
+      <text x="12" y="260" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• 5 ferramentas · custo zero (SDK MCP)</text>
+      <text x="12" y="276" font-family="'Outfit',sans-serif" font-size="10" fill="#475569">• incl. generate_security_assessment (parecer STRIDE .md)</text>
     </g>
 
     <!-- Multiagent AI Pipeline -->
@@ -165,31 +168,31 @@
       <!-- Agente 1 -->
       <g transform="translate(16,40)">
         <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
-        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 1: Groq Engine</text>
-        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.3 70B Versatile</text>
-        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.1 8B Instant</text>
-        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Esquema Zod Nativo</text>
-        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Latência ultra-baixa &lt; 2s</text>
+        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 1: SambaNova</text>
+        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Meta-Llama 3.3 70B · Free</text>
+        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Provedor primário do chat</text>
+        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• OpenAI-compatible endpoint</text>
+        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Economia de tokens</text>
       </g>
 
       <!-- Agente 2 -->
       <g transform="translate(200,40)">
         <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
-        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 2: OpenRouter</text>
-        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash Free</text>
-        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Llama 3.3 70B Free</text>
-        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Nvidia Nemotron 70B</text>
-        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Pools alternativos</text>
+        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 2: SambaNova</text>
+        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Meta-Llama 3.1 8B · Free</text>
+        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Secundário speed-first</text>
+        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Baixa latência</text>
+        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Fallback 429 em ms</text>
       </g>
 
       <!-- Agente 3 -->
       <g transform="translate(384,40)">
         <rect width="170" height="245" rx="6" fill="#ffffff" stroke="#818cf8" />
-        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 3: Google Gemini</text>
-        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash</text>
-        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 2.0 Flash-Lite</text>
-        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Gemini 1.5 Flash</text>
-        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Contexto extensivo RAG</text>
+        <text x="10" y="20" font-family="'Outfit',sans-serif" font-size="11" font-weight="bold" fill="#3730a3">Camada 3: OpenRouter</text>
+        <text x="10" y="38" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• DeepSeek V3 · Pago</text>
+        <text x="10" y="52" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Claude 3.5 Haiku · Pago</text>
+        <text x="10" y="66" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Emergência / raciocínio</text>
+        <text x="10" y="80" font-family="'Outfit',sans-serif" font-size="9" fill="#64748b">• Custo mínimo por chamada</text>
       </g>
 
       <!-- Agente 4 -->

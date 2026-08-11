@@ -89,15 +89,16 @@ export function ArchitectureDiagram() {
     ai: {
       title: "Copiloto IA Multiagente & Contingência (Zero Downtime)",
       subtitle: "Esteira de Resiliência Multiagente com RAG & Contexto Global",
-      desc: "Motor de inteligência artificial generativa com roteamento automatizado em cascata de 5 camadas: 1) Google Gemini 2.0 (Flash/Lite) -> 2) OpenAI (GPT-4o Mini) -> 3) OpenRouter Free (DeepSeek/Qwen) -> 4) Groq Engine -> 5) Motor Determinístico de Fallback contextualizado com SystemContext do banco. Integra RAG sobre os 314 requisitos normativos.",
+      desc: "Motor de inteligência artificial generativa com roteamento automatizado em cascata: 1) SambaNova (Meta-Llama 3.3 70B, gratuito) -> 2) SambaNova (Meta-Llama 3.1 8B, gratuito) -> 3) OpenRouter (DeepSeek V3, pago) -> 4) OpenRouter (Claude 3.5 Haiku, pago) -> Motor Determinístico de Fallback contextualizado com SystemContext do banco. Integra RAG sobre os 314 requisitos normativos (Top-K ≤ 3, cosseno > 0.78).",
       details: [
         "Higiene rigorosa e autônoma de contexto a cada login (Clean Memory)",
-        "Roteamento multiagente em 5 camadas para uso 100% gratuito e alta disponibilidade",
-        "OpenAI GPT-4o Mini plugado como contingência ativa de produção",
+        "Roteamento multiagente em camadas (SambaNova → OpenRouter) com economia de tokens e fallback pago apenas em emergência",
+        "OpenRouter (DeepSeek V3 / Claude 3.5 Haiku) como contingência paga de produção",
         "Motor determinístico enriquecido com estatísticas históricas de tickets, projetos e compliance",
         "RAG inteligente consultando o dataset dos 314 requisitos SD v4.1",
+        "Automação ativa via MCP Local (in-process): abrir/mover chamados no Kanban, buscar requisitos e gerar parecer STRIDE (.md) — 5 ferramentas",
       ],
-      tools: ["Google Gemini 2.0", "OpenAI (GPT-4o Mini)", "OpenRouter Free", "Groq Engine", "Deterministic Engine", "Zod", "RAG Engine"],
+      tools: ["SambaNova (Llama 3.3 70B)", "SambaNova (Llama 3.1 8B)", "OpenRouter (DeepSeek V3)", "OpenRouter (Claude 3.5 Haiku)", "MCP Local (5 tools)", "Deterministic Engine", "Zod", "RAG Engine"],
       color: "border-indigo-600 bg-indigo-50/80 text-indigo-800",
       iconBg: "bg-indigo-600 text-white",
     },
@@ -303,7 +304,7 @@ export function ArchitectureDiagram() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-900">Copiloto IA Multiagente</h4>
-                  <p className="text-xs text-gray-500">Groq/OpenRouter/Gemini</p>
+                  <p className="text-xs text-gray-500">SambaNova/OpenRouter</p>
                 </div>
               </div>
             </div>

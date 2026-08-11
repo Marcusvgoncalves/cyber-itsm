@@ -67,8 +67,8 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 - **Cold Storage GZIP & Expurgo**: Comprime os artefatos anexados e relatórios em GZIP (.gz), salvando no Supabase Storage (`qa-logs-archive`) e realizando o expurgo da evidência temporária.
 
 #### 3. 🤖 Copiloto de IA Multiagente & Contingência (Zero Downtime)
-Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis. A recuperação vetorial semântica utiliza a tabela `knowledge_articles` (pgvector), pré-populada pelos embeddings `gemini-embedding-2`.
-- **Automação Ativa via MCP Local (Model Context Protocol)**: O Copiloto **executa ações reais no ITSM** a partir do chat — abrir chamados no Kanban (vinculados a um Épico Pai, campo obrigatório), mover cards (respeitando a máquina de estados e a Matriz SoD) e consultar a Base de Conhecimento — via servidor MCP **in-process** (`lib/mcp/`), 100% aditivo e sem custo. Detalhes em `docs/architecture/MCP_ARCHITECTURE.md` e `docs/functional/MCP_FUNCTIONAL_SPEC.md`.
+Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** sobre os 314 Requisitos. O roteamento em cascata prioriza **SambaNova (Meta-Llama 3.3 70B)** ➔ **SambaNova (Meta-Llama 3.1 8B)** ➔ **OpenRouter (DeepSeek V3)** ➔ **OpenRouter (Claude 3.5 Haiku)**, com **economia de tokens** e fallback pago apenas em emergência. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis. A recuperação vetorial semântica utiliza a tabela `knowledge_articles` (pgvector), pré-populada pelos embeddings `gemini-embedding-2`.
+- **Automação Ativa via MCP Local (Model Context Protocol)**: O Copiloto **executa ações reais no ITSM** a partir do chat — abrir chamados no Kanban (vinculados a um Épico Pai, campo obrigatório), mover cards (respeitando a máquina de estados e a Matriz SoD), consultar a Base de Conhecimento e **gerar parecer de segurança/modelagem de ameaças (STRIDE)** com download `.md` — via servidor MCP **in-process** (`lib/mcp/`), 100% aditivo e sem custo. Detalhes em `docs/architecture/MCP_ARCHITECTURE.md` e `docs/functional/MCP_FUNCTIONAL_SPEC.md`.
 
 #### 4. 🔑 Portal IAM/IGA e Configurações (Reorganizado & UX Aprimorada)
 - **Sub-Navegação por Abas Dinâmicas (`iamSubTab`)**: Interface responsiva e compacta dividida em 4 categorias operacionais que eliminam espaços vazios:
@@ -207,7 +207,7 @@ A resilient fallback pipeline with RAG capabilities over the 314 security requir
 
 - **Framework Core**: Next.js 16.3 (App Router, Turbopack, Edge `proxy.ts`) & React 19
 - **ORM / Database**: Prisma ORM 7.9 (`@prisma/adapter-pg`) + Supabase PostgreSQL 16 com **pgvector**
-- **AI Infrastructure**: Vercel AI SDK 7 (`ai`), Groq, OpenRouter, Google Gemini 2.0, **`gemini-embedding-2`** (embeddings 3072 dims), Zod Schemas
+- **AI Infrastructure**: Vercel AI SDK 7 (`ai`), **SambaNova (primário do chat)**, OpenRouter, Groq, Google Gemini 2.0, **`gemini-embedding-2`** (embeddings 3072 dims), Zod Schemas
 - **UI & Styling**: Tailwind CSS v4, Recharts, Lucide Icons, Radix UI
 - **Storage & PDF**: Supabase Storage (`qa-logs-archive`), `@react-pdf/renderer`
 - **RAG Vetorial**: `knowledge_articles` (pgvector `vector(3072)`), seed `scripts/seed-production-rag.ts` (batch + idempotente + tsx)
@@ -243,6 +243,7 @@ SUPABASE_SERVICE_ROLE_KEY="sua-chave-service-role"
 DATABASE_URL="postgresql://postgres:senha@db.sua-instancia.supabase.co:5432/postgres"
 
 # Provedores de IA (Fallback Multiagente + Embeddings RAG)
+SAMBANOVA_API_KEY="sb-..."
 GROQ_API_KEY="gsk_..."
 OPENROUTER_API_KEY="sk-or-..."
 GEMINI_API_KEY="AIzaSy..."

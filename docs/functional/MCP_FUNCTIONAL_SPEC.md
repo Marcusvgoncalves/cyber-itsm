@@ -23,6 +23,7 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 | Abrir chamado → navegar até o Kanban, preencher formulário | **"Crie um chamado CRITICAL para o requisito X"** → chamado criado na hora |
 | Mover card → arrastar no quadro | **"Mova o chamado XYZ para EM_ANDAMENTO"** → card movido com máquina de estados |
 | Risco do laudo de Security QA → reescrever manualmente no chamado | **Um comando transforma o risco do laudo em chamado enriquecido** |
+| Parecer de segurança → digitar/formatar em outro editor, sem rastreabilidade | **"Gere o parecer de segurança do recurso X"** → modelagem STRIDE + Markdown pronto para download |
 
 ---
 
@@ -34,6 +35,7 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 | `create_kanban_ticket` | Abre um chamado no Kanban com título, descrição, severidade (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`), **Épico Pai obrigatório** e, opcionalmente, o código do requisito da Base de Conhecimento. | "Crie um chamado...", "Abra um ticket para...", "Registre essa falha..." |
 | `move_kanban_card` | Altera o status de um card existente, respeitando a máquina de estados e as permissões de perfil. | "Mova o chamado...", "Passe o card para...", "Atualize o status..." |
 | `search_knowledge_base` | Busca requisitos de segurança na Base de Conhecimento (matriz Segura SD + RAG) para fundamentar respostas. | "Qual requisito cobre...?", "Busque requisitos de criptografia...", "O que o NIST diz sobre..." |
+| `generate_security_assessment` | Gera **parecer de segurança** com modelagem de ameaças **STRIDE** (título, descrição, categoria, severidade), ancorado em códigos de requisitos, e devolve **Markdown** (.md) pronto para download pelo Frontend. | "Gere um parecer de segurança...", "Faça a modelagem de ameaças do recurso X...", "Elabore o parecer de arquitetura..." |
 
 > O Copiloto decide **automaticamente** qual ferramenta acionar com base na intenção da mensagem. Em **nenhuma** situação as ferramentas são acionadas sem intenção explícita — uma pergunta comum segue respondida em texto normal, como sempre.
 >
@@ -90,13 +92,24 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 
 > **Benefício:** a Base de Conhecimento deixa de ser apenas leitura e passa a alimentar ações concretas no ITSM dentro do fluxo conversacional.
 
+### 3.4 Jornada Parecer de Segurança — Modelagem de Ameaças (STRIDE) com Download
+
+**Ator:** Analista SecOps, Arquitetos e Desenvolvedores.
+
+1. O usuário pede: *"Gere um parecer de segurança/modelagem de ameaças para o recurso de autenticação"*.
+2. O Copiloto chama `search_knowledge_base` para ancorar os códigos de requisitos aplicáveis (`requirements[]`).
+3. O modelo estrutura as ameaças em `threats[]` (título, descrição, categoria STRIDE e severidade) e chama `generate_security_assessment` com `project_context`, `requirements[]` e `executive_summary`.
+4. A ferramenta devolve o parecer em **Markdown**; o Frontend intercepta `toolInvocations` e exibe o botão **"📥 Baixar Parecer de Segurança (.md)"** — o JSON bruto não é renderizado.
+
+> **Benefício:** parecer técnico de AppSec com modelagem STRIDE e rastreabilidade normativa, exportável em um clique, sem copiar/colar.
+
 ---
 
 ## 4. Guia de Validação e Homologação
 
 ### 4.1 Pré-requisitos do ambiente
 
-- Copiloto operacional (uma das chaves configuradas: `GROQ_API_KEY`, `OPENROUTER_API_KEY` ou `GEMINI_API_KEY`);
+- Copiloto operacional (chave primária **`SAMBANOVA_API_KEY`** e/ou fallback pago **`OPENROUTER_API_KEY`**; `GEMINI_API_KEY` segue necessária para os embeddings RAG);
 - Sessão autenticada no CyberITSM (as ferramentas exigem login);
 - Acesso ao Kanban (`/dashboard`) para conferir os chamados criados/movidos.
 
@@ -154,6 +167,15 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 1. Digite: *"Crie um chamado CRITICAL no Épico '9dca52f6-0000-0000-0000-000000000000' para a falha X"* (UUID inexistente).
 2. **Esperado:** erro controlado na tool orientando o uso de `list_active_epics` para obter o `epic_id` correto; **nenhum** chamado é criado.
 
+**Cenário 8 — Geração de parecer de segurança (STRIDE) com download**
+
+1. Digite: *"Gere um parecer de segurança/modelagem de ameaças para o recurso de autenticação de APIs"*.
+2. **Esperado:**
+   - O Copiloto aciona `search_knowledge_base` (ancoragem dos requisitos aplicáveis) e depois `generate_security_assessment` com `project_context`, `threats[]` (categoria STRIDE e severidade), `requirements[]` e `executive_summary`;
+   - Na conversa, **em vez do JSON bruto**, é renderizado o botão **"📥 Baixar Parecer de Segurança (.md)"** quando a tool atinge o estado de sucesso (`output-available`);
+   - O clique dispara o **download nativo** do arquivo `.md` com o parecer estruturado (resumo executivo, contexto do projeto, modelagem STRIDE e requisitos exigidos).
+3. **Negativo:** se a tool falhar (ex.: sem `threats` ou sem `executive_summary`), o erro controlado é exibido no chat e **nenhum** `.md` é gerado.
+
 ### 4.3 Matriz de aceite (checklist do analista/investidor)
 
 | # | Critério de aceite | Resultado |
@@ -170,6 +192,7 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 | A10 | Épico ausente → `list_active_epics` é chamado e as opções são apresentadas (DIRETRIZ DE KANBAN) | ☐ |
 | A11 | Épico inválido/inexistente → erro controlado, sem criação de chamado | ☐ |
 | A12 | Nenhuma tela, rota ou funcionalidade pré-existente apresentou regressão | ☐ |
+| A13 | Geração de parecer com modelagem STRIDE e download `.md` pelo botão no chat | ☐ |
 
 ### 4.4 Rollback / Kill Switch (garantia de Risco Zero)
 

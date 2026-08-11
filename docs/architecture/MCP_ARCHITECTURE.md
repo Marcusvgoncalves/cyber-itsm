@@ -30,8 +30,8 @@ flowchart LR
         AR[Agent Router<br/>app/api/chat/route.ts<br/>Esteira Multiagente + Fallback 429]
         AD[lib/mcp/adapter.ts<br/>MCP Client · Vercel AI SDK Bridge<br/>jsonSchema → tool() + closure de auth]
         SRV[lib/mcp/server.ts<br/>MCP Server Local<br/>McpServer · @modelcontextprotocol/sdk]
-        TL[lib/mcp/tools.ts<br/>list_active_epics<br/>create_kanban_ticket<br/>move_kanban_card<br/>search_knowledge_base]
-        KB[lib/mcp/knowledge-base.ts<br/>RAG · matriz 314 requisitos + pgvector opcional]
+        TL[lib/mcp/tools.ts<br/>list_active_epics<br/>create_kanban_ticket<br/>move_kanban_card<br/>search_knowledge_base<br/>generate_security_assessment]
+        KB[lib/mcp/knowledge-base.ts<br/>RAG · matriz 314 requisitos + pgvector<br/>Top-K ≤ 3 · cosine > 0.78 · payload comprimido]
     end
 
     subgraph Dados["Camada de Persistência"]
@@ -59,12 +59,12 @@ Usuário ──▶ Frontend (Next.js) ──▶ Agent Router ──▶ MCP Clien
                                                                  ▼
                                                         MCP Server (Tools Local)
                                                                  │
-                        ┌──────────────────────┬────────────────┼──────────────────────┐
-                        ▼                      ▼                ▼                      ▼
-            list_active_epics        create_kanban_ticket  move_kanban_card  search_knowledge_base
-                        │                      │                │                      │
-                        ▼                      ▼                ▼                      ▼
-                  Prisma (tickets)      Prisma / Supabase   Prisma / Supabase    RAG (pgvector + matriz)
+                        ┌────────────────────────┬──────────────────────┬──────────────────────┬──────────────────────┐
+        ▼                        ▼                      ▼                      ▼                      ▼
+list_active_epics   create_kanban_ticket  move_kanban_card  search_knowledge_base  generate_security_assessment
+        │                        │                      │                      │                      │
+        ▼                        ▼                      ▼                      ▼                      ▼
+  Prisma (tickets)      Prisma / Supabase      Prisma / Supabase   RAG (pgvector + matriz)   Markdown (parecer STRIDE)
 ```
 
 ---
@@ -88,7 +88,8 @@ Instancia o `McpServer` oficial do SDK (`@modelcontextprotocol/sdk/server/mcp.js
 | `list_active_epics` | `limit?` (1–100) | Lista os Épicos Pai ativos (type `EPICO`, status `ABERTO`/`EM_ANDAMENTO`/`BLOQUEADO`) com `id` + `title`. Usada OBRIGATORIAMENTE antes de `create_kanban_ticket` quando o Épico não foi informado | `prisma.ticket.findMany` (lazy) → **PostgreSQL `tickets`** |
 | `create_kanban_ticket` | `title`, `description?`, `severity` (`LOW\|MEDIUM\|HIGH\|CRITICAL`), `epic_id` (**OBRIGATÓRIO**), `requirement_code?` | Abre chamado no Kanban (tipo TAREFA, status ABERTO) **vinculado ao Épico Pai**; valida o Épico (existência + ativo) antes de escrever; enriquece descrição com o requisito quando `requirement_code` informado; mapeia severidade → prioridade (`CRITICAL→critica`) | `createTicket` (Server Action) → **Supabase `tickets`** |
 | `move_kanban_card` | `ticket_id`, `status` (`ABERTO\|EM_ANDAMENTO\|BLOQUEADO\|FECHADO\|CANCELADO`) | Altera status respeitando a máquina de estados e o guardrail de Épicos; aplica Matriz SoD (Solicitante bloqueado) | `updateTicket` (Server Action) → **Supabase `tickets`** |
-| `search_knowledge_base` | `query`, `limit?` (1–10) | Busca requisitos na Base de Conhecimento: camada léxica determinística (matriz 314 requisitos) + camada vetorial pgvector **opt-in** (`MCP_RAG_USE_PGVECTOR=1`) | `lib/mcp/knowledge-base.ts` → **JSON + Prisma `knowledge_articles`** |
+| `search_knowledge_base` | `query`, `limit?` (1–3) | Busca requisitos na Base de Conhecimento: camada léxica determinística (matriz 314 requisitos) + camada vetorial pgvector **opt-in** (`MCP_RAG_USE_PGVECTOR=1`); **Top-K ≤ 3**, similaridade de cosseno **> 0.78** e payload comprimido (`requirement_code` + `content` ≤ 300 chars) | `lib/mcp/knowledge-base.ts` → **JSON + Prisma `knowledge_articles`** |
+| `generate_security_assessment` | `project_context`, `threats[]` (`title`, `description`, `stride_category`, `severity`), `requirements[]`, `executive_summary` | Gera **parecer de segurança** com modelagem de ameaças **STRIDE** e devolve **Markdown** (.md) pronto para download no Frontend | **Sem persistência** — saída Markdown (via `toolInvocations`) |
 
 Todas as ferramentas reutilizam as **Server Actions testadas em produção** (`createTicket`, `updateTicket`), preservando notificações por e-mail, trilha de auditoria (`audit_logs`), validação de domínio e revalidação do Kanban — sem duplicar regra de negócio.
 
@@ -110,9 +111,9 @@ A rota existente do Copiloto é alterada de forma **estritamente aditiva**:
 - `createCopilotTools(authContext)` constrói o `ToolSet` a partir do MCP local;
 - `tools` + `stopWhen: isStepCount(5)` são passados ao `streamText` (multi-step habilitado **apenas quando o modelo invoca tools**; o comportamento de texto normal não muda — `stopWhen` só é avaliado quando há tool results);
 - o `SYSTEM_PROMPT` recebe a **DIRETRIZ DE KANBAN** (workflow enforcement): se o usuário pedir para criar um chamado e não informar o Épico, o modelo é **PROIBIDO** de perguntar cegamente — deve chamar `list_active_epics` primeiro e apresentar as opções;
-- o bloco `MCP_TOOLS_GUIDANCE` expõe as 4 ferramentas, marcando `epic_id` como **OBRIGATÓRIO** em `create_kanban_ticket`;
-- **PODA DE CONTEXTO / TOKEN LIMITING** (evita HTTP 413/TPM nos planos gratuitos): histórico enviado com `messages.slice(-5)`; RAG do chat limitado a **Top 2** com `substring(0, 400)` por requisito; a camada pgvector (`knowledge-base.ts`) também limita a **Top 2** e trunca conteúdo em **400 chars**;
-- **BYPASS DE COTA (temporário):** o provedor primário do roteador aponta para **Google `gemini-2.5-flash`** (contingência ao TPD do Groq); Groq/OpenRouter seguem como fallback;
+- o bloco `MCP_TOOLS_GUIDANCE` expõe as 5 ferramentas, marcando `epic_id` como **OBRIGATÓRIO** em `create_kanban_ticket`;
+- **PODA DE CONTEXTO / TOKEN LIMITING** (evita HTTP 413/TPM nos planos gratuitos): histórico enviado com `messages.slice(-5)`; RAG do chat limitado a **Top-K ≤ 3** com similaridade de cosseno **> 0.78** e payload comprimido (`requirement_code` + `content` ≤ 300 chars por requisito); a camada pgvector (`knowledge-base.ts`) limita a **Top-K ≤ 3** e trunca conteúdo em **300 chars**;
+- **ESTEIRA PRIMÁRIA (chat):** provedor primário **SambaNova** (`Meta-Llama-3.3-70B-Instruct`, gratuitos) ➔ secundário **SambaNova** (`Meta-Llama-3.1-8B-Instruct`) ➔ **OpenRouter** `deepseek/deepseek-chat` (pago) ➔ **OpenRouter** `claude-3-5-haiku` (pago); Groq não é mais usado no chat;
 - nenhuma lógica de RAG, tokenização, fallback de agentes ou formato de streaming existente foi removido/alterado.
 
 ---
@@ -154,7 +155,7 @@ Como as tools delegam às Server Actions de produção, **toda escrita gera tril
 
 ### 5.1 Falha do modelo (provedor / rede)
 
-A esteira multiagente é **encadeada**: Google (`gemini-2.5-flash`) → Groq → OpenRouter, com fallback via `try/catch` e disparo EAGER da requisição (`await result.response`). Em carência de cota do Groq (TPD/429), o Gemini assume como primário. A presença das tools **não interfere** nesse mecanismo — se um provedor falhar, o próximo agente é tentado com as mesmas tools.
+A esteira multiagente é **encadeada**: **SambaNova** (`Meta-Llama-3.3-70B-Instruct`) ➔ **SambaNova** (`Meta-Llama-3.1-8B-Instruct`) ➔ **OpenRouter** (`deepseek/deepseek-chat`, pago) ➔ **OpenRouter** (`claude-3-5-haiku`, pago), com fallback via `try/catch` e disparo EAGER da requisição (`await result.response`). A presença das tools **não interfere** nesse mecanismo — se um provedor falhar, o próximo agente é tentado com as mesmas tools.
 
 ### 5.2 Falha ou cancelamento da tool call
 
@@ -191,13 +192,13 @@ Todo o barramento MCP é **aditivo**: se qualquer ferramenta falhar, a exceção
 ```
 lib/mcp/
 ├── types.ts            # Contratos compartilhados (McpToolDefinition, McpToolResult, McpExecutionContext)
-├── knowledge-base.ts   # RAG: matriz de 314 requisitos + pgvector opt-in (Top 2 / 400 chars)
-├── tools.ts            # Implementação das 4 ferramentas do ITSM (Zod + RBAC + Server Actions)
+├── knowledge-base.ts   # RAG: matriz de 314 requisitos + pgvector opt-in (Top-K ≤ 3 / 300 chars / cutoff 0.78)
+├── tools.ts            # Implementação das 5 ferramentas do ITSM (Zod + RBAC + Server Actions)
 ├── server.ts           # MCP Server local in-process (@modelcontextprotocol/sdk) + stdio opcional
 └── adapter.ts          # Bridge MCP → Vercel AI SDK (jsonSchema → tool() + closure de auth)
 
 app/api/chat/route.ts   # Injeção aditiva (import + tools + stopWhen + DIRETRIZ DE KANBAN + poda de contexto)
-lib/llm/agent-router.ts # Roteador do llm-proxy — Google gemini-2.5-flash como primário (bypass de cota)
+lib/llm/agent-router.ts # Roteador do llm-proxy + chat — SambaNova (Llama 70B/8B) primário, OpenRouter (DeepSeek/Claude) pago
 scripts/sync-ticket-type-enum.sql  # Migração cirúrgica (enum TicketType) — idempotente, não destrutiva
 ```
 
