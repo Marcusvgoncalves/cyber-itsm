@@ -17,6 +17,7 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@ai-sdk/cohere": "^4.0.26",
     "@ai-sdk/google": "^4.0.37",
     "@ai-sdk/groq": "^4.0.24",
     "@ai-sdk/openai": "^4.0.29",

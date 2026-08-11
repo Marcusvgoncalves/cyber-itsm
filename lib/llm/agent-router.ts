@@ -2,6 +2,8 @@ import { generateText, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAI } from '@ai-sdk/openai';
+import { cohere } from '@ai-sdk/cohere';
 
 // ============================================================================
 // ROTEADOR MULTIAGENTE — Estratégia HÍBRIDA STRICT (Free-First com Fallback
@@ -9,7 +11,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 //
 // DIRETRIZ DE CUSTO ZERO:
 //   - 100% das requisições devem ser consumidas por provedores GRATUITOS
-//     (Groq e Google Gemini).
+//     (Groq, Google Gemini, SambaNova e Cohere).
 //   - O saldo do OpenRouter (DeepSeek V3 / Claude) SÓ é acionado quando TODOS
 //     os modelos gratuitos falharem (rate limits, HTTP 429, HTTP 413 ou
 //     indisponibilidade). Tiers pagos disparam WARNING no log do servidor.
@@ -18,12 +20,28 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 //   1. Gratuito (Prioridade Máxima)   → groq('llama-3.3-70b-versatile')
 //   2. Gratuito (Modelo Rápido)       → groq('llama-3.1-8b-instant')
 //   3. Gratuito (Contingência)        → google('gemini-2.0-flash')
-//   4. PAGO (Emergência / OpenRouter) → openrouter('deepseek/deepseek-chat')            [DeepSeek V3]
-//   5. PAGO (Último Recurso MCP)      → openrouter('anthropic/claude-3-5-haiku-20241022') [Claude 3.5 Haiku]
+//   4. Gratuito (Alta Capacidade)     → sambanova('Meta-Llama-3.3-70B-Instruct')         [SambaNova Free]
+//   5. Gratuito (Alta Capacidade)     → cohere('command-r-08-2024')                      [Cohere]
+//   6. PAGO (Emergência / OpenRouter) → openrouter('deepseek/deepseek-chat')            [DeepSeek V3]
+//   7. PAGO (Último Recurso MCP)      → openrouter('anthropic/claude-3-5-haiku-20241022') [Claude 3.5 Haiku]
 //
 // Se um agente falhar (ex.: 429/413/timeout), o próximo tier é tentado
 // imediatamente (cascata com try/catch).
 // ============================================================================
+
+// ============================================================================
+// NOVOS PROVEDORES GRATUITOS DE ALTA CAPACIDADE
+// (alívio do gargalo de Rate Limit diário do Groq — ADITIVO, nada é removido)
+// ============================================================================
+
+/** Instância customizada para o Free Tier da SambaNova (API compatível com OpenAI). */
+const sambanova = createOpenAI({
+  baseURL: 'https://api.sambanova.ai/v1',
+  apiKey: process.env.SAMBANOVA_API_KEY,
+});
+
+// Cohere: o export `cohere` do `@ai-sdk/cohere` JÁ é a instância do provedor
+// (lê process.env.COHERE_API_KEY automaticamente) — nenhuma instância extra.
 
 function resolveApiKey(names: string[]): string | null {
   for (const name of names) {
@@ -70,7 +88,23 @@ const AGENTS: AgentConfig[] = [
     createModel: (apiKey) => (modelId) => createGoogleGenerativeAI({ apiKey })(modelId),
     temperature: 0.7,
   },
-  // ── 4ª Tentativa — PAGO (Emergência / OpenRouter) ──────────────────────────
+  // ── 4ª Tentativa — Gratuito (Alta Capacidade / SambaNova Free) ─────────────
+  {
+    id: 'sambanova-llama-70b',
+    label: 'SambaNova (Meta Llama 3.3 70B Instruct)',
+    envKeys: ['SAMBANOVA_API_KEY'],
+    modelId: 'Meta-Llama-3.3-70B-Instruct',
+    createModel: () => sambanova,
+  },
+  // ── 5ª Tentativa — Gratuito (Alta Capacidade / Cohere) ─────────────────────
+  {
+    id: 'cohere-command-r',
+    label: 'Cohere (Command R 08-2024)',
+    envKeys: ['COHERE_API_KEY'],
+    modelId: 'command-r-08-2024',
+    createModel: () => cohere,
+  },
+  // ── 6ª Tentativa — PAGO (Emergência / OpenRouter) ──────────────────────────
   {
     id: 'openrouter-deepseek',
     label: 'OpenRouter (DeepSeek V3)',
@@ -79,7 +113,7 @@ const AGENTS: AgentConfig[] = [
     createModel: (apiKey) => (modelId) => createOpenRouter({ apiKey })(modelId),
     paid: true,
   },
-  // ── 5ª Tentativa — PAGO (Último Recurso MCP) ───────────────────────────────
+  // ── 7ª Tentativa — PAGO (Último Recurso MCP) ───────────────────────────────
   {
     id: 'openrouter-claude',
     label: 'OpenRouter (Claude 3.5 Haiku)',
@@ -98,7 +132,7 @@ export type AgentRouterResult = {
 
 /**
  * Roda o prompt através dos tiers em cascata e devolve o primeiro sucesso.
- * Tiers pagos (4º/5º) só são acionados após TODOS os gratuitos falharem,
+ * Tiers pagos (6º/7º) só são acionados após TODOS os gratuitos falharem,
  * emitindo um warning de rastreabilidade de custo no log do servidor.
  * @throws {Error} se TODOS os provedores configurados falharem.
  */

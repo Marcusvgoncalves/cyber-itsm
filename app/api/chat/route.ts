@@ -2,6 +2,8 @@ import { streamText, isStepCount, type LanguageModel, type ModelMessage, type To
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createGroq } from '@ai-sdk/groq';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createCohere } from '@ai-sdk/cohere';
 import requisitos from '../../../requisitos-sd.json';
 import { getAuthService } from '@/lib/auth/authService';
 import type { AuthContext } from '@/lib/auth/types';
@@ -13,9 +15,11 @@ import { createCopilotTools } from '@/lib/mcp/adapter';
 // Pipeline: useChat (@ai-sdk/react) → POST /api/chat → ROTEADOR DE AGENTES.
 //
 // Prioridade de execução (CUSTO ZERO):
-//   1. Google      → gemini-2.5-flash    (PRIMÁRIO — bypass de cota do Groq/TPD)
-//   2. Groq        → llama-3.1-8b-instant (Velocidade & Resposta Rápida)
-//   3. OpenRouter  → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
+//   1. SambaNova  → Meta-Llama-3.3-70B-Instruct (PRIMÁRIO — alta capacidade Free)
+//   2. Cohere     → command-r-08-2024           (Alta capacidade Free)
+//   3. Google     → gemini-2.5-flash            (Contingência — bypass de cota do Groq/TPD)
+//   4. Groq       → llama-3.1-8b-instant        (Velocidade & Resposta Rápida)
+//   5. OpenRouter → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
 //                    deepseek/deepseek-chat:free
 //                    meta-llama/llama-3.3-70b-instruct:free
 //                    google/gemini-2.0-flash-exp:free
@@ -61,6 +65,21 @@ const GOOGLE: ModelFactory = (apiKey) => {
   return (modelId) => provider(modelId);
 };
 
+// SambaNova — Free Tier de alta capacidade (API compatível com OpenAI).
+const SAMBANOVA: ModelFactory = (apiKey) => {
+  const provider = createOpenAI({
+    baseURL: 'https://api.sambanova.ai/v1',
+    apiKey,
+  });
+  return (modelId) => provider(modelId);
+};
+
+// Cohere — modelo gratuito de alta capacidade.
+const COHERE: ModelFactory = (apiKey) => {
+  const provider = createCohere({ apiKey });
+  return (modelId) => provider(modelId);
+};
+
 interface AgentConfig {
   id: string;
   label: string;
@@ -71,6 +90,23 @@ interface AgentConfig {
 
 // Esteira de agentes em ordem de prioridade (100% gratuita).
 const AGENTS: AgentConfig[] = [
+  // ── 1ª Prioridade — Gratuito (Alta Capacidade / SambaNova Free) ────────────
+  {
+    id: 'sambanova-llama-70b',
+    label: 'SambaNova (Meta Llama 3.3 70B Instruct)',
+    envKeys: ['SAMBANOVA_API_KEY'],
+    modelIds: ['Meta-Llama-3.3-70B-Instruct'],
+    createModel: SAMBANOVA,
+  },
+  // ── 2ª Prioridade — Gratuito (Alta Capacidade / Cohere) ────────────────────
+  {
+    id: 'cohere-command-r',
+    label: 'Cohere (Command R 08-2024)',
+    envKeys: ['COHERE_API_KEY'],
+    modelIds: ['command-r-08-2024'],
+    createModel: COHERE,
+  },
+  // ── 3ª Prioridade em diante — agentes atuais preservados ───────────────────
   {
     id: 'google',
     label: 'Google (Gemini 2.5 Flash)',
