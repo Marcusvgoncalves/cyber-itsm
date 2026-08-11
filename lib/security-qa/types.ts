@@ -16,7 +16,7 @@ export type QaStatus = 'PROCESSANDO' | 'CONCLUIDO' | 'FALHA';
 
 /** Hallucination guardrail: a IA só aponta requisitos que estejam no escopo. */
 export interface QaFinding {
-  /** ID/identificador do requisito citado pelo dono do escopo (ex.: VIVO.SEGURA.*). */
+  /** ID/identificador do requisito citado pelo dono do escopo (ex.: CYBER.SEGURA.*). */
   requirementId: string;
   requirementName: string;
   status: QaFindingStatus;

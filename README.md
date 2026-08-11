@@ -88,7 +88,7 @@ Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** s
   npm run db:seed:rag                 # carga de produção
   npm run db:seed:rag -- --dry-run    # validação sem gravar nada
   ```
-  O mapeamento de metadados grava `title` = código do requisito (ex: `VIVO.SEGURA.AUT.01`), `source` = `Base-SD-v4.1` e `content` = `"{code} - {descrição}"` (string consolidada que alimenta o vetor).
+  O mapeamento de metadados grava `title` = código do requisito (ex: `CYBER.SEGURA.AUT.01`), `source` = `Base-SD-v4.1` e `content` = `"{code} - {descrição}"` (string consolidada que alimenta o vetor).
 
 #### 6. 🔌 Conectores Outbound, MTLS & Logs de Auditoria CSV
 - **Conectores Nativos B2B**: Interfaces dedicadas para integração externa com **Jira Software**, **ServiceNow** e **Microsoft 365**.

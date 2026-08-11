@@ -165,7 +165,7 @@ export function TicketPdfDocument({ ticket, requirementOpinion }: { ticket: Tick
           <Text style={styles.reqTitle}>Direcionamento Normativo Recomendado</Text>
           <Text style={styles.reqText}>
             {requirementOpinion ||
-              `Com base no escopo e no framework ${ticket.framework_origem || "NIST"}, aplica-se obrigatoriamente a diretriz VIVO.SEGURA.AUT.01 (MFA TOTP), VIVO.SEGURA.CRIP.02 (TLS 1.3) e os controles de auditoria imutável VIVO.SEGURA.LOG.03.`}
+              `Com base no escopo e no framework ${ticket.framework_origem || "NIST"}, aplica-se obrigatoriamente a diretriz CYBER.SEGURA.AUT.01 (MFA TOTP), CYBER.SEGURA.CRIP.02 (TLS 1.3) e os controles de auditoria imutável CYBER.SEGURA.LOG.03.`}
           </Text>
         </View>
 

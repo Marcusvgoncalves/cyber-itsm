@@ -289,7 +289,7 @@ const createKanbanTicket = defineTool({
       .string()
       .max(64)
       .optional()
-      .describe('Código do requisito da Base de Conhecimento (ex.: VIVO.SEGURA.CRIP.01).'),
+      .describe('Código do requisito da Base de Conhecimento (ex.: CYBER.SEGURA.CRIP.01).'),
   }),
   async execute(args, ctx) {
     if (!ctx.auth) {

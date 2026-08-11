@@ -328,7 +328,7 @@ export function TicketModal({
       const matchedIds = matched.map((m) => m.id);
       const opinion = matchedIds.length > 0
         ? `Arquivo "${file.name}" analisado com sucesso. Requisitos direcionados: ${matchedIds.join(', ')}.`
-        : `Arquivo "${file.name}" analisado. Requisitos recomendados: VIVO.SEGURA.AUT.01 e VIVO.SEGURA.LOG.03.`;
+        : `Arquivo "${file.name}" analisado. Requisitos recomendados: CYBER.SEGURA.AUT.01 e CYBER.SEGURA.LOG.03.`;
       setRequirementOpinion(opinion);
     } catch (err: any) {
       console.error("Erro na análise/upload de anexo:", err);

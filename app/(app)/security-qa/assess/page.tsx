@@ -133,12 +133,12 @@ export default function AssessPage() {
                 id="requirements"
                 value={requirements}
                 onChange={(e) => setRequirements(e.target.value)}
-                placeholder={"VIVO.SEGURA.AUT.01 - Autenticação MFA obrigatória\nVIVO.SEGURA.CRIP.02 - Tráfego TLS 1.2+\nVIVO.SEGURA.LOG.03 - Logs de auditoria centralizados"}
+                placeholder={"CYBER.SEGURA.AUT.01 - Autenticação MFA obrigatória\nCYBER.SEGURA.CRIP.02 - Tráfego TLS 1.2+\nCYBER.SEGURA.LOG.03 - Logs de auditoria centralizados"}
                 rows={5}
                 disabled={running}
               />
               <p className="text-xs text-gray-500">
-                Recomenda-se seguir o padrão VIVO.SEGURA.* da base de requisitos SD v4.1.
+                Recomenda-se seguir o padrão CYBER.SEGURA.* da base de requisitos SD v4.1.
               </p>
             </div>
 

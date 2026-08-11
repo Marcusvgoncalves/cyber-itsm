@@ -50,7 +50,7 @@
     <rect width="620" height="78" rx="10" fill="#ffffff" stroke="#f59e0b" stroke-width="2" filter="url(#shadow)" />
     <rect width="8" height="78" rx="4" fill="url(#gIam)" />
     <text x="26" y="26" font-family="'Outfit',sans-serif" font-size="14" font-weight="bold" fill="#92400e">1 · Fonte de Dados — data/requisitos-sd.json</text>
-    <text x="26" y="48" font-family="'Outfit',sans-serif" font-size="11" fill="#475569">Array de 314 requisitos: [ { "code": "VIVO.SEGURA.AUT.01", "description": "..." } ]</text>
+    <text x="26" y="48" font-family="'Outfit',sans-serif" font-size="11" fill="#475569">Array de 314 requisitos: [ { "code": "CYBER.SEGURA.AUT.01", "description": "..." } ]</text>
     <text x="26" y="66" font-family="'Outfit',sans-serif" font-size="11" fill="#475569">Mapeamento: title=code · source="Base-SD-v4.1" · content="{code} - {description}"</text>
   </g>
   <line x1="480" y1="183" x2="480" y2="200" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />

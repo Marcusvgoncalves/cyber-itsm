@@ -115,7 +115,7 @@ const ANALYSIS_SCHEMA = z.object({
   executiveSummary: z.string().describe("Sumário executivo em português (pt-BR), máximo 150 palavras"),
   findings: z.array(
     z.object({
-      requirementId: z.string().describe("ID do requisito fornecido (ex: VIVO.SEGURA.X)"),
+      requirementId: z.string().describe("ID do requisito fornecido (ex: CYBER.SEGURA.X)"),
       requirementName: z.string().describe("Nome descritivo do requisito"),
       status: z.enum(['conforme', 'parcial', 'nao_conforme']).describe("Status de atendimento da evidência"),
       evidence: z.string().describe("A evidência técnica detalhada extraída do relatório"),

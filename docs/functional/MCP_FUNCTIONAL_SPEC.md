@@ -70,10 +70,10 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 
 **Ator:** Analista SecOps.
 
-1. O analista recebe um laudo de Security QA com achados (ex.: requisito `VIVO.SEGURA.CRIP.01` — criptografia ausente).
-2. No chat, digita: **"Crie um chamado de severidade CRITICAL para a falha no requisito VIVO.SEGURA.CRIP.01"**.
+1. O analista recebe um laudo de Security QA com achados (ex.: requisito `CYBER.SEGURA.CRIP.01` — criptografia ausente).
+2. No chat, digita: **"Crie um chamado de severidade CRITICAL para a falha no requisito CYBER.SEGURA.CRIP.01"**.
 3. Como o Épico não foi informado, o Copiloto **chama `list_active_epics`** e apresenta os Épicos ativos; o usuário escolhe um.
-4. O Copiloto aciona `create_kanban_ticket` com `severity=CRITICAL`, `epic_id` e `requirement_code=VIVO.SEGURA.CRIP.01`.
+4. O Copiloto aciona `create_kanban_ticket` com `severity=CRITICAL`, `epic_id` e `requirement_code=CYBER.SEGURA.CRIP.01`.
 5. O MCP consulta a Base de Conhecimento, localiza o requisito e **enriquece automaticamente a descrição** do chamado com controle, detalhamento, riscos, OWASP/STRIDE e criticidade — eliminando a digitação manual e garantindo rastreabilidade do laudo para o Kanban.
 6. O chamado nasce com prioridade `critica`, vínculo ao Épico, tag com o código do requisito e trilha de auditoria.
 
@@ -106,14 +106,14 @@ Esta evolução é **aditiva e sem custo**: implementada com o SDK oficial abert
 
 1. Acesse o chat do Copiloto já autenticado.
 2. Digite exatamente:
-   > **"Crie um chamado de severidade CRITICAL para a falha no requisito VIVO.SEGURA.CRIP.01"**
+   > **"Crie um chamado de severidade CRITICAL para a falha no requisito CYBER.SEGURA.CRIP.01"**
 3. **Esperado:**
    - O Copiloto chama `list_active_epics` (Épico não informado) e apresenta os Épicos ativos no chat;
    - Após a escolha do usuário, aciona `create_kanban_ticket` (a ferramenta aparece na conversa como parte executada);
    - O chamado é criado no Kanban com:
      - Título coerente com a falha informada;
-     - Descrição **enriquecida** com o conteúdo do requisito `VIVO.SEGURA.CRIP.01` (controle, detalhamento, riscos, OWASP/STRIDE);
-     - Status `ABERTO`, prioridade `Crítica`, vínculo ao Épico escolhido e tags contendo `VIVO.SEGURA.CRIP.01`;
+     - Descrição **enriquecida** com o conteúdo do requisito `CYBER.SEGURA.CRIP.01` (controle, detalhamento, riscos, OWASP/STRIDE);
+     - Status `ABERTO`, prioridade `Crítica`, vínculo ao Épico escolhido e tags contendo `CYBER.SEGURA.CRIP.01`;
    - O Copiloto responde confirmando a criação, exibindo ID, título, Épico e status.
 4. Verifique no `/dashboard` que o card apareceu na coluna **Aberto** e que a auditoria (`ticket_create`) foi registrada.
 

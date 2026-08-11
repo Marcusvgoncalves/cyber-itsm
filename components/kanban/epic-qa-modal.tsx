@@ -203,7 +203,7 @@ export function EpicQaModal({ ticket, sprints, onClose }: EpicQaModalProps) {
               id="epicRequirements"
               value={requirements}
               onChange={(e) => setRequirements(e.target.value)}
-              placeholder={"VIVO.SEGURA.AUT.01 - Autenticação MFA obrigatória\nVIVO.SEGURA.CRIP.02 - Tráfego TLS 1.2+"}
+              placeholder={"CYBER.SEGURA.AUT.01 - Autenticação MFA obrigatória\nCYBER.SEGURA.CRIP.02 - Tráfego TLS 1.2+"}
               rows={5}
               disabled={running}
             />

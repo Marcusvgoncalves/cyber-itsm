@@ -438,7 +438,7 @@ function RequisitosTab({
                   id="reqId"
                   value={form.id}
                   onChange={(e) => setForm((p) => ({ ...p, id: e.target.value.toUpperCase() }))}
-                  placeholder="VIVO.SEGURA.X.001"
+                  placeholder="CYBER.SEGURA.X.001"
                   disabled={busy || !isAdmin || !!editing}
                   required
                   className="font-mono text-xs"

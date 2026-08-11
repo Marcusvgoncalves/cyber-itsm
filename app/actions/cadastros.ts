@@ -245,7 +245,7 @@ export async function upsertRequirement(input: RequirementInput): Promise<Requir
   if (!(await requireAdmin())) return { error: 'Acesso negado. Apenas ADMIN pode gerenciar requisitos.' };
 
   const id = input.id?.trim();
-  if (!id) return { error: 'O ID do requisito é obrigatório (ex: VIVO.SEGURA.X.001).' };
+  if (!id) return { error: 'O ID do requisito é obrigatório (ex: CYBER.SEGURA.X.001).' };
   if (!input.controle?.trim()) return { error: 'O controle é obrigatório.' };
 
   const supabase = await createClient();

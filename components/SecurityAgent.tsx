@@ -35,7 +35,7 @@ interface SecurityAgentProps {
 }
 
 const WELCOME_MESSAGE =
-  "Sou o Copiloto de Security QA. Posso explicar o fluxo da plataforma (upload .json/.xml/.txt, cruzamento com VIVO.SEGURA.*, cálculo de conformidade e arquivamento GZIP) e responder dúvidas técnicas de cibersegurança (SQLi, BOLA, XSS, HSTS, criptografia e remediações OWASP/NIST).";
+  "Sou o Copiloto de Security QA. Posso explicar o fluxo da plataforma (upload .json/.xml/.txt, cruzamento com CYBER.SEGURA.*, cálculo de conformidade e arquivamento GZIP) e responder dúvidas técnicas de cibersegurança (SQLi, BOLA, XSS, HSTS, criptografia e remediações OWASP/NIST).";
 
 const GUIDE_KEYWORDS = [
   "passo a passo",

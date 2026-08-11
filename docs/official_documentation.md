@@ -157,7 +157,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Localização**: `prisma/schema.prisma` (model `KnowledgeArticle`), `scripts/create-knowledge-table.ts`, `scripts/seed-production-rag.ts`
 - **Modelo físico**: Tabela `public.knowledge_articles` com `id UUID`, `title TEXT`, `source TEXT`, `content TEXT`, `embedding vector(3072)` e `created_at` (extensão `pgvector`). Sem índice HNSW (pgvector do Supabase limita índices a 2000 dimensões).
 - **Mapeamento de metadados**:
-  - `title` = código do requisito (ex: `VIVO.SEGURA.AUT.01`);
+  - `title` = código do requisito (ex: `CYBER.SEGURA.AUT.01`);
   - `source` = `"Base-SD-v4.1"`;
   - `content` = string consolidada `"{code} - {descrição}"` (é ela que alimenta o vetor).
 - **Embeddings**: modelo **`gemini-embedding-2`** (3072 dimensões) via `@ai-sdk/google` + Vercel AI SDK `embed`/`embedMany`.
@@ -259,7 +259,7 @@ model LlmCallLog {
 
 model KnowledgeArticle {
   id        String                    @id @default(uuid()) @db.Uuid
-  title     String                    // código do requisito (ex: VIVO.SEGURA.AUT.01)
+  title     String                    // código do requisito (ex: CYBER.SEGURA.AUT.01)
   source    String                    // "Base-SD-v4.1"
   content   String                    // "{code} - {descrição}"
   embedding Unsupported("vector(3072)")?  // vetor gerado pelo gemini-embedding-2

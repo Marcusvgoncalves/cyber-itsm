@@ -223,7 +223,7 @@ export function InteractiveRequirementsCatalog() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Buscar por ID (ex: VIVO.SEGURA.APIS.001), controle, OWASP, STRIDE ou palavra-chave..."
+                placeholder="Buscar por ID (ex: CYBER.SEGURA.APIS.001), controle, OWASP, STRIDE ou palavra-chave..."
                 className="h-11 rounded-lg border-gray-300 pl-10 text-sm shadow-sm focus:border-primary focus:ring-primary"
               />
               {searchTerm && (
