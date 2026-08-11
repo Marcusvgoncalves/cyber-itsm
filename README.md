@@ -68,6 +68,7 @@ A arquitetura do sistema foi projetada no padrão de alta disponibilidade e resi
 
 #### 3. 🤖 Copiloto de IA Multiagente & Contingência (Zero Downtime)
 Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** sobre os 314 Requisitos. O Copiloto opera com a persona de **Especialista Sênior em Cibersegurança** e conta com o **Motor Determinístico de Segurança**, que utiliza o `SystemContext` acumulado a partir de todas as interações dos usuários na plataforma para gerar análises contextualizadas de contingência caso todas as APIs externas estejam indisponíveis. A recuperação vetorial semântica utiliza a tabela `knowledge_articles` (pgvector), pré-populada pelos embeddings `gemini-embedding-2`.
+- **Automação Ativa via MCP Local (Model Context Protocol)**: O Copiloto **executa ações reais no ITSM** a partir do chat — abrir chamados no Kanban (vinculados a um Épico Pai, campo obrigatório), mover cards (respeitando a máquina de estados e a Matriz SoD) e consultar a Base de Conhecimento — via servidor MCP **in-process** (`lib/mcp/`), 100% aditivo e sem custo. Detalhes em `docs/architecture/MCP_ARCHITECTURE.md` e `docs/functional/MCP_FUNCTIONAL_SPEC.md`.
 
 #### 4. 🔑 Portal IAM/IGA e Configurações (Reorganizado & UX Aprimorada)
 - **Sub-Navegação por Abas Dinâmicas (`iamSubTab`)**: Interface responsiva e compacta dividida em 4 categorias operacionais que eliminam espaços vazios:

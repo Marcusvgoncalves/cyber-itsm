@@ -13,11 +13,12 @@ import { createCopilotTools } from '@/lib/mcp/adapter';
 // Pipeline: useChat (@ai-sdk/react) → POST /api/chat → ROTEADOR DE AGENTES.
 //
 // Prioridade de execução (CUSTO ZERO):
-//   1. Groq        → llama-3.1-8b-instant          (Velocidade & Resposta Rápida)
-//   2. OpenRouter  → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
+//   1. Google      → gemini-2.5-flash    (PRIMÁRIO — bypass de cota do Groq/TPD)
+//   2. Groq        → llama-3.1-8b-instant (Velocidade & Resposta Rápida)
+//   3. OpenRouter  → deepseek/deepseek-r1:free      (Raciocínio Profundo / DeepSeek)
 //                    deepseek/deepseek-chat:free
-//   3. Google      → gemini-1.5-flash-8b            (Backup de Alta Capacidade)
-//                    gemini-2.0-flash-lite
+//                    meta-llama/llama-3.3-70b-instruct:free
+//                    google/gemini-2.0-flash-exp:free
 //
 // Se um provedor gratuito atingir o limite de requisições (429), o roteador
 // chaveia automaticamente para o próximo agente em milissegundos (try/catch
@@ -71,6 +72,13 @@ interface AgentConfig {
 // Esteira de agentes em ordem de prioridade (100% gratuita).
 const AGENTS: AgentConfig[] = [
   {
+    id: 'google',
+    label: 'Google (Gemini 2.5 Flash)',
+    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
+    modelIds: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest'],
+    createModel: GOOGLE,
+  },
+  {
     id: 'groq',
     label: 'Groq (Llama 3.1 8B / 3.3 70B)',
     envKeys: ['GROQ_API_KEY'],
@@ -88,18 +96,6 @@ const AGENTS: AgentConfig[] = [
       'google/gemini-2.0-flash-exp:free',
     ],
     createModel: OPENROUTER,
-  },
-  {
-    id: 'google',
-    label: 'Google (Gemini 2.0 / 1.5 Flash)',
-    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
-    modelIds: [
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-1.5-flash-latest',
-      'gemini-2.5-flash',
-    ],
-    createModel: GOOGLE,
   },
 ];
 
@@ -375,7 +371,7 @@ export async function POST(req: Request) {
 
     if (isRateLimit) {
       const friendlyMessage = '⚠️ Todos os provedores gratuitos de IA atingiram o limite de requisições (429). Por favor, aguarde alguns instantes e tente novamente.';
-      
+
       // Formata como um bloco de texto do protocolo de streaming da Vercel AI SDK (0:"texto"\n)
       const encoder = new TextEncoder();
       const stream = new ReadableStream({

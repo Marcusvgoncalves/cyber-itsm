@@ -8,9 +8,9 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 //
 // Espelha a esteira gratuita do /api/chat, mas em módulo isolado — NÃO toca na
 // rota existente (Zero impacto). Prioridade de execução:
-//   1. Groq        → llama-3.1-8b-instant
-//   2. OpenRouter  → deepseek/deepseek-r1:free
-//   3. Google      → gemini-2.0-flash-lite
+//   1. Google      → gemini-2.5-flash   (PRIMÁRIO — bypass de cota do Groq/TPD)
+//   2. Groq        → llama-3.1-8b-instant
+//   3. OpenRouter  → deepseek/deepseek-r1:free
 // Se um provedor falhar (ex.: 429), o próximo agente é tentado imediatamente.
 // ============================================================================
 
@@ -33,6 +33,14 @@ interface AgentConfig {
 
 const AGENTS: AgentConfig[] = [
   {
+    id: 'google',
+    label: 'Google',
+    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
+    modelId: 'gemini-2.5-flash',
+    createModel: (apiKey) => (modelId) => createGoogleGenerativeAI({ apiKey })(modelId),
+    temperature: 0.7,
+  },
+  {
     id: 'groq',
     label: 'Groq',
     envKeys: ['GROQ_API_KEY'],
@@ -45,14 +53,6 @@ const AGENTS: AgentConfig[] = [
     envKeys: ['OPENROUTER_API_KEY'],
     modelId: 'deepseek/deepseek-r1:free',
     createModel: (apiKey) => (modelId) => createOpenRouter({ apiKey })(modelId),
-  },
-  {
-    id: 'google',
-    label: 'Google',
-    envKeys: ['GEMINI_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY'],
-    modelId: 'gemini-2.0-flash-lite',
-    createModel: (apiKey) => (modelId) => createGoogleGenerativeAI({ apiKey })(modelId),
-    temperature: 0.7,
   },
 ];
 
