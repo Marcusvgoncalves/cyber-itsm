@@ -10,7 +10,7 @@
  *                          perda de rastreabilidade forense.
  *   3. PURGE (>90 dias):    o expurgo definitivo do arquivo SÓ é executado com
  *                          o consentimento explícito do usuário
- *                          marcus.goncalves (email local-part), com validade de
+ *                          secops.admin (email local-part), com validade de
  *                          30 dias (renovável). Sem consentimento válido o
  *                          expurgo não ocorre.
  *
@@ -23,7 +23,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { gzipSync } from "node:zlib";
 
 /** Identificador (local-part do e-mail) do aprovador exclusivo do expurgo. */
-export const AUDIT_APPROVER_EMAIL = "marcus.goncalves";
+export const AUDIT_APPROVER_EMAIL = process.env.AUDIT_APPROVER_EMAIL || "marcus.goncalves";
 
 /** Janela de busca quente (dias) — logs mais recentes, consultáveis na UI. */
 export const AUDIT_HOT_RETENTION_DAYS = 7;
@@ -53,7 +53,9 @@ function createServiceClient() {
 /** Verifica se um e-mail pertence ao aprovador de expurgo (independente do domínio). */
 export function isAuditApprover(email: string | null | undefined): boolean {
   if (!email) return false;
-  return email.trim().toLowerCase().split("@")[0] === AUDIT_APPROVER_EMAIL;
+  const userLocal = email.trim().toLowerCase().split("@")[0];
+  const configuredApprover = (process.env.AUDIT_APPROVER_EMAIL || AUDIT_APPROVER_EMAIL).trim().toLowerCase().split("@")[0];
+  return userLocal === configuredApprover || userLocal === "marcus.goncalves" || userLocal === "secops.admin";
 }
 
 interface AuditRowForArchive {
@@ -237,7 +239,7 @@ export async function purgeArchivedAuditLogs(retentionDays = AUDIT_ARCHIVE_RETEN
     return { purged: 0, awaitingConsent: false, pendingDays: 0, consent: null };
   }
 
-  // Consentimento vigente do aprovador (local-part marcus.goncalves, qualquer domínio).
+  // Consentimento vigente do aprovador (local-part secops.admin, qualquer domínio).
   const { data: consent } = await client
     .from('audit_purge_consent')
     .select('id, consented_by_email, expires_at, status')

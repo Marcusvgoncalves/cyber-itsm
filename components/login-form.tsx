@@ -218,7 +218,7 @@ export function LoginForm() {
                 <Input
                   id="email"
                   type="text"
-                  placeholder="marcus.goncalves"
+                  placeholder="secops.admin"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11 border-gray-300 focus:border-primary focus:ring-primary rounded-md"
@@ -393,7 +393,7 @@ export function LoginForm() {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="digite-seu-usuario (ex.: marcus.goncalves)"
+                  placeholder="digite-seu-usuario (ex.: secops.admin)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-10 border-gray-300 focus:border-primary focus:ring-primary rounded-md"

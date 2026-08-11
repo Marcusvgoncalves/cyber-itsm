@@ -6,7 +6,7 @@
  *      de public.audit_logs (hot) para public.audit_logs_archive (frio),
  *      liberando a janela de busca próxima e minimizando a storage;
  *   2. Expurgo: arquivos com > 90 dias SÓ são excluídos com consentimento
- *      válido de marcus.goncalves (audit_purge_consent). Sem consentimento,
+ *      válido de secops.admin (audit_purge_consent). Sem consentimento,
  *      o job reporta o expurgo como pendente (awaitingConsent) e não apaga nada.
  */
 import { inngest } from "@/lib/inngest/client";

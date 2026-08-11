@@ -133,7 +133,7 @@ export async function purgeTestData() {
 
   // 5. Expurgo de Usuários de Teste E2E no Supabase Auth e Profile
   try {
-    const testEmails = ["solicitante.e2e@cyberitsm.local", "marcus.e2e@cyberitsm.local"];
+    const testEmails = ["solicitante.e2e@cyberitsm.local", "secops.admin.e2e@cyberitsm.local"];
     for (const email of testEmails) {
       const { data: userProfile } = await supabase
         .from("users_profiles")

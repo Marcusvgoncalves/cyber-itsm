@@ -107,7 +107,8 @@ export function DashboardClient({
   const [retention, setRetention] = useState<AuditRetentionStatus | null>(null);
   const [retentionMsg, setRetentionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [retentionRunning, setRetentionRunning] = useState(false);
-  const isAuditApprover = currentUser.email?.toLowerCase().split('@')[0] === 'marcus.goncalves';
+  const userLocal = currentUser.email?.toLowerCase().split('@')[0];
+  const isAuditApprover = currentUser.role === 'admin' || userLocal === 'marcus.goncalves' || userLocal === 'secops.admin';
 
   useEffect(() => {
     if (activeTab === 'audit' && currentUser.role === 'admin' && !retention) {
@@ -225,7 +226,7 @@ export function DashboardClient({
   const handleGrantPurgeConsent = async () => {
     if (!window.confirm(
       "Conceder consentimento para o expurgo automático de logs de auditoria com mais de 90 dias? " +
-      "O consentimento é registrado em nome de marcus.goncalves e vale por 30 dias."
+      "O consentimento é registrado em nome de secops.admin e vale por 30 dias."
     )) return;
     setRetentionMsg(null);
     const res = await grantAuditPurgeConsentAction();
@@ -863,7 +864,7 @@ export function DashboardClient({
                           <Input
                             id="reqEmail"
                             type="text"
-                            placeholder="marcus.goncalves"
+                            placeholder="secops.admin"
                             value={reqEmail}
                             onChange={(e) => setReqEmail(e.target.value)}
                             required
@@ -927,7 +928,7 @@ export function DashboardClient({
                             <Input
                               id="localName"
                               type="text"
-                              placeholder="Marcus Gonçalves"
+                              placeholder="SecOps Admin"
                               value={localFullName}
                               onChange={(e) => setLocalFullName(e.target.value)}
                               required
@@ -939,7 +940,7 @@ export function DashboardClient({
                             <Input
                               id="localEmail"
                               type="text"
-                              placeholder="marcus.goncalves"
+                              placeholder="secops.admin"
                               value={localEmail}
                               onChange={(e) => setLocalEmail(e.target.value)}
                               required
@@ -1182,8 +1183,8 @@ export function DashboardClient({
                   )}
                   <p className="text-[11px] text-gray-500">
                     {isAuditApprover
-                      ? 'Você é o aprovador (marcus.goncalves): o expurgo de logs > 90 dias só ocorre com o seu consentimento.'
-                      : 'O expurgo de logs > 90 dias é executado somente com o consentimento do aprovador marcus.goncalves.'}
+                      ? 'Você é o aprovador (secops.admin): o expurgo de logs > 90 dias só ocorre com o seu consentimento.'
+                      : 'O expurgo de logs > 90 dias é executado somente com o consentimento do aprovador secops.admin.'}
                   </p>
                 </div>
               </CardContent>

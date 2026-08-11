@@ -10,8 +10,8 @@ export async function GET(req: Request) {
   // Retorna informações mockadas padrão do usuário corporativo de SecOps para o sandbox
   return NextResponse.json({
     sub: "usr-admin-itsm-001",
-    name: "Marcus Gonçalves (SecOps Admin)",
-    email: "marcus.goncalves@cyberitsm.local",
+    name: "SecOps Admin",
+    email: "secops.admin@cyberitsm.local",
     email_verified: true,
     picture: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop",
     department: "Cyber Security Operations",

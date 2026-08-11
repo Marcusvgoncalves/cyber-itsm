@@ -692,7 +692,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.enterprise_tools TO authenticated
 -- ============================================
 -- AUDIT RETENTION (arquivo comprimido + consentimento de expurgo)
 -- Política: HOT 0-7d (audit_logs) · ARCHIVE 7-90d (GZIP por dia) ·
---           PURGE >90d somente com consentimento de marcus.goncalves.
+--           PURGE >90d somente com consentimento de secops.admin.
 -- ============================================
 
 -- Arquivo frio: logs comprimidos por dia (GZIP) — storage mínima.
@@ -709,7 +709,7 @@ CREATE TABLE public.audit_logs_archive (
 );
 CREATE INDEX idx_audit_archive_purged_at ON public.audit_logs_archive(purged_at);
 
--- Consentimento de expurgo (somente marcus.goncalves pode conceder).
+-- Consentimento de expurgo (somente secops.admin pode conceder).
 CREATE TABLE public.audit_purge_consent (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   consented_by_email TEXT NOT NULL,

@@ -28,10 +28,10 @@ export async function POST(req: Request) {
   <saml:Assertion ID="_${Math.random().toString(36).substring(2)}" IssueInstant="${new Date().toISOString()}" Version="2.0">
     <saml:Issuer>https://entra.microsoft.com/idp/cyberitsm</saml:Issuer>
     <saml:Subject>
-      <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">marcus.goncalves@cyberitsm.local</saml:NameID>
+      <saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">secops.admin@cyberitsm.local</saml:NameID>
     </saml:Subject>
     <saml:AttributeStatement>
-      <saml:Attribute Name="User.FullName"><saml:AttributeValue>Marcus Gonçalves</saml:AttributeValue></saml:Attribute>
+      <saml:Attribute Name="User.FullName"><saml:AttributeValue>SecOps Admin</saml:AttributeValue></saml:Attribute>
       <saml:Attribute Name="User.Role"><saml:AttributeValue>admin</saml:AttributeValue></saml:Attribute>
     </saml:AttributeStatement>
   </saml:Assertion>
@@ -43,8 +43,8 @@ export async function POST(req: Request) {
       assertion: samlResponseXml,
       relayState,
       user: {
-        email: "marcus.goncalves@cyberitsm.local",
-        name: "Marcus Gonçalves",
+        email: "secops.admin@cyberitsm.local",
+        name: "SecOps Admin",
         role: "admin",
         provider: "saml_azure_ad"
       }
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
       <body>
         <div class="card">
           <h2>SAML 2.0 Identity Provider (IdP)</h2>
-          <p>Você está acessando a simulação de SSO SAML da Vivo/Telefônica para o CyberITSM SPN.</p>
+          <p>Você está acessando a simulação de SSO SAML corporativa para o CyberITSM SPN.</p>
           <a href="/dashboard" class="btn">Continuar via SSO</a>
         </div>
       </body>

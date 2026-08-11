@@ -281,7 +281,7 @@ export function QaReportDocument() {
 
         <View style={styles.card}>
           <Text style={[styles.bold, { color: "#0f172a", marginBottom: 4 }]}>Protocolo de Limpeza Executado:</Text>
-          <Text style={styles.paragraph}>• Filtro por prefixos de teste: <Text style={styles.bold}>"E2E "</Text>, <Text style={styles.bold}>"solicitante.e2e@"</Text>, <Text style={styles.bold}>"marcus.e2e@"</Text>.</Text>
+          <Text style={styles.paragraph}>• Filtro por prefixos de teste: <Text style={styles.bold}>"E2E "</Text>, <Text style={styles.bold}>"solicitante.e2e@"</Text>, <Text style={styles.bold}>"secops.admin.e2e@"</Text>.</Text>
           <Text style={styles.paragraph}>• Exclusão em cascata das tabelas: <Text style={styles.bold}>tickets</Text>, <Text style={styles.bold}>qa_results</Text>, <Text style={styles.bold}>qa_projects</Text>, <Text style={styles.bold}>sprints</Text>, <Text style={styles.bold}>notification_settings</Text>.</Text>
           <Text style={styles.paragraph}>• Expurgo de arquivos temporários anexados no Supabase Storage.</Text>
           <Text style={styles.paragraph}>• Emissão de relatório de limpeza no terminal com contador exato por tabela.</Text>

@@ -83,13 +83,13 @@ import { ensureTestUser } from "./helpers/supabase-admin";
 export default async function globalSetup(): Promise<void> {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
-  const userEmail = E2E_USER || "marcus.e2e@cyberitsm.local";
+  const userEmail = E2E_USER || "secops.admin.e2e@cyberitsm.local";
   const userPassword = E2E_PASSWORD || "CyberITSM@2026!Password";
 
   // Garante de forma idempotente que o usuário admin de teste exista no Supabase com MFA habilitado
   await ensureTestUser({
     email: userEmail,
-    full_name: "Marcus E2E Admin",
+    full_name: "SecOps E2E Admin",
     role: "admin",
     password: userPassword,
   });

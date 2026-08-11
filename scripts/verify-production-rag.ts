@@ -19,7 +19,7 @@
  *   2. Embuti a pergunta (Ground Truth) de criptografia em trânsito / TLS / gateway;
  *   3. Busca de Cosine Similarity (operador `<=>` do pgvector) — Top 4;
  *   4. Auditoria no terminal dos títulos (códigos) retornados (expectativa
- *      da família `VIVO.SEGURA.CRIP.*`);
+ *      da família `CYBER.SEGURA.CRIP.*`);
  *   5. Envia o contexto recuperado + pergunta para a esteira multiagente
  *      (`routeToModel`) e exibe a resposta final sintetizada.
  * ============================================================================
@@ -39,7 +39,7 @@ import { routeToModel } from '../lib/llm/agent-router';
 const EMBEDDING_MODEL = 'gemini-embedding-2';
 const EMBEDDING_DIMENSIONS = 3072;
 const TOP_K = 4;
-const EXPECTED_PREFIXES = ['VIVO.SEGURA.CRIP.', 'VIVO.SEGURA.APIS.', 'VIVO.SEGURA.APLICAÇÃO.'];
+const EXPECTED_PREFIXES = ['CYBER.SEGURA.CRIP.', 'CYBER.SEGURA.APIS.', 'CYBER.SEGURA.APLICAÇÃO.'];
 function isRelevantReq(title: string): boolean {
   return EXPECTED_PREFIXES.some((prefix) => title.startsWith(prefix));
 }
@@ -205,7 +205,7 @@ async function main() {
   const system = [
     'Você é o Especialista Sênior em Cibersegurança da plataforma CyberITSM SPN.',
     'Responda a pergunta do usuário SOMENTE com base nas regras internas da empresa recuperadas da base de conhecimento vetorial (contexto abaixo).',
-    'Cite explicitamente os códigos de requisitos (ex.: VIVO.SEGURA.CRIP.*) e as regras da empresa.',
+    'Cite explicitamente os códigos de requisitos (ex.: CYBER.SEGURA.CRIP.*) e as regras da empresa.',
     'Não invente requisitos que não estejam no contexto fornecido.',
   ].join(' ');
 

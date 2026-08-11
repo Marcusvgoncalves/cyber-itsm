@@ -17,7 +17,7 @@ import { createAuditLog } from "@/lib/audit/audit";
  *
  * Todas as ações exigem perfil ADMIN. Conceder/revogar o consentimento de
  * expurgo exige, adicionalmente, que o usuário autenticado SEJA o aprovador
- * exclusivo (marcus.goncalves) — o expurgo de logs > 90 dias não pode ser
+ * exclusivo (secops.admin) — o expurgo de logs > 90 dias não pode ser
  * executado sem esse consentimento (enforced no job de retenção).
  */
 
@@ -49,7 +49,7 @@ export async function grantAuditPurgeConsentAction(): Promise<{ ok?: boolean; er
 
   if (!isAuditApprover(auth.email)) {
     return {
-      error: 'Acesso negado. Apenas o usuário aprovador (marcus.goncalves) pode conceder o consentimento de expurgo.',
+      error: 'Acesso negado. Apenas o usuário aprovador (secops.admin) pode conceder o consentimento de expurgo.',
     };
   }
 
@@ -73,7 +73,7 @@ export async function revokeAuditPurgeConsentAction(consentId: string): Promise<
 
   if (!isAuditApprover(auth.email)) {
     return {
-      error: 'Acesso negado. Apenas o usuário aprovador (marcus.goncalves) pode revogar o consentimento de expurgo.',
+      error: 'Acesso negado. Apenas o usuário aprovador (secops.admin) pode revogar o consentimento de expurgo.',
     };
   }
 

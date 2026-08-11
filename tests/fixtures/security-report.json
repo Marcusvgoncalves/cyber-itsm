@@ -4,21 +4,21 @@
   "resumoExecutivo": "Relatório sintético gerado pela suíte E2E do Playwright para validar o pipeline de ingestão, análise e arquivamento do Centro de Security QA.",
   "achados": [
     {
-      "requirementId": "VIVO.SEGURA.AUT.01",
+      "requirementId": "CYBER.SEGURA.AUT.01",
       "controle": "Autenticação MFA obrigatória",
       "status": "nao_conforme",
       "evidencia": "Bucket S3 público expõe credenciais em arquivo de configuração versionado.",
       "recomendacao": "Revogar credenciais, aplicar política privada e ativar MFA em todos os acessos administrativos."
     },
     {
-      "requirementId": "VIVO.SEGURA.CRIP.02",
+      "requirementId": "CYBER.SEGURA.CRIP.02",
       "controle": "Tráfego TLS 1.2+",
       "status": "parcial",
       "evidencia": "Tráfego em produção protegido por TLS, porém com protocolos legados habilitados no load balancer.",
       "recomendacao": "Desabilitar TLS 1.0/1.1 e forçar TLS 1.2+ com cipher suites modernas."
     },
     {
-      "requirementId": "VIVO.SEGURA.LOG.03",
+      "requirementId": "CYBER.SEGURA.LOG.03",
       "controle": "Logs de auditoria centralizados",
       "status": "conforme",
       "evidencia": "Logs de acesso e de administração centralizados no SIEM corporativo com retenção de 12 meses.",

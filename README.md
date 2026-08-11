@@ -105,7 +105,7 @@ Esteira de resiliência encadeada com **RAG (Retrieval-Augmented Generation)** s
 
 #### 8. 🛡️ Trilha de Auditoria & Política de Retenção (Governança SecOps)
 - **Trilha de Auditoria Imutável (`audit_logs`)**: Gravação de logins/logouts, CRUD de chamados, movimentações Kanban, cadastros e requisições de QA.
-- **Ciclo em 3 Estágios**: **HOT** (0–7 dias no DB), **ARCHIVE** (7–90 dias GZIP no Storage via Inngest) e **PURGE** (>90 dias expurgo definitivo mediante consentimento de `marcus.goncalves`).
+- **Ciclo em 3 Estágios**: **HOT** (0–7 dias no DB), **ARCHIVE** (7–90 dias GZIP no Storage via Inngest) e **PURGE** (>90 dias expurgo definitivo mediante consentimento de `secops.admin`).
 - **Ações administrativas (ADMIN)**: Consultar o status da política, executar a rotina manualmente e conceder/revogar o consentimento de expurgo diretamente na aba Auditoria.
 
 ---
@@ -198,7 +198,7 @@ A resilient fallback pipeline with RAG capabilities over the 314 security requir
 
 #### 8. 🛡️ Audit Trail & Retention Policy (SecOps Governance)
 - **Immutable Audit Trail (`audit_logs`)**: Real-time recording of logins/logouts, ticket CRUD, Kanban moves, registrations, consents, and QA requests.
-- **3-Stage Lifecycle**: **HOT** (0–7 days in DB), **ARCHIVE** (7–90 days per-day GZIP in Storage via Inngest), and **PURGE** (>90 days permanent deletion subject to `marcus.goncalves` consent).
+- **3-Stage Lifecycle**: **HOT** (0–7 days in DB), **ARCHIVE** (7–90 days per-day GZIP in Storage via Inngest), and **PURGE** (>90 days permanent deletion subject to `secops.admin` consent).
 - **Admin actions (ADMIN)**: View policy status, run the routine manually, and grant/revoke purge consent directly from the Audit tab.
 
 ---

@@ -170,7 +170,7 @@ export function ManualPdfDocument() {
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.2)", paddingTop: 12 }}>
           <Text style={{ fontSize: 9, opacity: 0.8 }}>Versão 2.4 (Edição 2026)</Text>
-          <Text style={{ fontSize: 9, opacity: 0.8 }}>Vivo Telefônica · Cibersegurança Corporativa</Text>
+          <Text style={{ fontSize: 9, opacity: 0.8 }}>CyberITSM · Cibersegurança Corporativa</Text>
         </View>
       </Page>
 
@@ -318,7 +318,7 @@ export function ManualPdfDocument() {
               1. Clique em <Text style={styles.bold}>"Nova Avaliação"</Text> e informe o Nome do Projeto e URL do Ambiente.
             </Text>
             <Text style={styles.bulletItem}>
-              2. Selecione os Requisitos de Arquitetura aplicáveis do escopo (ex.: VIVO.SEGURA.APIS.*).
+              2. Selecione os Requisitos de Arquitetura aplicáveis do escopo (ex.: CYBER.SEGURA.APIS.*).
             </Text>
             <Text style={styles.bulletItem}>
               3. Faça o upload do arquivo de evidência (.json, .xml ou .txt com até 5MB).

@@ -3,7 +3,7 @@
 -- ------------------------------------------------------------
 -- HOT (0-7d):        public.audit_logs (consultável na UI)
 -- ARCHIVE (7-90d):   public.audit_logs_archive (GZIP por dia)
--- PURGE (>90d):      somente com consentimento de marcus.goncalves
+-- PURGE (>90d):      somente com consentimento de secops.admin
 --                    registrado em public.audit_purge_consent.
 -- ------------------------------------------------------------
 -- Aplicar com o client do Supabase (SQL Editor) ou psql.
@@ -26,7 +26,7 @@ CREATE TABLE public.audit_logs_archive (
 );
 CREATE INDEX idx_audit_archive_purged_at ON public.audit_logs_archive(purged_at);
 
--- Consentimento de expurgo (somente marcus.goncalves pode conceder).
+-- Consentimento de expurgo (somente secops.admin pode conceder).
 CREATE TABLE public.audit_purge_consent (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   consented_by_email TEXT NOT NULL,

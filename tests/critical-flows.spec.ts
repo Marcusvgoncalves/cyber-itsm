@@ -50,9 +50,9 @@ async function fillAssessForm(page: Page, projectName: string) {
   await fillReactInput(
     page,
     page.locator("#requirements"),
-    "VIVO.SEGURA.AUT.01 - Autenticação MFA obrigatória\n" +
-      "VIVO.SEGURA.CRIP.02 - Tráfego TLS 1.2+\n" +
-      "VIVO.SEGURA.LOG.03 - Logs de auditoria centralizados"
+    "CYBER.SEGURA.AUT.01 - Autenticação MFA obrigatória\n" +
+      "CYBER.SEGURA.CRIP.02 - Tráfego TLS 1.2+\n" +
+      "CYBER.SEGURA.LOG.03 - Logs de auditoria centralizados"
   );
 }
 

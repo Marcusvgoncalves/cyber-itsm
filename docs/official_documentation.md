@@ -9,7 +9,7 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
 - **Base de Conhecimento Vetorial (RAG/pgvector)**: Tabela `knowledge_articles` com coluna `embedding vector(3072)` populada pelos embeddings **`gemini-embedding-2`** via script de seed 100% isolado (`scripts/seed-production-rag.ts`) — processamento em lotes de 10, delay de 2s entre lotes (anti Rate Limit 429) e **idempotência** (pula `title`/`code` já existentes).
 - **Portal IAM / IGA & SCIM v2.0 / SAML 2.0**: Barramento de governança de acesso com suporte a SCIM (`/api/scim/v2/Users`), Single Sign-On SAML 2.0 e fila de aprovação Sailpoint JIT.
 - **Painel de Configurações e Cadastros (SoD Admin)**: Módulo restrito de governança com **Matriz SoD** granular, gestão de Sprints, Preferências de Notificação, Matriz Dinâmica de Requisitos customizados e **Painel de Consumo de LLM** por provedor.
-- **Trilha de Auditoria & Política de Retenção (Governança SecOps)**: Trilha imutável em `audit_logs` com ciclo de vida em 3 estágios — HOT (0–7 dias) consultável na UI, ARCHIVE (7–90 dias) comprimido em GZIP por dia no `audit_logs_archive` via job diário do Inngest, e PURGE (>90 dias) **somente com consentimento explícito** do aprovador `marcus.goncalves` (`audit_purge_consent`).
+- **Trilha de Auditoria & Política de Retenção (Governança SecOps)**: Trilha imutável em `audit_logs` com ciclo de vida em 3 estágios — HOT (0–7 dias) consultável na UI, ARCHIVE (7–90 dias) comprimido em GZIP por dia no `audit_logs_archive` via job diário do Inngest, e PURGE (>90 dias) **somente com consentimento explícito** do aprovador `secops.admin` (`audit_purge_consent`).
 - **Sessão Reativa & Autenticação Segura**: Suporte a MFA/TOTP obrigatório (RFC 6238), limite de sessão de **1 hora de uso contínuo** e **15 minutos de inatividade**, com persistência local de chats no `localStorage`.
 
 ---
@@ -150,8 +150,8 @@ O **CyberITSM SPN** é uma plataforma corporativa especializada em **IT Service 
   - **Ciclo de Vida em 3 Estágios**:
     - **HOT (0–7 dias)**: logs recentes consultáveis na aba **Auditoria** do Dashboard (`?tab=audit`, restrita a ADMIN) e exportáveis em CSV.
     - **ARCHIVE (7–90 dias)**: job diário do **Inngest** (`auditRetentionJob`, cron `0 3 * * *` UTC) comprime os logs em **GZIP por dia** (`node:zlib`, nível 9) para `audit_logs_archive` (upsert idempotente por `archive_day`) e remove do hot apenas após persistir — sem perda de rastreabilidade forense.
-    - **PURGE (>90 dias)**: expurgo definitivo **somente com consentimento explícito** do aprovador `marcus.goncalves` (`audit_purge_consent`, validade de 30 dias renovável). Sem consentimento vigente o job retém tudo e reporta `awaitingConsent`.
-  - **Ações administrativas (ADMIN)**: `getAuditRetentionStatusAction` (status da política), `runAuditRetentionNowAction` (execução manual), `grantAuditPurgeConsentAction`/`revokeAuditPurgeConsentAction` (consentimento — restritas ao aprovador `marcus.goncalves`).
+    - **PURGE (>90 dias)**: expurgo definitivo **somente com consentimento explícito** do aprovador `secops.admin` (`audit_purge_consent`, validade de 30 dias renovável). Sem consentimento vigente o job retém tudo e reporta `awaitingConsent`.
+  - **Ações administrativas (ADMIN)**: `getAuditRetentionStatusAction` (status da política), `runAuditRetentionNowAction` (execução manual), `grantAuditPurgeConsentAction`/`revokeAuditPurgeConsentAction` (consentimento — restritas ao aprovador `secops.admin`).
 
 ### 3.8 Base de Conhecimento Vetorial (RAG/pgvector) & Seed de Produção
 - **Localização**: `prisma/schema.prisma` (model `KnowledgeArticle`), `scripts/create-knowledge-table.ts`, `scripts/seed-production-rag.ts`
@@ -272,7 +272,7 @@ model KnowledgeArticle {
 > **Tabelas complementares de governança (Supabase, fora do Prisma)**:
 > - `audit_logs` — trilha imutável de auditoria (HOT 0–7 dias), com `user_id`, `action`, `entity_type`, `entity_id`, `old_data`/`new_data` (JSONB), `ip_address`, `user_agent` e `created_at`.
 > - `audit_logs_archive` — arquivo frio com os logs comprimidos em **GZIP por dia** (7–90 dias): `archive_day` (UNIQUE), `payload_gz` (BYTEA), `row_count`, `original_bytes`, `compressed_bytes`, `compression_ratio` e `purged_at`.
-> - `audit_purge_consent` — consentimento de expurgo (>90 dias), validade de 30 dias, restrito ao aprovador `marcus.goncalves`; status `GRANTED | REVOKED | EXECUTED` com `granted_at`, `expires_at`, `revoked_at` e `executed_at`.
+> - `audit_purge_consent` — consentimento de expurgo (>90 dias), validade de 30 dias, restrito ao aprovador `secops.admin`; status `GRANTED | REVOKED | EXECUTED` com `granted_at`, `expires_at`, `revoked_at` e `executed_at`.
 > - `knowledge_articles` — base vetorial RAG (pgvector): a coluna `embedding` é `vector(3072)`; criação via `scripts/create-knowledge-table.ts` (extensão `pgvector` + tabela) e população via `scripts/seed-production-rag.ts`.
 
 ---
@@ -347,6 +347,6 @@ The **CyberITSM SPN** platform is built on Next.js 16, React 19, Supabase Postgr
 - **IAM / IGA Portal**: SCIM v2.0 provisioning endpoints (`/api/scim/v2/Users`), SAML 2.0 federated SSO, CSV Audit Logs export, and Sailpoint JIT access request workflows.
 - **B2B Integrations & MTLS**: Native setup interfaces for Jira, ServiceNow, and M365 with Mutual TLS certificate handling.
 - **Registrations (SoD Admin Panel)**: Governance module with **SoD Matrix** (3 profiles, 8 permissions), Sprint CRUD, Notification Preferences, Dynamic Security Requirements Matrix, and **LLM Consumption Panel** with real per-provider metrics (Google Gemini, OpenAI, OpenRouter, Groq) — call counts, failure rate, tokens used, and estimated cost. All write operations are server-side ADMIN-gated with full audit logging.
-- **Audit Trail & Retention Policy (SecOps Governance)**: Immutable `audit_logs` trail with a **3-stage lifecycle** — HOT (0–7 days) queryable in the Dashboard Audit tab, ARCHIVE (7–90 days) compressed per-day into **GZIP** (`node:zlib`, level 9) into `audit_logs_archive` via a daily **Inngest** job (03:00 UTC), and PURGE (>90 days) **only with explicit consent** from approver `marcus.goncalves` (`audit_purge_consent`, renewable 30-day validity). ADMIN can view policy status, run the routine manually, and grant/revoke purge consent.
+- **Audit Trail & Retention Policy (SecOps Governance)**: Immutable `audit_logs` trail with a **3-stage lifecycle** — HOT (0–7 days) queryable in the Dashboard Audit tab, ARCHIVE (7–90 days) compressed per-day into **GZIP** (`node:zlib`, level 9) into `audit_logs_archive` via a daily **Inngest** job (03:00 UTC), and PURGE (>90 days) **only with explicit consent** from approver `secops.admin` (`audit_purge_consent`, renewable 30-day validity). ADMIN can view policy status, run the routine manually, and grant/revoke purge consent.
 - **Reactive Session & Security**: MFA/TOTP (RFC 6238) enforcement, 1-hour active session limit, 15-minute idle timeout, and per-user local chat history persistence.
 - **API & Route Coverage**: Unified routing structure providing **9 user interface paths** (including the embeddable widget `/embed/security-qa/[id]`) and **15 backend service/integration API endpoints** (including the External APIs v1: `/api/external/v1/security-qa` and `/api/external/v1/llm-proxy`).

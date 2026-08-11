@@ -232,7 +232,7 @@ async function main() {
   if (!fs.existsSync(DATA_FILE)) {
     console.error(`[FATAL] Arquivo de requisitos não encontrado: ${DATA_FILE}`);
     console.error('        Crie o arquivo data/requisitos-sd.json com um array de');
-    console.error('        { "code": "VIVO.SEGURA.AUT.01", "description": "..." }.');
+    console.error('        { "code": "CYBER.SEGURA.AUT.01", "description": "..." }.');
     process.exit(1);
   }
 
