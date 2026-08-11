@@ -350,7 +350,11 @@ export async function POST(req: Request) {
     } catch {
       authContext = null;
     }
-    const mcpTools = createCopilotTools(authContext);
+    const mcpTools = createCopilotTools(authContext, {
+      // Reencaminha a sessão do request original aos fetches internos /api/v1.
+      cookies: req.headers.get('cookie') ?? undefined,
+      origin: new URL(req.url).origin,
+    });
     const systemWithTools = `${SYSTEM_PROMPT}\n\n${MCP_TOOLS_GUIDANCE}`;
 
     const { result } = await routeToAvailableAgent(history, {

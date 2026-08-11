@@ -50,11 +50,24 @@ function toToolOutput(result: McpToolResult): unknown {
 }
 
 /**
+ * Contexto HTTP do request original, repassado às ferramentas para que a
+ * Feature Flag `USE_MICROSERVICES_API` possa reencaminhar a sessão e a base
+ * absoluta nos fetches internos para `/api/v1`.
+ */
+export interface CopilotHttpContext {
+  cookies?: string;
+  origin?: string;
+}
+
+/**
  * Constrói o `ToolSet` do Copiloto a partir das ferramentas do MCP local.
  * O contexto de autenticação (AuthContext) é capturado por closure — cada
  * requisição recebe as suas próprias ferramentas com o seu próprio usuário.
  */
-export function createCopilotTools(auth: AuthContext | null): ToolSet {
+export function createCopilotTools(
+  auth: AuthContext | null,
+  http?: CopilotHttpContext,
+): ToolSet {
   const server = getLocalMcpServer();
   const definitions = server.listTools();
   const tools: ToolSet = {};
@@ -65,7 +78,11 @@ export function createCopilotTools(auth: AuthContext | null): ToolSet {
       // Converte o JSON Schema MCP diretamente no inputSchema do AI SDK.
       inputSchema: jsonSchema(def.inputSchema as never),
       execute: async (input: Record<string, unknown>) => {
-        const result = await server.callTool(def.name, input, { auth });
+        const result = await server.callTool(def.name, input, {
+          auth,
+          cookies: http?.cookies,
+          origin: http?.origin,
+        });
         return toToolOutput(result);
       },
     });

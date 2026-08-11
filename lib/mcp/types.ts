@@ -46,6 +46,14 @@ export interface McpToolResult {
  */
 export interface McpExecutionContext {
   auth: AuthContext | null;
+  /**
+   * Header `Cookie` do request original. Reencaminhado nos fetches internos
+   * `/api/v1` (Feature Flag `USE_MICROSERVICES_API`) para preservar a MESMA
+   * sessão autenticada sem criar uma superfície nova de autenticação.
+   */
+  cookies?: string;
+  /** Origin do request original — base absoluta para os fetches internos. */
+  origin?: string;
 }
 
 /**

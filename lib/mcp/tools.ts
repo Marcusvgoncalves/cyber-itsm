@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createTicket, updateTicket } from '@/app/actions/tickets';
 import { getRequirementByCode, searchKnowledgeBase, formatRequirement } from './knowledge-base';
-import type { McpToolDefinition, McpToolResult } from './types';
+import type { McpToolDefinition, McpToolResult, McpExecutionContext } from './types';
 
 /**
  * ============================================================================
@@ -47,6 +47,143 @@ function successResult(
     content: [{ type: 'text', text }],
     structuredContent,
   };
+}
+
+/**
+ * ============================================================================
+ * FEATURE FLAG: MICROSERVIÇOS / API v1 (transição silenciosa)
+ *
+ * Quando `USE_MICROSERVICES_API=true`, `list_active_epics` e
+ * `create_kanban_ticket` deixam de acessar o domínio no mesmo processo e
+ * passam a chamar as rotas HTTP internas em `/api/v1/...` via `fetch()` —
+ * primeiro passo da extração do monólito (API Gateway/BFF).
+ *
+ *   - Sessão: o header `Cookie` do request original é reencaminhado, então a
+ *     rota interna autentica com a MESMA sessão (nenhuma superfície nova);
+ *   - Base: origin do request original (fallback: NEXT_PUBLIC_APP_URL ou
+ *     http://localhost:3000);
+ *   - Falha de rede/deploy: a ferramenta devolve `isError` controlado (não
+ *     lança exceção para o modelo).
+ * ============================================================================
+ */
+
+/** Lê a Feature Flag em runtime (`USE_MICROSERVICES_API=true`). */
+function isMicroservicesApiEnabled(): boolean {
+  return process.env.USE_MICROSERVICES_API === 'true';
+}
+
+/** Base absoluta para os fetches internos da Feature Flag. */
+function internalApiBaseUrl(ctx: McpExecutionContext): string {
+  return ctx.origin ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+}
+
+/** Reencaminha a sessão do request original para as rotas `/api/v1`. */
+function internalApiHeaders(ctx: McpExecutionContext): Record<string, string> {
+  return ctx.cookies ? { Cookie: ctx.cookies } : {};
+}
+
+/**
+ * Lista Épicos ativos via GET /api/v1/kanban/epics.
+ * Paridade de mensagens com a implementação legada (`fetchActiveEpics`).
+ */
+async function fetchActiveEpicsViaApi(
+  ctx: McpExecutionContext,
+  limit: number,
+): Promise<McpToolResult> {
+  try {
+    const res = await fetch(
+      `${internalApiBaseUrl(ctx)}/api/v1/kanban/epics?limit=${limit}`,
+      { headers: internalApiHeaders(ctx), cache: 'no-store' },
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      return errorResult(
+        `Não foi possível listar os Épicos via API v1: ${data?.error ?? res.statusText}`,
+      );
+    }
+
+    if (data.epics.length === 0) {
+      return errorResult(
+        'Nenhum Épico ativo encontrado no Kanban. Crie um Épico antes de abrir chamados ou informe o Épico manualmente.',
+      );
+    }
+
+    const text = [
+      `Épicos ativos no Kanban (${data.count}):`,
+      ...data.epics.map(
+        (e: { id: string; title: string; status: string }, i: number) =>
+          `${i + 1}. ${e.title} (ID: ${e.id}) — ${e.status}`,
+      ),
+      'Pergunte ao usuário qual Épico ele deseja selecionar antes de criar o chamado.',
+    ].join('\n');
+
+    return successResult(text, {
+      success: true,
+      count: data.count,
+      epics: data.epics,
+    });
+  } catch (err) {
+    console.error('[MCP] Falha ao listar Épicos via API v1:', err);
+    return errorResult(
+      'Não foi possível listar os Épicos via API neste momento. Tente novamente.',
+    );
+  }
+}
+
+interface CreateTicketViaApiArgs {
+  title: string;
+  description?: string;
+  severity: Severity;
+  epic_id: string;
+  requirement_code?: string;
+}
+
+/**
+ * Cria um chamado via POST /api/v1/kanban/tickets.
+ * A validação do Épico é feita pela rota (devolve 404 com mensagem amigável).
+ */
+async function createTicketViaApi(
+  ctx: McpExecutionContext,
+  args: CreateTicketViaApiArgs,
+): Promise<McpToolResult> {
+  try {
+    const res = await fetch(`${internalApiBaseUrl(ctx)}/api/v1/kanban/tickets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...internalApiHeaders(ctx),
+      },
+      body: JSON.stringify({
+        title: args.title,
+        description: args.description,
+        severity: args.severity,
+        epic_id: args.epic_id,
+        requirement_code: args.requirement_code,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      return errorResult(
+        `Não foi possível criar o chamado via API v1: ${data?.error ?? res.statusText}`,
+      );
+    }
+
+    const ticket = data.ticket;
+    const epicId = ticket.epic?.id ?? args.epic_id;
+    const epicTitle = ticket.epic?.title ?? epicId;
+
+    return successResult(
+      `Chamado criado com sucesso via API v1: "${ticket.title}" (ID ${ticket.id}), vinculado ao Épico "${epicTitle}" (${epicId}), status ${ticket.status}, prioridade ${ticket.priority}, severidade ${args.severity}.`,
+      { success: true, ticket },
+    );
+  } catch (err) {
+    console.error('[MCP] Falha ao criar chamado via API v1:', err);
+    return errorResult(
+      'Não foi possível criar o chamado via API neste momento. Tente novamente.',
+    );
+  }
 }
 
 /** Épicos considerados ativos (não fechados nem cancelados). */
@@ -160,6 +297,20 @@ const createKanbanTicket = defineTool({
         'Não foi possível abrir o chamado: é necessário estar autenticado na plataforma CyberITSM. Solicite o login e tente novamente.',
       );
     }
+
+    // ===== FEATURE FLAG: MICROSERVIÇOS / API v1 (transição silenciosa) =====
+    // Quando habilitada, o domínio é acessado via HTTP (/api/v1/kanban/tickets)
+    // em vez da Server Action no mesmo processo.
+    if (isMicroservicesApiEnabled()) {
+      return await createTicketViaApi(ctx, {
+        title: args.title,
+        description: args.description,
+        severity: args.severity,
+        epic_id: args.epic_id,
+        requirement_code: args.requirement_code,
+      });
+    }
+    // ===== FIM DA FEATURE FLAG =====
 
     // 0) Épico Pai é obrigatório pela regra de negócio — valida existência e
     //    estado ativo ANTES de qualquer escrita, evitando erro de FK obscuro.
@@ -376,8 +527,14 @@ const listActiveEpics = defineTool({
       .optional()
       .describe('Quantidade máxima de épicos a retornar (padrão 20).'),
   }),
-  async execute(args) {
+  async execute(args, ctx) {
     try {
+      // ===== FEATURE FLAG: MICROSERVIÇOS / API v1 (transição silenciosa) =====
+      if (isMicroservicesApiEnabled()) {
+        return await fetchActiveEpicsViaApi(ctx, args.limit ?? 20);
+      }
+      // ===== FIM DA FEATURE FLAG =====
+
       const epics = await fetchActiveEpics(args.limit ?? 20);
 
       if (epics.length === 0) {
